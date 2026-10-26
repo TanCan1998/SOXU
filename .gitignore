@@ -26,3 +26,5 @@ apps/desktop/src-tauri/target/
 
 # Temporary assets
 /pic_temp/
+# Generated Tauri icon variants (master: apps/desktop/assets/soxu-master.png)
+/apps/desktop/src-tauri/icons/

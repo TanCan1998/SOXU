@@ -115,3 +115,7 @@ Direct dependency versions are pinned, Node.js requires `>=24` (local Node 26 is
 The owner has approved the dependency version baseline, UI direction, and Developer/Reviewer model IDs. **Actual model provider access, account spending limits, dependency lockfile generation, and production signing/release permissions have not been verified or authorized.** The bootstrap is not a production release.
 
 The repository `LICENSE` governs SOXU; third-party sources and dependencies retain their own licenses.
+
+### SOXU brand assets
+
+The approved mark is an interwoven cyan-to-blue S/X on a dark rounded square. `apps/desktop/assets/soxu-master.png` is the single high-resolution master; the web UI uses `apps/desktop/src/assets/soxu-{64,256}.png`. Do not use the old teal C-shaped placeholder or a plain letter S as the product mark. Tauri PNG/ICO/ICNS variants are not tracked in Git; regenerate them using `pnpm icons:generate`. `pnpm tauri:dev` and `pnpm tauri:build` generate them automatically. Run `pnpm icons:generate` before direct `cargo check/test`.

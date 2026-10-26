@@ -8,6 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "icons:generate": "pnpm --filter @soxu/desktop icons:generate",
     "dev": "pnpm --filter @soxu/desktop dev",
     "tauri:dev": "pnpm --filter @soxu/desktop tauri dev",
     "tauri:build": "pnpm --filter @soxu/desktop tauri build",

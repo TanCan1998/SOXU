@@ -45,6 +45,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - name: Generate approved SOXU desktop icons
+        run: pnpm icons:generate
       - run: cargo test --workspace --locked
       - uses: tauri-apps/tauri-action@v0.6.2
         env:

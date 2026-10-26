@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "dev.soxu.desktop",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "pnpm icons:generate && pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm icons:generate && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
