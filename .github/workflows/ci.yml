@@ -1,0 +1,39 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  quality:
+    strategy:
+      matrix:
+        node: ['24', '26']
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '${{ matrix.node }}'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '12.15.0'
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.node == '24'
+        with:
+          toolchain: 1.99.1
+      - name: Linux Tauri prerequisites
+        if: matrix.node == '24'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf
+      - run: cargo fmt --all -- --check
+        if: matrix.node == '24'
+      - run: cargo test --workspace --locked
+        if: matrix.node == '24'
+      - run: cargo check --workspace --locked
+        if: matrix.node == '24'
+      - run: pnpm --filter @soxu/desktop build

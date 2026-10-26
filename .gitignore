@@ -1,0 +1,28 @@
+# Node.js / pnpm
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Rust / Tauri
+target/
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/target/
+
+# SOXU Agent Loop runtime
+.soxu/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/*.log
+
+# Temporary assets
+/pic_temp/

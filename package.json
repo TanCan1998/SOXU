@@ -1,0 +1,28 @@
+{
+  "name": "soxu",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.15.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @soxu/desktop dev",
+    "tauri:dev": "pnpm --filter @soxu/desktop tauri dev",
+    "tauri:build": "pnpm --filter @soxu/desktop tauri build",
+    "check": "pnpm --filter @soxu/desktop check && node --test automation/loop/tests/*.test.mjs",
+    "test:loop": "node --test automation/loop/tests/*.test.mjs",
+    "agent:doctor": "node automation/loop/src/cli.mjs doctor",
+    "agent:status": "node automation/loop/src/cli.mjs status",
+    "agent:models": "node automation/loop/src/cli.mjs models",
+    "agent:once": "node automation/loop/src/cli.mjs once",
+    "agent:loop": "node automation/loop/src/cli.mjs loop",
+    "agent:seed": "node automation/loop/src/cli.mjs seed-issues",
+    "agent:release": "node scripts/release.mjs",
+    "mirror:atomgit": "node scripts/mirror.mjs",
+    "agent:watch": "node automation/loop/src/cli.mjs watch",
+    "agent:resume": "node automation/loop/src/cli.mjs resume",
+    "agent:say": "node automation/loop/src/cli.mjs say"
+  }
+}

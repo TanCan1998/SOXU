@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "roles": {
+    "developer": {
+      "provider": "magpie",
+      "model": "auto/deepseek-v4.1-flash",
+      "thinking": null
+    },
+    "reviewer": {
+      "provider": "magpie",
+      "model": "auto/deepseek-v4.1-flash",
+      "thinking": null
+    }
+  }
+}
