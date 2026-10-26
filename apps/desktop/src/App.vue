@@ -2,6 +2,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { runtimeInfo, type RuntimeInfo } from './services/native';
 import UiIcon from './UiIcon.vue';
+import brandIconSmall from './assets/soxu-64.png';
+import brandIconLarge from './assets/soxu-256.png';
 
 type Page = 'chat' | 'projects' | 'agents';
 type Entry = { id: number; role: 'user'; content: string };
@@ -63,7 +65,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyboard));
   <div class="app-shell" :data-theme="theme">
     <aside v-if="sidebarOpen" class="sidebar" aria-label="导航侧栏">
       <div class="side-head">
-        <button class="brand" type="button" @click="newChat" aria-label="SOXU 首页"><span class="brand-symbol">S</span><span class="brand-word">SOXU</span><span class="brand-cn">索序</span></button>
+        <button class="brand" type="button" @click="newChat" aria-label="SOXU 首页"><img class="brand-symbol" :src="brandIconSmall" alt="" /><span class="brand-word">SOXU</span><span class="brand-cn">索序</span></button>
         <button class="icon-button side-toggle" type="button" title="收起侧栏 (Ctrl+B)" aria-label="收起侧栏" @click="sidebarOpen=false"><UiIcon name="panel" :size="19"/></button>
       </div>
       <button class="nav-action" type="button" @click="newChat"><UiIcon name="plus"/><span>新对话</span><kbd>Ctrl K</kbd></button>
@@ -79,7 +81,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyboard));
       </div>
       <div class="side-bottom">
         <div class="status-side"><span class="state-dot"></span> Pi RPC 尚未连接</div>
-        <div class="side-bottom-row"><span class="avatar">S</span><span class="account-name">本地工作区 <small>SOXU · M0 原型</small></span><button class="icon-button" @click="toggleTheme" :title="theme==='light'?'切换深色':'切换浅色'" :aria-label="theme==='light'?'切换深色':'切换浅色'"><UiIcon :name="theme==='light'?'moon':'sun'" :size="18"/></button></div>
+        <div class="side-bottom-row"><span class="avatar"><img :src="brandIconSmall" alt="" /></span><span class="account-name">本地工作区 <small>SOXU · M0 原型</small></span><button class="icon-button" @click="toggleTheme" :title="theme==='light'?'切换深色':'切换浅色'" :aria-label="theme==='light'?'切换深色':'切换浅色'"><UiIcon :name="theme==='light'?'moon':'sun'" :size="18"/></button></div>
       </div>
     </aside>
 
@@ -95,7 +97,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeyboard));
       <main class="content-area">
         <template v-if="page==='chat'">
           <div v-if="!activeSession || activeSession.messages.length===0" class="empty-chat">
-            <div class="hero-mark">S<span class="hero-dot"></span></div>
+            <div class="hero-mark"><img :src="brandIconLarge" alt="" /><span class="hero-dot"></span></div>
             <h1>有什么新想法？</h1>
             <p>让想法从一个对话开始。多项目、并行 Agent 与持久会话将在后续里程碑接入。</p>
             <div class="welcome-pills"><span><UiIcon name="messages" :size="16"/> 对话优先</span><span><UiIcon name="activity" :size="16"/> 多 Agent</span><span><UiIcon name="bolt" :size="16"/> 轻量运行</span></div>
