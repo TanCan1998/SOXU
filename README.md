@@ -122,3 +122,7 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 所有者已确认主要依赖版本、参考 ChatGPT 的 UI/UX 方向，以及 Developer/Reviewer 使用的 Magpie 模型。**尚未授权无限额付费调用**；服务认证、费用预算、实际系统构建、签名及公开发布仍需另外核验/批准。当前一级依赖已在 manifest 固定，但锁文件还未生成，不得把它描述为已完整验收。
 
 本项目采用仓库 `LICENSE` 所列许可证；第三方依赖与参考项目的版权需分别遵守。
+
+### SOXU 品牌图标
+
+已确认的品牌图标为深色圆角底、蓝青渐变 S/X 交织造型。唯一高分辨率源文件为 `apps/desktop/assets/soxu-master.png`；Web UI 使用 `apps/desktop/src/assets/soxu-{64,256}.png`。不再使用青绿色 C 形占位图或字母 S 替代品牌图标。Tauri 的 32/128/256 PNG、Windows ICO 和 macOS ICNS 不提交到 Git，运行 `pnpm icons:generate` 从源图生成。`pnpm tauri:dev`、`pnpm tauri:build` 会自动生成；直接运行 `cargo check/test` 前先执行 `pnpm icons:generate`。
