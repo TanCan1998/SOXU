@@ -12,7 +12,43 @@ import { loadRoleModels } from "./agent-models.mjs";
 import { localProgress } from "./status.mjs";
 import { localTasks as getLocalTasks } from "./local-queue.mjs";
 
+const HELP = `SOXU Agent Loop
+
+Usage:
+  node automation/loop/src/cli.mjs [command] [options]
+
+Commands:
+  doctor       Check toolchain, model configuration and lockfiles (default)
+  status       Show offline task status; add --json for machine-readable output
+  models       Show Developer / Reviewer model routing
+  seed-issues  Publish backlog tasks as GitHub Issues
+  once         Execute one eligible batch (up to the configured concurrency)
+  loop         Run a bounded number of autonomous development rounds
+  watch        Poll GitHub tasks (bounded by policy; no --local or --dry-run)
+  resume       Resume paused/interrupted tasks, or interpret a recovery sentence
+  say          Execute a natural-language recovery instruction
+  help         Show this help
+
+Options:
+  -h, --help   Show this help (also works after a command)
+  --local      Use local tasks where supported
+  --github     Force GitHub mode for natural-language recovery
+  --dry-run    Preview eligible tasks/recovery actions without executing them
+  --json       JSON output for status
+
+Examples:
+  node automation/loop/src/cli.mjs status
+  node automation/loop/src/cli.mjs status --json
+  node automation/loop/src/cli.mjs once --local --dry-run
+  node automation/loop/src/cli.mjs resume --issue 123
+  node automation/loop/src/cli.mjs say --local "继续 SOXU"
+`;
+
 const [command = "doctor", ...args] = process.argv.slice(2).filter(x => x !== "--");
+if (command === "help" || command === "-h" || command === "--help" || args.includes("-h") || args.includes("--help")) {
+  console.log(HELP);
+  process.exit(0);
+}
 const local = args.includes("--local"), githubOnly = args.includes("--github"), dryRun = args.includes("--dry-run");
 if (local && githubOnly) throw new Error("--local and --github cannot be combined");
 const p = await loadPolicy();
