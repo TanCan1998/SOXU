@@ -1,0 +1,18 @@
+[package]
+name = "soxu-desktop"
+version = "0.1.0"
+description = "SOXU lightweight multi-agent desktop workspace"
+authors = ["SOXU contributors"]
+edition = "2024"
+
+[lib]
+name = "soxu_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.5", features = [] }
+serde = { version = "1", features = ["derive"] }
+soxu-pi-protocol = { path = "../../../crates/pi-protocol" }

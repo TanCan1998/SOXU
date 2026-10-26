@@ -1,0 +1,4 @@
+[package]
+name = "soxu-session-index"
+version = "0.1.0"
+edition = "2024"

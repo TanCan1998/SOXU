@@ -1,0 +1,58 @@
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify tag is on protected main with successful CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/check-release-context.mjs
+  binaries:
+    needs: [verify]
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-24.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '12.15.0'
+          run_install: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+      - name: Linux build dependencies
+        if: matrix.platform == 'ubuntu-24.04'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: cargo test --workspace --locked
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: 'SOXU ${{ github.ref_name }}'
+          releaseBody: 'SOXU prerelease. Unsigned/not-notarized builds may require OS trust prompts.'
+          releaseDraft: false
+          prerelease: true

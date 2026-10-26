@@ -1,0 +1,16 @@
+import { ROOT } from "../automation/loop/src/config.mjs";
+import { gh, git } from "../automation/loop/src/process.mjs";
+import { readFile } from "node:fs/promises";
+const tag = process.env.GITHUB_REF_NAME;
+const commit = process.env.GITHUB_SHA;
+if (!tag || !/^v0\.\d+\.\d+(?:-rc\.\d+)?$/.test(tag) || !commit || !/^[0-9a-f]{40}$/.test(commit)) throw new Error("Invalid release tag or SHA");
+await git(["fetch", "origin", "main"], ROOT);
+const inside = await git(["merge-base", "--is-ancestor", commit, "origin/main"], ROOT).then(()=>true,()=>false);
+if (!inside) throw new Error("Release tag commit is not on origin/main");
+const rootPkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+const appPkg = JSON.parse(await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"));
+const tauri = JSON.parse(await readFile(new URL("../apps/desktop/src-tauri/tauri.conf.json", import.meta.url), "utf8"));
+if ([rootPkg.version, appPkg.version, tauri.version].some(x => `v${x}` !== tag)) throw new Error("Version mismatch");
+const runs = JSON.parse(await gh(["run", "list", "--workflow", "ci.yml", "--branch", "main", "--limit", "50", "--json", "headSha,conclusion,status"], ROOT));
+if (!runs.some(x => x.headSha === commit && x.conclusion === "success" && x.status === "completed")) throw new Error("Release commit has no successful main CI");
+console.log("Release verified", tag, commit);

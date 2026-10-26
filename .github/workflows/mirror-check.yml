@@ -1,0 +1,12 @@
+name: Mirror advisory
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mirror-info:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "GitHub is canonical; configure the AtomGit Pull Mirror in its repository settings."
+          echo "This workflow intentionally uses no mirror credentials or write permissions."

@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "issueLabel": "agent:ready",
+  "maxConcurrentAgents": 2,
+  "maxRoundsPerInvocation": 5,
+  "maxRetries": 1,
+  "maxChangedFiles": 80,
+  "maxChangedBytes": 1500000,
+  "protectedPaths": [
+    "AGENTS.md",
+    "agents/policies/",
+    "automation/policy.json",
+    "automation/agent-models.json",
+    ".github/workflows/",
+    "scripts/release.mjs",
+    "scripts/mirror.mjs",
+    ".git/"
+  ],
+  "checks": [
+    {
+      "bin": "pnpm",
+      "args": [
+        "check"
+      ],
+      "timeoutMinutes": 8
+    },
+    {
+      "bin": "cargo",
+      "args": [
+        "test",
+        "--workspace"
+      ],
+      "timeoutMinutes": 12
+    }
+  ],
+  "autoMerge": true,
+  "autoRelease": true,
+  "releaseChannel": "prerelease",
+  "releaseBranch": "main",
+  "mirrorMode": "atomgit-pull-preferred",
+  "watchIntervalMinutes": 10,
+  "maxContinuousHours": 8,
+  "maxIssuesPerWatch": 12,
+  "timeouts": {
+    "piStartupSeconds": 90,
+    "piIdleSeconds": 240,
+    "piHardMinutes": 35,
+    "reviewHardMinutes": 12,
+    "installMinutes": 6,
+    "networkSeconds": 45,
+    "shutdownGraceSeconds": 5
+  },
+  "recovery": {
+    "manualOnQuota": true,
+    "manualOnNetwork": true,
+    "manualOnTimeout": true,
+    "automaticApiRetries": 0,
+    "preserveWorktree": true
+  },
+  "taskTimeoutMinutes": 35,
+  "reviewTimeoutMinutes": 8,
+  "rpcIdleTimeoutMinutes": 8,
+  "installTimeoutMinutes": 6
+}
