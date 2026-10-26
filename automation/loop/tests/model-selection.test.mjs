@@ -49,7 +49,7 @@ test('Magpie checked-in model can be overridden only by explicit complete runtim
   assert.deepEqual(modelArgs(models.developer), ['--provider','magpie','--model','auto/deepseek-v4.1-flash']);
 });
 
-test('RPC forwards explicit model flags to Pi subprocess', {skip:process.platform==='win32'}, async () => {
+test('RPC forwards explicit model flags and persists Pi sessions', {skip:process.platform==='win32'}, async () => {
   const dir = await mkdtemp(join(tmpdir(), 'soxu-role-model-'));
   const mock = join(dir,'fake-pi');
   const capture = join(dir,'argv.json');
@@ -70,7 +70,7 @@ process.stdin.on('data',data=>{
     process.env.SOXU_PI_BIN=mock;
     await runPi({cwd:dir,prompt:'Inspect model routing', timeoutMs:3000, modelSelection:{provider:'openai',model:'gpt-5.1-codex',thinking:'high'}});
     assert.deepEqual(JSON.parse(await readFile(capture,'utf8')),[
-      '--mode','rpc','--no-session','--provider','openai','--model','gpt-5.1-codex','--thinking','high'
+      '--mode','rpc','--provider','openai','--model','gpt-5.1-codex','--thinking','high'
     ]);
   } finally {
     if(previous===undefined) delete process.env.SOXU_PI_BIN;
