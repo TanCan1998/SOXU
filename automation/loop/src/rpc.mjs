@@ -68,7 +68,7 @@ export async function runPi({ cwd, prompt, timeoutMs, timeouts, onEvent = () => 
   const binary = process.env.SOXU_PI_BIN || "pi";
   const win = process.platform === "win32";
   if (win && !/^[a-zA-Z0-9_-]+$/.test(binary)) throw new Error("SOXU_PI_BIN on Windows must be a safe executable name");
-  const argv = ["--mode", "rpc", "--no-session", ...modelArgs(modelSelection)];
+  const argv = ["--mode", "rpc", ...modelArgs(modelSelection)];
   // Windows .cmd resolution requires cmd.exe; identifiers are strictly validated above.
   const child = spawn(win ? "cmd.exe" : binary, win ? ["/d", "/s", "/c", `${binary} ${argv.join(" ")}`] : argv, {
     cwd, env: safeEnvironment(), windowsHide: true, detached: !win, stdio: ["pipe", "pipe", "pipe"]
