@@ -46,7 +46,7 @@ test('resume accepts only a commit with exact tested/reviewed tree and expected 
     await inspectChanges(dir, base, policy);
     const tree = await git(['write-tree'], dir);
     const state = { issue: {number:17}, base, testedTree:tree, reviewedTree:tree };
-    await git(['commit', '-qm', 'feat: resolve Issue #17'], dir);
+    await git(['commit', '-qm', '✨ feat(agent): resolve Issue #17'], dir);
     const evidence = {
       head: await git(['rev-parse', 'HEAD'],dir),
       parent: await git(['rev-parse', 'HEAD^'],dir),
@@ -56,7 +56,7 @@ test('resume accepts only a commit with exact tested/reviewed tree and expected 
     assert.doesNotThrow(() => assertRecoveredCommit(state, evidence));
     assert.throws(() => assertRecoveredCommit({...state, reviewedTree:'other'}, evidence), /manual inspection/);
     assert.throws(() => assertRecoveredCommit(state, {...evidence, parent:'another-parent'}), /manual inspection/);
-    assert.throws(() => assertRecoveredCommit(state, {...evidence, subject:'feat: resolve Issue #999'}), /manual inspection/);
+    assert.throws(() => assertRecoveredCommit(state, {...evidence, subject:'✨ feat(agent): resolve Issue #999'}), /manual inspection/);
     await writeFile(join(dir,'base.txt'),'different commit content\n');
     await git(['add','base.txt'],dir);
     await git(['commit','--amend','--no-edit'],dir);

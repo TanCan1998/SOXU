@@ -8,7 +8,7 @@ export function nextPhaseForTree(phase, state, currentTree) {
 
 /** Never trust a recovered commit solely because its subject looks familiar. */
 export function assertRecoveredCommit(state, { head, parent, tree, subject }) {
-  const expectedSubject = `feat: resolve Issue #${state.issue?.number}`;
+  const expectedSubject = `✨ feat(agent): resolve Issue #${state.issue?.number}`;
   if (head === state.base || parent !== state.base || subject !== expectedSubject ||
       !tree || tree !== state.testedTree || tree !== state.reviewedTree) {
     throw new Error("Committed HEAD does not match tested/reviewed checkpoint; manual inspection required");

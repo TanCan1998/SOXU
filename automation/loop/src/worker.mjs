@@ -161,8 +161,8 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
             const currentTree = await git(["write-tree"], wt.directory);
             const next = nextPhaseForTree("commit", state, currentTree);
             if (next !== "commit") { await checkpoint(next); break; }
-            await git(["commit", "-m", `feat: resolve Issue #${issue.number}`], wt.directory);
-          } else if (last !== `feat: resolve Issue #${issue.number}`) throw new Error("Unexpected HEAD while recovering commit; manual inspection required");
+            await git(["commit", "-m", `✨ feat(agent): resolve Issue #${issue.number}`], wt.directory);
+          } else if (last !== `✨ feat(agent): resolve Issue #${issue.number}`) throw new Error("Unexpected HEAD while recovering commit; manual inspection required");
           await verifyCommittedHead();
           state.commit = await git(["rev-parse", "HEAD"], wt.directory);
           await checkpoint(local ? "done" : "push"); break;
