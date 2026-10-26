@@ -13,14 +13,14 @@ jobs:
         node: ['24', '26']
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '${{ matrix.node }}'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/setup@v3
         with:
           version: '12.15.0'
-          run_install: false
+          install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - uses: dtolnay/rust-toolchain@stable
