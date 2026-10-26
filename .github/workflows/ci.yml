@@ -9,6 +9,7 @@ permissions:
 jobs:
   quality:
     strategy:
+      max-parallel: 1
       matrix:
         node: ['24', '26']
     runs-on: ubuntu-24.04
@@ -17,10 +18,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '${{ matrix.node }}'
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/setup@v3
         with:
           version: '12.15.0'
-          run_install: false
+          install: false
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - uses: dtolnay/rust-toolchain@stable
