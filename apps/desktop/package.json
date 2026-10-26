@@ -15,7 +15,7 @@
     "@tauri-apps/api": "2.12.4",
     "@vueuse/core": "15.0.0",
     "class-variance-authority": "0.7.1",
-    "clsx": "^2.1.1",
+    "clsx": "2.1.1",
     "markdown-it": "15.0.3",
     "pinia": "4.1.0",
     "reka-ui": "2.11.0",
