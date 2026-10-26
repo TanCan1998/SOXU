@@ -10,7 +10,11 @@ struct RuntimeInfo {
 
 #[tauri::command]
 fn runtime_info() -> RuntimeInfo {
-    RuntimeInfo { app_name: "SOXU", app_version: env!("CARGO_PKG_VERSION"), platform: std::env::consts::OS }
+    RuntimeInfo {
+        app_name: "SOXU",
+        app_version: env!("CARGO_PKG_VERSION"),
+        platform: std::env::consts::OS,
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
