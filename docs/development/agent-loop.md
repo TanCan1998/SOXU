@@ -29,7 +29,7 @@ pnpm agent:worktrees            # 查看各任务落后、工作树修改和活�
 pnpm agent:worktrees -- --sync  # 只安全更新干净的早期任务
 ```
 
-`--sync` 只对没有未提交变更、没有活动锁，并且还处于 `worktree/install/develop` 阶段的工作树执行 fast-forward，同时更新检查点的 `state.base` 并重新安装依赖。已有未提交开发成果、已进入检查/审查/提交的任务，以及分叉或检查点不一致的任务**不会被自动修改**。禁止使用 `reset --hard` 或删除工作树。若同步过程中断，`syncPending` 记录可供下一次安全续作。本命令不调用模型。
+`--sync` 会对**没有活动锁、处于 worktree/install/develop 阶段且可快进**的工作树更新最新 main。对于未提交修改，先用 Git stash（包含未跟踪文件）生成可恢复备份，再快进和恢复变更；有冲突时记录 `mergeConflict` 与 stash SHA，保留原任务代码，由 `pnpm agent:resume` 调用 Developer 自行分析最新 main、解决冲突，经依赖安装、测试、Reviewer 审查后继续。不会自动丢弃 stash、`reset --hard` 或跳过质量门禁。历史分叉、受保护操作、活动锁及备份异常会安全暂停。不自动消耗模型额度重试超过 policy 的限制；本命令本身不调用模型。
 
 ### 超时与手动恢复
 
