@@ -26,6 +26,8 @@ test("roadmap counts all classified issues rather than a fixed backlog",()=>{
     {number:93,title:"Other",state:"OPEN",labels:[{name:"agent:ready"}]}];
   const prs=[{number:21,state:"MERGED",baseRefName:"main",body:"Closes #1",mergedAt:"2026-10-27T00:00:00Z"}];
   const roadmap=buildGithubStatus(catalog,issues,prs).__roadmap;
-  assert.deepEqual(roadmap.stages[1],{id:"M1",total:2,merged:1,running:1,paused:0,unknown:0,issues:[1,90]});
+  assert.deepEqual(roadmap.stages[1].issues,[1,90]);
+  assert.equal(roadmap.stages[1].items[0].merged,true);
+  assert.equal(roadmap.stages[1].items[1].title,"[M1] Additional work");
   assert.equal(roadmap.stages[2].total,2);assert.equal(roadmap.stages[2].paused,1);assert.equal(roadmap.unclassified,1);
 });
