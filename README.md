@@ -154,3 +154,5 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 ### SOXU 品牌图标
 
 已确认的品牌图标为深色圆角底、蓝青渐变 S/X 交织造型。唯一高分辨率源文件为 `apps/desktop/assets/soxu-master.png`；Web UI 使用 `apps/desktop/src/assets/soxu-{64,256}.png`。不再使用青绿色 C 形占位图或字母 S 替代品牌图标。Tauri 的 32/128/256 PNG、Windows ICO 和 macOS ICNS 不提交到 Git，运行 `pnpm icons:generate` 从源图生成。`pnpm tauri:dev`、`pnpm tauri:build` 会自动生成；直接运行 `cargo check/test` 前先执行 `pnpm icons:generate`。
+
+Runner 仅对可核验已合并且提交号未变化的自有任务分支进行清理。运行 `watch` 时约每分钟检查；Dashboard 合并后及打开期间也会检查，其他运行模式在启动或结束时检查，也可运行 `pnpm agent:cleanup`。工作树存在未提交、未跟踪或非构建缓存的忽略文件时保留本地分支；远程分支已发生变化时两者均保留。Runner 和 Dashboard 都停止时不会后台监控，下一次运行会重试。
