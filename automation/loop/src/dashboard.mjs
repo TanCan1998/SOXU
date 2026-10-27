@@ -301,6 +301,10 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
       return reply(403, { error: "invalid-host" });
     }
     if (request.headers.origin && request.headers.origin !== origin) return reply(403, { error: "invalid-origin" });
+    if (request.method === "GET" && request.url === "/favicon.ico") {
+      response.writeHead(204);
+      return response.end();
+    }
     if (request.method === "GET" && ASSETS.has(request.url)) {
       const [filename, type] = ASSETS.get(request.url);
       try {
@@ -317,7 +321,8 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
         "X-Accel-Buffering": "no",
       });
       streamClients.add(response);
-      response.on("close", () => release(response));
+      response.once("close", () => release(response));
+      response.once("error", () => release(response));
       sendFrame(response, "hello", { instanceId: coordinator.instanceId });
       if (!heartbeat) {
         heartbeat = setInterval(() => {
