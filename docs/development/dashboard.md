@@ -10,8 +10,7 @@ node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs
 ```
 
 打开 **http://127.0.0.1:47321/**，从启动终端复制本次生成的临时访问令牌，粘贴到页面后点击「连接」。
-控制台不自动运行 Agent；在浏览器主动点击「恢复中断任务」、「执行下一批」、「启动有界循环」
-或「持续监控开发」才会触发模型请求。Ctrl+C 退出控制台时会尝试通过 IPC 通知受管 Runner 优雅中断。
+控制台不自动运行 Agent；在浏览器主动点击「启动」、「启动循环」或「启动监控」才会触发模型请求。Ctrl+C 退出控制台时会尝试通过 IPC 通知受管 Runner 优雅中断。
 
 ### 功能
 
@@ -40,7 +39,7 @@ node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs
 ### 恢复已有任务
 
 如果 `node ../soxu-agent-loop/automation/loop/src/cli.mjs status` 显示已有 `running` 检查点但没有实际进程和活跃锁，
-打开控制台并点击「恢复中断任务」。如果原任务仍在另一终端执行，则控制台不会抢占。
+打开控制台并点击「启动」。如果原任务仍在另一终端执行，则控制台不会抢占。
 若遇到断线，先确认原执行进程已退出，再恢复；不要手工删 Worktree 或锁文件。
 
 ### 校验

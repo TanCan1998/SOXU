@@ -18,7 +18,7 @@ node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "恢复 Issue 123"
 # 明确授权批量恢复（受最大并行数限制，一批再次暂停即停止）
 node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "恢复所有暂停的任务"
 # 仍可通过以前的命令恢复
-node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- 123
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- 123
 ```
 
 Pi 项目 Skill 也能识别上述请求，详见 `.pi/skills/soxu-recover/SKILL.md`；**但 API 配额不足时请直接运行终端命令，不要依赖 Pi 对话理解指令**。
@@ -55,7 +55,7 @@ Pi 项目 Skill 也能识别上述请求，详见 `.pi/skills/soxu-recover/SKILL
 
 `ready → running → paused(quota/network/timeout/interrupted) → [显式 resume] → running → PR`。
 
-`blocked` 默认不参与恢复。检查并修复原因后，可先运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --blocked --issue 123 --dry-run` 预览，再去掉 `--dry-run` 显式恢复；不指定 Issue 时会包含同一模式下所有 paused、running 和 blocked 任务。安全检查与质量门禁仍会重新执行。若同步了最新 main，旧测试和审查结果失效，将重新安装依赖、检查并审查；存在冲突时由 Developer 基于保留的 stash 解决。Worktree 已修改和 Git 检查点是恢复基础；没有自动删除或复原未提交更改。仅一台 Coordinator 运行同一仓库任务，活跃 PID 锁禁止同时认领。Run 过程中意外崩溃留下锁时，`resume` 只回收已经确认 PID 不再存在的锁。
+`blocked` 默认不参与恢复。检查并修复原因后，可先运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --blocked --issue 123 --dry-run` 预览，再去掉 `--dry-run` 显式恢复；不指定 Issue 时会包含同一模式下所有 paused、running 和 blocked 任务。安全检查与质量门禁仍会重新执行。若同步了最新 main，旧测试和审查结果失效，将重新安装依赖、检查并审查；存在冲突时由 Developer 基于保留的 stash 解决。Worktree 已修改和 Git 检查点是恢复基础；没有自动删除或复原未提交更改。仅一台 Coordinator 运行同一仓库任务，活跃 PID 锁禁止同时认领。Run 过程中意外崩溃留下锁时，`resume` 只回收已经确认 PID 不再存在的锁。
 
 ## 必须验证的边界
 
@@ -71,6 +71,6 @@ Pi 项目 Skill 也能识别上述请求，详见 `.pi/skills/soxu-recover/SKILL
 - 没有任何暂停的任务就退出；不会从 `tasks/backlog/` 另外挑选新任务；不会自行重新验证额度并反复请求模型。
 - 只有 `paused` 检查点可自动恢复；进程突然被杀留下的 `running` 检查点需要先确认实际进程是否退出，防止与活跃 Agent 抢锁。`blocked` 需要人工检查故障原因。
 
-`agent:say` 使用严格的本地短句匹配：不调用模型解析命令；“继续 SOXU”默认只接续最近一个 **paused** 任务，批量恢复需要明确说“恢复所有暂停的任务”。危险或模糊输入会拒绝执行。`agent:resume` 无参数则按设置恢复所有可恢复任务（包括异常退出的 running 检查点，但仍须排除活跃 PID 锁）。
+`agent:say` 使用严格的本地短句匹配：不调用模型解析命令；“继续 SOXU”默认只接续最近一个 **paused** 任务，批量恢复需要明确说“恢复所有暂停的任务”。危险或模糊输入会拒绝执行。`cli.mjs start` 无参数则按设置恢复所有可恢复任务（包括异常退出的 running 检查点，但仍须排除活跃 PID 锁）。
 
 **同号任务隔离**：本地 TASK #N 与 GitHub Issue #N 的检查点、锁、Worktree/分支命名空间相互独立。显式指定编号且两个来源都有暂停记录时，需加 `--local` 或 `--github` 选择范围。

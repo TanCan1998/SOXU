@@ -11,13 +11,13 @@ node ../soxu-agent-loop/automation/loop/src/cli.mjs models         # 确认 Magp
 node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs      # 启动本地 Web 控制台，需手工输入访问令牌
 node ../soxu-agent-loop/automation/loop/src/cli.mjs status         # 本地任务与检查点概览（不查询 GitHub）
 node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor         # 检查工具链和暂停任务
-node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run
-node ../soxu-agent-loop/automation/loop/src/cli.mjs once           # 人工确认后执行一批
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --dry-run
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start           # 人工确认后执行一批
 node ../soxu-agent-loop/automation/loop/src/cli.mjs loop           # 有界多轮开发
 # node ../soxu-agent-loop/automation/loop/src/cli.mjs watch        # 仅专用执行环境、授权 GitHub 后运行
 ```
 
-产品 UI 开发预览使用 `pnpm tauri:dev`；它只启动桌面应用，不会自动启动 Agent 开发调度器。停止后 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --dry-run` 预览，再 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 继续。
+产品 UI 开发预览使用 `pnpm tauri:dev`；它只启动桌面应用，不会自动启动 Agent 开发调度器。停止后 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --dry-run` 预览，再 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start` 继续。
 
 ## 三层监控
 

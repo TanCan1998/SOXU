@@ -23,7 +23,7 @@ node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"
 
 解析器不通过网络、不调用大模型。恢复依赖 `.soxu/checkpoints/issue-123.json`，会复用已保存的分支、Worktree 与阶段。若再次触发同类错误，立刻暂停，不自动重试。
 
-旧命令 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- 123` 保持兼容。若希望在 Pi Agent 对话中用自然语言，可以加载 `.pi/skills/soxu-recover/SKILL.md`；额度耗尽时使用终端入口。
+旧命令 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- 123` 保持兼容。若希望在 Pi Agent 对话中用自然语言，可以加载 `.pi/skills/soxu-recover/SKILL.md`；额度耗尽时使用终端入口。
 
 ## 限制
 

@@ -55,7 +55,7 @@ node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor           # 工具链
 
 ## 已有任务 Worktree 同步
 
-`main` 更新后，现有 Worktree 不会自动更新。通过 `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs` 检查落后情况，通过 `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs -- --sync` 对早期任务生成旧修改的 Git stash 备份、快进最新 `main` 后恢复改动；若存在冲突则由 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 启动 Developer 自动修复，再经过质量门禁和 Reviewer 审查。保留备份、不强制覆盖、不自动绕过保护。详见 [Agent Loop 手册](docs/development/agent-loop.md)。
+`main` 更新后，现有 Worktree 不会自动更新。通过 `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs` 检查落后情况，通过 `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs -- --sync` 对早期任务生成旧修改的 Git stash 备份、快进最新 `main` 后恢复改动；若存在冲突则由 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start` 启动 Developer 自动修复，再经过质量门禁和 Reviewer 审查。保留备份、不强制覆盖、不自动绕过保护。详见 [Agent Loop 手册](docs/development/agent-loop.md)。
 
 ## 如何启动与监控自主开发
 
@@ -68,15 +68,13 @@ node ../soxu-agent-loop/automation/loop/src/cli.mjs seed-issues
 
 # 先预览，再人工授权执行
 node ../soxu-agent-loop/automation/loop/src/cli.mjs status           # 已实现：本地离线任务状态，不代表 GitHub 实时数据
-node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run
-node ../soxu-agent-loop/automation/loop/src/cli.mjs once
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --dry-run   # 预览：有可恢复任务则恢复，否则执行下一批
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start                # 启动：先恢复 paused/blocked，无可恢复再执行下一批
 node ../soxu-agent-loop/automation/loop/src/cli.mjs loop             # 有界自动循环
 # node ../soxu-agent-loop/automation/loop/src/cli.mjs watch          # 仅专用执行环境且确认权限后使用
 
-# 中断/额度/网络问题：本地检查点恢复
-node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --dry-run
-node ../soxu-agent-loop/automation/loop/src/cli.mjs resume
-node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"
+# 中断/额度/网络问题：同一入口即可恢复，无需先判断是暂停还是阻塞
+node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"   # 自然语言等价写法
 
 # 启动桌面应用（与 Agent Loop 独立）
 pnpm tauri:dev
