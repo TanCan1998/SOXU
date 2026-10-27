@@ -17,4 +17,4 @@
 
 ## 最小观测面
 
-需要可查询：当前 Issue、Agent 角色、模型 ID（不包含凭据）、Worktree、开始时间、阶段、最近有效事件、CI 链接、失败类型、是否可恢复、停机/子进程状态。未来 `pnpm agent:status` / `pnpm agent:dashboard` 需单独实现和测试；本规范不表示它们已经存在。
+需要可查询：当前 Issue、Agent 角色、模型 ID（不包含凭据）、Worktree、开始时间、阶段、最近有效事件、CI 链接、失败类型、是否可恢复、停机/子进程状态。未来 `node ../soxu-agent-loop/automation/loop/src/cli.mjs status` / `node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs` 需单独实现和测试；本规范不表示它们已经存在。

@@ -6,9 +6,9 @@
 
 | 轨道 | 命令 | 可写范围 |
 | --- | --- | --- |
-| Development | `pnpm agent:loop` / `pnpm agent:watch` | 原有 Issue → 独立 Worktree → Pi → checks → Reviewer → PR，服从现有门禁 |
-| Product | `pnpm agent:product` | 读取已批准 PRD/路线图/任务和可选 GitHub 快照，仅输出 `.soxu/advisory/product/` |
-| Quality | `pnpm agent:quality` | 读取提交、质量门禁、LESSONS 和可选 PR/CI 快照，仅输出 `.soxu/advisory/quality/` |
+| Development | `node ../soxu-agent-loop/automation/loop/src/cli.mjs loop` / `node ../soxu-agent-loop/automation/loop/src/cli.mjs watch` | 原有 Issue → 独立 Worktree → Pi → checks → Reviewer → PR，服从现有门禁 |
+| Product | `node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs product` | 读取已批准 PRD/路线图/任务和可选 GitHub 快照，仅输出 `.soxu/advisory/product/` |
+| Quality | `node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality` | 读取提交、质量门禁、LESSONS 和可选 PR/CI 快照，仅输出 `.soxu/advisory/quality/` |
 
 Product 和 Quality 每次仅执行**一次显式启动的模型分析**，不自动付费重试、不自动新建 Issue、不定时常驻、不修改治理策略、不合并、不发布。
 
@@ -16,14 +16,14 @@ Product 和 Quality 每次仅执行**一次显式启动的模型分析**，不�
 
 ```powershell
 cd F:\workplace\pi\SOXU
-pnpm agent:product -- --dry-run
-pnpm agent:quality -- --dry-run
-pnpm agent:lessons -- --json
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs product -- --dry-run
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality -- --dry-run
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs lessons -- --json
 
 # 下面的命令会明确调用已配置的 Pi / Magpie 模型：
-pnpm agent:product
-pnpm agent:quality
-pnpm agent:quality -- --offline
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs product
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality -- --offline
 ```
 
 `--dry-run` 忽略网络与模型调用；`--offline` 仅禁用 GitHub 查询。本地报告位于被 Git 忽略的 `.soxu/`。结果标记为未经核实建议，不能作为 CI 成功或已审批任务的证据。
@@ -40,7 +40,7 @@ pnpm agent:quality -- --offline
 
 `LESSONS.md` 中，每条记录包含 `id`、`date`、`evidence`、`rule`。日期必须有效；每个教训按**不同日期**计数，同日重复只算一天。
 
-`pnpm agent:lessons` 仅在同一规则于至少三个独立日期有证据时显示 `REVIEW REQUIRED`。这仅是资格提示，不代表自动审批。审批链：Quality 建议 → 维护者核实 → LESSONS 记录 → 人工批准 → 单独治理 PR → 受保护 main 合并。
+`node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs lessons` 仅在同一规则于至少三个独立日期有证据时显示 `REVIEW REQUIRED`。这仅是资格提示，不代表自动审批。审批链：Quality 建议 → 维护者核实 → LESSONS 记录 → 人工批准 → 单独治理 PR → 受保护 main 合并。
 
 ## 未实现范围
 

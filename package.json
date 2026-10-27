@@ -12,25 +12,8 @@
     "dev": "pnpm --filter @soxu/desktop dev",
     "tauri:dev": "pnpm --filter @soxu/desktop tauri dev",
     "tauri:build": "pnpm --filter @soxu/desktop tauri build",
-    "check": "pnpm --filter @soxu/desktop check && pnpm --filter @soxu/desktop test && node --test automation/loop/tests/*.test.mjs",
-    "test:loop": "node --test automation/loop/tests/*.test.mjs",
+    "check": "pnpm --filter @soxu/desktop check && pnpm --filter @soxu/desktop test",
     "agent:release": "node scripts/release.mjs",
-    "mirror:atomgit": "node scripts/mirror.mjs",
-    "agent": "node automation/loop/src/cli.mjs",
-    "agent:cleanup": "node automation/loop/src/cli.mjs cleanup",
-    "agent:doctor": "node automation/loop/src/cli.mjs doctor",
-    "agent:status": "node automation/loop/src/cli.mjs status",
-    "agent:models": "node automation/loop/src/cli.mjs models",
-    "agent:seed": "node automation/loop/src/cli.mjs seed-issues",
-    "agent:once": "node automation/loop/src/cli.mjs once",
-    "agent:loop": "node automation/loop/src/cli.mjs loop",
-    "agent:watch": "node automation/loop/src/cli.mjs watch",
-    "agent:resume": "node automation/loop/src/cli.mjs resume",
-    "agent:say": "node automation/loop/src/cli.mjs say",
-    "agent:product": "node automation/loop/src/advisory-cli.mjs product",
-    "agent:quality": "node automation/loop/src/advisory-cli.mjs quality",
-    "agent:lessons": "node automation/loop/src/advisory-cli.mjs lessons",
-    "agent:dashboard": "node automation/loop/src/dashboard-cli.mjs",
-    "agent:worktrees": "node automation/loop/src/worktree-sync-cli.mjs"
+    "mirror:atomgit": "node scripts/mirror.mjs"
   }
 }

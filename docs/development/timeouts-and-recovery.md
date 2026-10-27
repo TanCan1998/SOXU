@@ -5,20 +5,20 @@
 额度或网络恢复后，在 **SOXU 仓库根目录**直接运行：
 
 ```powershell
-pnpm agent:say -- "继续 SOXU"
+node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"
 ```
 
 一句话的解析是本地规则匹配，**不调用 LLM，不消耗 Token**。默认只恢复**最后更新的一个 `paused` 检查点**，自动识别它属于 GitHub 任务还是本地任务。它不会误把当前 `running` 或已 `blocked` 的任务接管。正常恢复执行开发环节时才会使用 Pi API。
 
 ```powershell
 # 只预览，绝不启动模型或工作树修改
-pnpm agent:say -- "继续 SOXU" --dry-run
+node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU" --dry-run
 # 根据 Issue 编号指定一个任务
-pnpm agent:say -- "恢复 Issue 123"
+node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "恢复 Issue 123"
 # 明确授权批量恢复（受最大并行数限制，一批再次暂停即停止）
-pnpm agent:say -- "恢复所有暂停的任务"
+node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "恢复所有暂停的任务"
 # 仍可通过以前的命令恢复
-pnpm agent:resume -- 123
+node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- 123
 ```
 
 Pi 项目 Skill 也能识别上述请求，详见 `.pi/skills/soxu-recover/SKILL.md`；**但 API 配额不足时请直接运行终端命令，不要依赖 Pi 对话理解指令**。
@@ -55,7 +55,7 @@ Pi 项目 Skill 也能识别上述请求，详见 `.pi/skills/soxu-recover/SKILL
 
 `ready → running → paused(quota/network/timeout/interrupted) → [显式 resume] → running → PR`。
 
-`blocked` 默认不参与恢复。检查并修复原因后，可先运行 `pnpm agent:resume -- --blocked --issue 123 --dry-run` 预览，再去掉 `--dry-run` 显式恢复；不指定 Issue 时会包含同一模式下所有 paused、running 和 blocked 任务。安全检查与质量门禁仍会重新执行。若同步了最新 main，旧测试和审查结果失效，将重新安装依赖、检查并审查；存在冲突时由 Developer 基于保留的 stash 解决。Worktree 已修改和 Git 检查点是恢复基础；没有自动删除或复原未提交更改。仅一台 Coordinator 运行同一仓库任务，活跃 PID 锁禁止同时认领。Run 过程中意外崩溃留下锁时，`resume` 只回收已经确认 PID 不再存在的锁。
+`blocked` 默认不参与恢复。检查并修复原因后，可先运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --blocked --issue 123 --dry-run` 预览，再去掉 `--dry-run` 显式恢复；不指定 Issue 时会包含同一模式下所有 paused、running 和 blocked 任务。安全检查与质量门禁仍会重新执行。若同步了最新 main，旧测试和审查结果失效，将重新安装依赖、检查并审查；存在冲突时由 Developer 基于保留的 stash 解决。Worktree 已修改和 Git 检查点是恢复基础；没有自动删除或复原未提交更改。仅一台 Coordinator 运行同一仓库任务，活跃 PID 锁禁止同时认领。Run 过程中意外崩溃留下锁时，`resume` 只回收已经确认 PID 不再存在的锁。
 
 ## 必须验证的边界
 

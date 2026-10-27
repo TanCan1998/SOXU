@@ -6,9 +6,9 @@
 2. `pnpm install --lockfile-only`、`cargo generate-lockfile` 生成并提交两份锁文件，再运行 `pnpm install --frozen-lockfile` 和 `node scripts/init-git.mjs`（不会覆盖已有 Git 仓库）。没有锁文件时，付费任务批次会提前拒绝启动；`--dry-run` 仍可预览。
 3. GitHub 新建 SOXU 仓库，创建 `main`；本机 `node scripts/set-remotes.mjs https://github.com/OWNER/SOXU.git`，再 `git push -u origin main`。
 4. GitHub 设置 main branch protection：要求 PR、必过 `quality` 检查、禁止强制推送与删除；允许 auto-merge。**首次上线须手工核验有效保护，不能依赖 Agent 自己开启。**
-5. `gh auth login`、`pi --version`、`pnpm agent:models`，启动 `pnpm agent:doctor`；设置最低权限的远程认证，不能将 PAT 放到 Issue 或 `.env` 里。
-6. `pnpm agent:seed` 创建初始化 Issues；无依赖任务标记 `agent:ready`，有依赖的标记 `agent:waiting`。`agent:blocked` 为人工/故障封锁，不会自行解除。升级自 v1.5 的 TASK-006 可能有旧默认 blocked 标签，需人工核对后改为 waiting。
-7. `pnpm agent:once -- --dry-run` 检查队列；`pnpm agent:once` 执行一批；`pnpm agent:loop` 执行 policy 限制的最多 5 轮，不是无保护无限循环。需要持续运行时可显式启动 `pnpm agent:watch`：每 10 分钟轮询，单次最多 8 小时/12 个任务，遇阻塞自动退出；由 OS 任务调度器在授权环境中重启下一轮。运行中按 Ctrl+C 停止。
+5. `gh auth login`、`pi --version`、`node ../soxu-agent-loop/automation/loop/src/cli.mjs models`，启动 `node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor`；设置最低权限的远程认证，不能将 PAT 放到 Issue 或 `.env` 里。
+6. `node ../soxu-agent-loop/automation/loop/src/cli.mjs seed-issues` 创建初始化 Issues；无依赖任务标记 `agent:ready`，有依赖的标记 `agent:waiting`。`agent:blocked` 为人工/故障封锁，不会自行解除。升级自 v1.5 的 TASK-006 可能有旧默认 blocked 标签，需人工核对后改为 waiting。
+7. `node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run` 检查队列；`node ../soxu-agent-loop/automation/loop/src/cli.mjs once` 执行一批；`node ../soxu-agent-loop/automation/loop/src/cli.mjs loop` 执行 policy 限制的最多 5 轮，不是无保护无限循环。需要持续运行时可显式启动 `node ../soxu-agent-loop/automation/loop/src/cli.mjs watch`：每 10 分钟轮询，单次最多 8 小时/12 个任务，遇阻塞自动退出；由 OS 任务调度器在授权环境中重启下一轮。运行中按 Ctrl+C 停止。
 
 ## 核心算法
 
@@ -21,19 +21,19 @@ GitHub Issues（TASK ID 依赖已满足、`agent:ready` 或可提升的 `agent:w
 
 ### Worktree 与最新 main 的同步
 
-已有 Worktree 不会自动接收后续合并到 `main` 的提交。`pnpm agent:resume` 会在模型调用前检查并安全快进所选任务；如存在未提交任务成果或其他风险，则保留检查点并跳过该任务，不能自动合并。也可以执行：
+已有 Worktree 不会自动接收后续合并到 `main` 的提交。`node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 会在模型调用前检查并安全快进所选任务；如存在未提交任务成果或其他风险，则保留检查点并跳过该任务，不能自动合并。也可以执行：
 
 ```powershell
 git fetch origin main
-pnpm agent:worktrees            # 查看各任务落后、工作树修改和活动锁
-pnpm agent:worktrees -- --sync  # 只安全更新干净的早期任务
+node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs            # 查看各任务落后、工作树修改和活动锁
+node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs -- --sync  # 只安全更新干净的早期任务
 ```
 
-`--sync` 会对**没有活动锁、处于 worktree/install/develop/checks/review/finalChecks 阶段且可快进**的工作树更新最新 main。对于未提交修改，先用 Git stash（包含未跟踪文件）生成可恢复备份，再快进和恢复变更；有冲突时记录 `mergeConflict` 与 stash SHA，保留原任务代码，由 `pnpm agent:resume` 调用 Developer 自行分析最新 main、解决冲突，经依赖安装、测试、Reviewer 审查后继续。不会自动丢弃 stash、`reset --hard` 或跳过质量门禁。历史分叉、受保护操作、活动锁及备份异常会安全暂停。不自动消耗模型额度重试超过 policy 的限制；本命令本身不调用模型。
+`--sync` 会对**没有活动锁、处于 worktree/install/develop/checks/review/finalChecks 阶段且可快进**的工作树更新最新 main。对于未提交修改，先用 Git stash（包含未跟踪文件）生成可恢复备份，再快进和恢复变更；有冲突时记录 `mergeConflict` 与 stash SHA，保留原任务代码，由 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 调用 Developer 自行分析最新 main、解决冲突，经依赖安装、测试、Reviewer 审查后继续。不会自动丢弃 stash、`reset --hard` 或跳过质量门禁。历史分叉、受保护操作、活动锁及备份异常会安全暂停。不自动消耗模型额度重试超过 policy 的限制；本命令本身不调用模型。
 
 ### 超时与手动恢复
 
-所有任务均有启动、连续无进展和绝对总时长三类超时保护。出现额度不足、网络中断、超时后，不做自动付费 API 重试；Git Worktree 与当前阶段保存在 `.soxu/checkpoints/`。**只需说“继续 SOXU”或运行 `pnpm agent:resume`**；不需要手动清理 Issue/Worktree。详情参见 `docs/development/timeouts-and-recovery.md`。
+所有任务均有启动、连续无进展和绝对总时长三类超时保护。出现额度不足、网络中断、超时后，不做自动付费 API 重试；Git Worktree 与当前阶段保存在 `.soxu/checkpoints/`。**只需说“继续 SOXU”或运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume`**；不需要手动清理 Issue/Worktree。详情参见 `docs/development/timeouts-and-recovery.md`。
 
 ### 本地开发模式
 
@@ -41,13 +41,13 @@ pnpm agent:worktrees -- --sync  # 只安全更新干净的早期任务
 
 ### 一句话恢复
 
-当额度或网络问题解决后，直接在工作目录运行 `pnpm agent:say -- "继续 SOXU"`。它会离线解析指令并优先选择**最后一个暂停**的任务。`--dry-run` 只列出将要恢复的检查点，不调用模型；“恢复所有暂停的任务”必须由用户明确说出才会批量执行。GitHub 与本地模式从检查点自动判断。详见 `.pi/skills/soxu-recover/SKILL.md`。
+当额度或网络问题解决后，直接在工作目录运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"`。它会离线解析指令并优先选择**最后一个暂停**的任务。`--dry-run` 只列出将要恢复的检查点，不调用模型；“恢复所有暂停的任务”必须由用户明确说出才会批量执行。GitHub 与本地模式从检查点自动判断。详见 `.pi/skills/soxu-recover/SKILL.md`。
 
-对于 `blocked`，先人工检查并修复原因，可在 WebUI 的任务列表中选择“恢复此任务”，也可以用 `pnpm agent:resume -- --blocked --issue 123 --dry-run` 预览，去掉 `--dry-run` 执行。同步 main 后会重新执行检查和审查；不会跳过密钥检测。
+对于 `blocked`，先人工检查并修复原因，可在 WebUI 的任务列表中选择“恢复此任务”，也可以用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --blocked --issue 123 --dry-run` 预览，去掉 `--dry-run` 执行。同步 main 后会重新执行检查和审查；不会跳过密钥检测。
 
 ### 恢复、停机、失败
 
-- 额度/网络/超时：Issue 可达时转 `agent:paused`，本地检查点与 Worktree 保留；使用 `pnpm agent:resume` 按阶段恢复。其他失败转 `agent:blocked`，不得绕过测试或规则。
+- 额度/网络/超时：Issue 可达时转 `agent:paused`，本地检查点与 Worktree 保留；使用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 按阶段恢复。其他失败转 `agent:blocked`，不得绕过测试或规则。
 - 运行时可以 `Ctrl+C` 中断 Runner；中断期间可能保留 Pi 子进程或编译进程，需在隔离环境检查并结束；不能直接删除可能有未提交改动的 Worktree。
 - 任何权限/密钥/工具链缺失导致检查无法运行，都属于失败，不得绕过。
 - 当前版本对 Pi 和 pnpm/Cargo 的子进程树执行终止与超时保护，但**尚未经过 Windows 实机完整验证，也没有多主机协调**。
@@ -69,7 +69,7 @@ GitHub 为唯一写入源，AtomGit 主要用作中国大陆克隆加速。优�
 
 ## Pi 模型分配与项目目标
 
-本工程的 Developer 和 Reviewer 可在 `automation/agent-models.json` 使用不同 Pi Provider/Model，或保持 `null` 继承 Pi 默认。`pnpm agent:models` 仅显示路由而不调用模型。详见 [模型选择手册](models.md)。PiDeck 仅作为开发监控工具；独立启动的 Pi 会话能否在 PiDeck 实时附加需实测。进度以 GitHub Issue/PR/CI 和本地检查点为准，详见 [监控手册](monitoring.md)。
+本工程的 Developer 和 Reviewer 可在 `automation/agent-models.json` 使用不同 Pi Provider/Model，或保持 `null` 继承 Pi 默认。`node ../soxu-agent-loop/automation/loop/src/cli.mjs models` 仅显示路由而不调用模型。详见 [模型选择手册](models.md)。PiDeck 仅作为开发监控工具；独立启动的 Pi 会话能否在 PiDeck 实时附加需实测。进度以 GitHub Issue/PR/CI 和本地检查点为准，详见 [监控手册](monitoring.md)。
 
 M0～M4 和可量化 P-01～P-08 标准见 [PRD](../product/prd.md)。新项目尚未完成，UI/UX 与依赖版本须单独获得所有者批准。
 
@@ -98,10 +98,10 @@ GitHub 模式每次调用 Developer 前（包括恢复和检查修复），查�
 
 ### 相近 PR 与 GitHub CI 步骤
 
-开发模型调用前还按任务标题和开放 PR 标题的共同词语生成最多五个疑似相近候选，仅作为待人工核实的启发式证据，不能证明重复，也会漏报或误报。发现候选时阻塞；核实后显式使用 `pnpm agent:resume -- --blocked --issue <编号>` 继续，精确关联同 Issue 的 PR 仍阻塞。检查不提供跨机器原子保证。
+开发模型调用前还按任务标题和开放 PR 标题的共同词语生成最多五个疑似相近候选，仅作为待人工核实的启发式证据，不能证明重复，也会漏报或误报。发现候选时阻塞；核实后显式使用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --blocked --issue <编号>` 继续，精确关联同 Issue 的 PR 仍阻塞。检查不提供跨机器原子保证。
 
 WebUI 的 GitHub 快照最多并行查询五个运行中 Actions 任务的步骤状态（需要 GitHub Actions 读取权限）。显示当前步骤和步骤开始/完成的最近变化时间，缺失权限或不可用时显示未知；它不是最后日志时间，也不据此判断卡死。运行中的日志下载不可用时请打开 GitHub Actions 查看；不为了监控自动重试任务或模型。
 
 ## 已合并任务清理
 
-Runner 按 GitHub 任务检查点核对已合并的同仓库、main 目标 PR 和确切提交号，仅清理 `agent/github-issue-*` 或旧 `agent/issue-*` 分支。远程删除使用匹配提交的 lease；本地删除前确认受管 Worktree、分支、提交及文件状态，只允许移除生成的 `node_modules`、`target` 和 `dist`，其它未跟踪或忽略文件、活跃锁、变化的分支均保留。清理结果写入检查点，失败可在下次检查时重试。`watch` 等待期间每分钟检查；Dashboard 手动合并后立即检查，使用期间约每分钟检查。其他 Runner 模式在启动或结束时检查；手动检查可运行 `pnpm agent:cleanup`。进程全部退出后不启动常驻服务，稍后合并的 PR 在下一次运行或打开 Dashboard 时清理。
+Runner 按 GitHub 任务检查点核对已合并的同仓库、main 目标 PR 和确切提交号，仅清理 `agent/github-issue-*` 或旧 `agent/issue-*` 分支。远程删除使用匹配提交的 lease；本地删除前确认受管 Worktree、分支、提交及文件状态，只允许移除生成的 `node_modules`、`target` 和 `dist`，其它未跟踪或忽略文件、活跃锁、变化的分支均保留。清理结果写入检查点，失败可在下次检查时重试。`watch` 等待期间每分钟检查；Dashboard 手动合并后立即检查，使用期间约每分钟检查。其他 Runner 模式在启动或结束时检查；手动检查可运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs cleanup`。进程全部退出后不启动常驻服务，稍后合并的 PR 在下一次运行或打开 Dashboard 时清理。

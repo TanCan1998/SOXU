@@ -6,7 +6,7 @@
 
 ```powershell
 cd F:\workplace\pi\SOXU
-pnpm agent:dashboard
+node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs
 ```
 
 打开 **http://127.0.0.1:47321/**，从启动终端复制本次生成的临时访问令牌，粘贴到页面后点击「连接」。
@@ -39,7 +39,7 @@ pnpm agent:dashboard
 
 ### 恢复已有任务
 
-如果 `pnpm agent:status` 显示已有 `running` 检查点但没有实际进程和活跃锁，
+如果 `node ../soxu-agent-loop/automation/loop/src/cli.mjs status` 显示已有 `running` 检查点但没有实际进程和活跃锁，
 打开控制台并点击「恢复中断任务」。如果原任务仍在另一终端执行，则控制台不会抢占。
 若遇到断线，先确认原执行进程已退出，再恢复；不要手工删 Worktree 或锁文件。
 
@@ -55,7 +55,7 @@ pnpm check
 
 ## English
 
-Run `pnpm agent:dashboard`, open `http://127.0.0.1:47321/`, and paste the fresh token displayed in the terminal.
+Run `node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs`, open `http://127.0.0.1:47321/`, and paste the fresh token displayed in the terminal.
 The dashboard streams bounded logs and metadata-only agent activity over authenticated SSE, calibrates via HTTP every 15 seconds, and explicitly starts/resumes/stops only its
 own coordinator subprocesses. It cannot take over independently started Pi agents. It never auto-merges
 or releases and does not present raw Pi conversations. Access is loopback-only with a server-side session token
