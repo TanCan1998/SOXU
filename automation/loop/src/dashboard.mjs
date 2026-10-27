@@ -13,6 +13,7 @@ import { loadRoleModels } from "./agent-models.mjs";
 import { AdvisoryManager, readLatestReport, listReports, readReport, deleteReports } from "./dashboard-advisory.mjs";
 import { readLaneStatus } from "./dashboard-lanes.mjs";
 import { IntakeManager } from "./dashboard-intake.mjs";
+import { cleanupMergedTasks } from "./merged-cleanup.mjs";
 import { DraftStore } from "./dashboard-drafts.mjs";
 import { mergeTaskPr } from "./dashboard-merge.mjs";
 import { readGithubStatus } from "./dashboard-github.mjs";
@@ -85,6 +86,7 @@ export class DashboardCoordinator extends EventEmitter {
     this.githubNext = 0;
     this.githubPending = null;
     this.lanes = null; this.lanesNext = 0; this.lanesPending = null;
+    this.cleanupNext=0;this.cleanupPending=null;this.cleanupController=new AbortController();
   }
   push(message, stream = "system") {
     const line = { seq: ++this.serial, time: new Date().toISOString(), stream, message: cleanLine(message) };
@@ -132,7 +134,13 @@ export class DashboardCoordinator extends EventEmitter {
     this.lanesPending = readLaneStatus(this.root).then(value=>{this.lanes=value;}).catch(()=>{this.lanes=null;})
       .finally(()=>{this.lanesPending=null;this.emit("dashboard:event",{type:"status",data:{}});});
   }
+  refreshCleanup() {
+    if(this.cleanupController.signal.aborted || this.cleanupPending || Date.now()<this.cleanupNext)return;
+    this.cleanupNext=Date.now()+60000;
+    this.cleanupPending=cleanupMergedTasks(this.root,{signal:this.cleanupController.signal,log:message=>this.push(message)}).catch(e=>this.push(`Merged cleanup unavailable: ${e.message}`)).finally(()=>{this.cleanupPending=null;});
+  }
   async snapshot() {
+    this.refreshCleanup();
     this.refreshGithub();
     this.refreshLanes();
     await this.intake.initialized;
@@ -254,6 +262,7 @@ export class DashboardCoordinator extends EventEmitter {
       if (this.github.status !== "ok" || !found) throw Object.assign(new Error("pr-not-listed"), {status:409});
       const result = await this.mergePr(this.root, issue, pr);
       this.push(`PR #${pr} merged; remote branch ${result.branchDeleted ? "deleted" : "not deleted"}`);
+      this.cleanupNext=0;this.refreshCleanup();
       this.githubNext = 0; this.refreshGithub();
       return result;
     } finally { this.reserved = false; this.emit("dashboard:event", {type:"status",data:{}}); }
@@ -270,6 +279,7 @@ export class DashboardCoordinator extends EventEmitter {
     return { accepted: true, stopping: true };
   }
   shutdown() {
+    this.cleanupController.abort();
     this.advisory.shutdown();
     this.intake.shutdown();
     this.drafts.shutdown();
