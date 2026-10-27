@@ -1,0 +1,16 @@
+:root {
+  --soxu-bg: #fcfcfc;
+  --soxu-accent: #3a83f7;
+  --soxu-sidebar: #f5f5f6;
+  --soxu-fg: #191919;
+  --soxu-border: #e9e9ed;
+  --soxu-selected: #e8f0ff;
+}
+:root[data-theme="dark"] {
+  --soxu-bg: #191717;
+  --soxu-accent: #3a83f7;
+  --soxu-sidebar: #222020;
+  --soxu-fg: #f4f3f3;
+  --soxu-border: #363333;
+  --soxu-selected: #2c3445;
+}
