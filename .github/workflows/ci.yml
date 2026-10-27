@@ -34,7 +34,6 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         id: filter
         with:
-          base: main
           filters: |
             js:
               - '.github/workflows/**'
