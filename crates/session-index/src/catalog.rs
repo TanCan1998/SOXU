@@ -221,6 +221,7 @@ impl ProjectCatalog {
             path: path.to_string_lossy().to_string(),
             branch: branch.map(str::to_string),
             primary: false,
+            missing: false,
             created_at_ms: now_ms(),
         };
         let parent = self.project_mut(project).ok_or_else(|| {
@@ -230,6 +231,50 @@ impl ProjectCatalog {
         parent.updated_at_ms = now_ms();
         self.touch();
         Ok(record)
+    }
+
+    /// 用 Git 服务枚举的结果回填已登记工作树的分支与可用状态。
+    ///
+    /// 只更新引用：不创建目录、不删除会话记录。Git 侧发现的新工作树先用
+    /// [`Self::add_worktree`] 登记，再由本方法补分支信息。
+    pub fn update_worktree(
+        &mut self,
+        project: &ProjectId,
+        worktree: &WorktreeId,
+        branch: Option<&str>,
+        missing: bool,
+    ) -> Result<WorktreeRecord> {
+        let parent = self.project_mut(project).ok_or_else(|| {
+            CatalogError::new(ErrorCode::ProjectUnknown, format!("项目未注册：{project}"))
+        })?;
+        let record = parent
+            .worktrees
+            .iter_mut()
+            .find(|candidate| &candidate.id == worktree)
+            .ok_or_else(|| {
+                CatalogError::new(
+                    ErrorCode::WorktreeUnknown,
+                    format!("工作树未登记：{worktree}"),
+                )
+            })?;
+        if let Some(branch) = branch {
+            record.branch = Some(branch.to_string());
+        }
+        record.missing = missing;
+        parent.updated_at_ms = now_ms();
+        let updated = record.clone();
+        self.touch();
+        Ok(updated)
+    }
+
+    /// 某个工作树下的全部会话记录（跨项目查找，工作树身份本身带项目前缀）。
+    pub fn sessions_in_worktree(&self, worktree: &WorktreeId) -> Vec<&SessionRecord> {
+        self.snapshot
+            .projects
+            .iter()
+            .flat_map(|project| project.sessions.iter())
+            .filter(|session| &session.worktree == worktree)
+            .collect()
     }
 
     pub fn sessions(&self, project: &ProjectId) -> Option<&[SessionRecord]> {
