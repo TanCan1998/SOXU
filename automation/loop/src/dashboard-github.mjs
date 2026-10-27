@@ -35,9 +35,16 @@ export function buildGithubStatus(catalog, issues, prs) {
         checks.some(c => c.status && c.status !== "COMPLETED" || c.state === "PENDING" || c.state === "EXPECTED") ? "pending" :
         checks.every(c => ["SUCCESS", "NEUTRAL", "SKIPPED"].includes(c.conclusion) || c.state === "SUCCESS") ? "success" : "unknown";
     }
+    // Check runs are job-level summaries, not step logs.
+    const activeChecks = pr && ci === "pending" ? (pr.statusCheckRollup ?? [])
+      .filter(c => c.status && c.status !== "COMPLETED" && typeof c.name === "string")
+      .slice(0, 10).map(c => ({
+        name: c.name.slice(0, 120),
+        startedAt: typeof c.startedAt === "string" && Number.isFinite(Date.parse(c.startedAt)) ? c.startedAt : null,
+      })) : [];
     tasks[task.id] = { issue: issue?.number ?? null, issueState: issue?.state ?? null,
       missing: task.dependencies.filter(id => !completed.has(id)),
-      pr: pr ? {number: pr.number, title: String(pr.title ?? "").slice(0,200), url: safePrUrl(pr.url, pr.number), state: pr.mergedAt ? "merged" : pr.state === "OPEN" ? "open" : "closed", ci} : null };
+      pr: pr ? {number: pr.number, title: String(pr.title ?? "").slice(0,200), url: safePrUrl(pr.url, pr.number), state: pr.mergedAt ? "merged" : pr.state === "OPEN" ? "open" : "closed", ci, ...(activeChecks.length ? {activeChecks} : {})} : null };
   }
   // Progress is derived from all explicitly classified Issues, never from a fixed task count.
   const stages=Object.fromEntries(["M0","M1","M2","M3","M4"].map(id=>[id,{id,total:0,merged:0,running:0,paused:0,unknown:0,issues:[],items:[]}]));

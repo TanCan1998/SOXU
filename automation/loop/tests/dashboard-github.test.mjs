@@ -31,3 +31,10 @@ test("roadmap counts all classified issues rather than a fixed backlog",()=>{
   assert.equal(roadmap.stages[1].items[1].title,"[M1] Additional work");
   assert.equal(roadmap.stages[2].total,2);assert.equal(roadmap.stages[2].paused,1);assert.equal(roadmap.unclassified,1);
 });
+
+test("active CI jobs expose bounded names and validated start times", () => {
+  const c=[{id:"TASK-001", dependencies:[]}], i=[{number:11,title:"[TASK-001] One",state:"OPEN"}];
+  const p=[{number:21,state:"OPEN",baseRefName:"main",body:"Closes #11",statusCheckRollup:[{name:"Rust / Tauri",status:"IN_PROGRESS",startedAt:"2026-10-27T10:00:00Z"}]}];
+  assert.deepEqual(buildGithubStatus(c,i,p)["TASK-001"].pr.activeChecks,[{name:"Rust / Tauri",startedAt:"2026-10-27T10:00:00Z"}]);
+  p[0].statusCheckRollup[0].startedAt="bad"; assert.equal(buildGithubStatus(c,i,p)["TASK-001"].pr.activeChecks[0].startedAt,null);
+});
