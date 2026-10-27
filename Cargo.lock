@@ -2875,12 +2875,17 @@ dependencies = [
  "serde",
  "serde_json",
  "soxu-agent-runtime",
+ "soxu-git-worktree",
  "soxu-pi-protocol",
  "soxu-session-index",
  "tauri",
  "tauri-build",
  "tokio",
 ]
+
+[[package]]
+name = "soxu-git-worktree"
+version = "0.1.0"
 
 [[package]]
 name = "soxu-pi-protocol"

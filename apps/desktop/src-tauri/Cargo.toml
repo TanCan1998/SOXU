@@ -19,4 +19,5 @@ serde_json = "1"
 soxu-pi-protocol = { path = "../../../crates/pi-protocol" }
 soxu-agent-runtime = { path = "../../../crates/agent-runtime" }
 soxu-session-index = { path = "../../../crates/session-index" }
+soxu-git-worktree = { path = "../../../crates/git-worktree" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }

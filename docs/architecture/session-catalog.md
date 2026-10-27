@@ -121,6 +121,9 @@ Pi 会话目录命名规则（默认布局，`SOXU_PI_SESSIONS_DIR` 可覆盖根
 | `E_PROJECT_UNKNOWN` | 项目未注册 | 否 |
 | `E_WORKTREE_UNKNOWN` | 工作树不属于该项目 | 否 |
 | `E_WORKTREE_PATH_MISSING` | 添加的工作树目录不存在 | 否 |
+
+工作树记录只被**引用**更新（分支、`missing` 标记），不会因目录消失而删除会话记录；
+Git 侧的枚举、创建与受确认删除见 [Git 工作树服务](worktree-service.md)。
 | `E_SESSION_UNKNOWN` | 会话未登记 | 否 |
 | `E_SESSION_FILE_MISSING` | 会话文件不存在（含翻页时被删除） | 是 |
 | `E_SESSION_PATH_CONFLICT` | 同一 SessionId 出现在两个都存活的文件 | 否 |

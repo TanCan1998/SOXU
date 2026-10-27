@@ -13,6 +13,7 @@ pub mod dto;
 pub mod session_runtime;
 pub mod state;
 pub mod workspace;
+pub mod worktree;
 
 use tauri::Manager;
 
@@ -36,6 +37,12 @@ pub fn run() {
             commands::list_projects,
             commands::register_project,
             commands::refresh_project,
+            commands::list_worktrees,
+            commands::plan_worktree_removal,
+            commands::create_worktree,
+            commands::worktree_diff,
+            commands::remove_worktree,
+            commands::prune_worktrees,
             commands::open_session_history,
             commands::read_session_texts,
             commands::start_session,

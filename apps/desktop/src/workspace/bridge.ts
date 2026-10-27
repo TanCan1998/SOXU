@@ -9,6 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type {
+  CreateWorktreeInput,
   EntryRef,
   EntryText,
   HistoryPage,
@@ -19,6 +20,11 @@ import type {
   RuntimeStatus,
   SessionId,
   SessionMode,
+  WorktreeDiffView,
+  WorktreeId,
+  WorktreeRemovalView,
+  WorktreeSummary,
+  WorktreeWorkspace,
   WorkspaceBridge,
 } from "./types.ts";
 
@@ -53,6 +59,18 @@ export function createTauriBridge(): WorkspaceBridge {
     releaseSession: async (sessionId: SessionId) => {
       await invoke<number>("release_session_events", { sessionId });
     },
+    listWorktrees: (projectId: ProjectId) =>
+      invoke<WorktreeWorkspace>("list_worktrees", { projectId }),
+    createWorktree: (projectId: ProjectId, input: CreateWorktreeInput) =>
+      invoke<WorktreeSummary>("create_worktree", { projectId, input }),
+    planWorktreeRemoval: (projectId: ProjectId, worktreeId: WorktreeId) =>
+      invoke<WorktreeSummary>("plan_worktree_removal", { projectId, worktreeId }),
+    worktreeDiff: (projectId: ProjectId, worktreeId: WorktreeId, staged: boolean) =>
+      invoke<WorktreeDiffView>("worktree_diff", { projectId, worktreeId, staged }),
+    removeWorktree: (projectId: ProjectId, worktreeId: WorktreeId, token: string) =>
+      invoke<WorktreeRemovalView>("remove_worktree", { projectId, worktreeId, token }),
+    pruneWorktrees: (projectId: ProjectId, token: string) =>
+      invoke<number>("prune_worktrees", { projectId, token }),
     subscribe(handler: (event: RuntimeEvent) => void): () => void {
       let disposed = false;
       let unlisten: UnlistenFn | null = null;
@@ -92,6 +110,12 @@ export function createUnavailableBridge(reason: string): WorkspaceBridge {
     runtimeStatus: async () => null,
     retainSession: async () => undefined,
     releaseSession: async () => undefined,
+    listWorktrees: fail,
+    createWorktree: fail,
+    planWorktreeRemoval: fail,
+    worktreeDiff: fail,
+    removeWorktree: fail,
+    pruneWorktrees: fail,
     subscribe: () => () => undefined,
   };
 }

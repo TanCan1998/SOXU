@@ -10,7 +10,14 @@ import { defineStore } from "pinia";
 
 import { createTauriBridge, createUnavailableBridge, isTauriRuntime } from "../workspace/bridge.ts";
 import { WorkspaceSession } from "../workspace/sessionWorkspace.ts";
-import { createWorkspaceState, type SessionId, type SessionMode } from "../workspace/types.ts";
+import { WorktreeCatalog } from "../workspace/worktreeWorkspace.ts";
+import {
+  createWorkspaceState,
+  type CreateWorktreeInput,
+  type SessionId,
+  type SessionMode,
+  type WorktreeId,
+} from "../workspace/types.ts";
 
 export const useWorkspaceStore = defineStore("workspace", () => {
   const bridgeAvailable = isTauriRuntime();
@@ -20,6 +27,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const state = reactive(createWorkspaceState());
   state.bridgeAvailable = bridgeAvailable;
   const session = new WorkspaceSession(bridge, state);
+  const worktrees = new WorktreeCatalog(bridge, state);
 
   const bootstrapped = ref(false);
   const busy = ref(false);
@@ -36,6 +44,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     ),
   );
   const hasProjects = computed(() => state.projects.length > 0);
+  /** 工作树面板状态：与 Tab 状态完全分开，选择工作树不会切换会话。 */
+  const worktreeView = computed(() => state.worktrees);
+  const selectedWorktree = computed(
+    () => state.worktrees.worktrees.find((item) => item.id === state.worktrees.selectedId) ?? null,
+  );
 
   async function bootstrap(): Promise<void> {
     if (bootstrapped.value) return;
@@ -71,6 +84,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     projectId: string;
     title: string;
     mode?: SessionMode;
+    worktreeId?: WorktreeId | null;
   }): Promise<void> {
     return session.openSession(meta);
   }
@@ -113,7 +127,44 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return session.loadMore(sessionId);
   }
 
+  function openWorktrees(projectId: string): Promise<void> {
+    return worktrees.open(projectId);
+  }
+
+  function reloadWorktrees(): Promise<void> {
+    return worktrees.reload();
+  }
+
+  function selectWorktree(worktreeId: WorktreeId | null): void {
+    worktrees.select(worktreeId);
+  }
+
+  function createWorktree(input: CreateWorktreeInput) {
+    return worktrees.create(input);
+  }
+
+  function previewWorktreeDiff(worktreeId?: WorktreeId | null, staged = false) {
+    return worktrees.previewDiff(worktreeId ?? state.worktrees.selectedId, staged);
+  }
+
+  function planWorktreeRemoval(worktreeId: WorktreeId) {
+    return worktrees.planRemoval(worktreeId);
+  }
+
+  function confirmWorktreeRemoval(): Promise<boolean> {
+    return worktrees.confirmRemoval();
+  }
+
+  function cancelWorktreeRemoval(): void {
+    worktrees.cancelRemoval();
+  }
+
+  function pruneWorktrees() {
+    return worktrees.prune();
+  }
+
   async function dispose(): Promise<void> {
+    worktrees.dispose();
     await session.dispose();
   }
 
@@ -125,6 +176,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     activeTab,
     sessionList,
     hasProjects,
+    worktreeView,
+    selectedWorktree,
     bootstrap,
     addProject,
     refreshProjects,
@@ -138,6 +191,15 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     stop,
     closeTab,
     loadMore,
+    openWorktrees,
+    reloadWorktrees,
+    selectWorktree,
+    createWorktree,
+    previewWorktreeDiff,
+    planWorktreeRemoval,
+    confirmWorktreeRemoval,
+    cancelWorktreeRemoval,
+    pruneWorktrees,
     dispose,
   };
 });
