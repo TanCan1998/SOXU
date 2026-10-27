@@ -1,11 +1,29 @@
 const $ = id => document.getElementById(id);
 const tokenInput = $("token");
 let connected = false, requestInFlight = false, latestSequence = 0;
+const TOKEN_STORAGE_KEY = "soxu.dashboard.sessionToken.v1";
+// Keep this per-tab only: the server rotates its secret on each dashboard launch.
+function restoreToken() {
+  try {
+    const value = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    if (!value) return "";
+    if (/^[0-9a-f]{48}$/i.test(value)) return value;
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch { /* Storage may be blocked by browser privacy settings. */ }
+  return "";
+}
+function rememberToken(token) {
+  try { sessionStorage.setItem(TOKEN_STORAGE_KEY, token); } catch {}
+}
+function forgetToken(token) {
+  try {
+    if (sessionStorage.getItem(TOKEN_STORAGE_KEY) === token) sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {}
+}
 const stateLabels = { running: "进行中", paused: "已暂停", blocked: "已阻塞", pending: "等待", done: "完成" };
 const phaseLabels = { worktree:"准备工作树", install:"安装依赖", develop:"开发", checks:"执行检查", review:"代码审查", finalChecks:"最终检查", commit:"提交", push:"推送", createPr:"创建 PR", merge:"等待合并", done:"完成" };
 function notice(message) { $("notice").textContent = message; }
-async function api(path, options = {}) {
-  const token = tokenInput.value.trim();
+async function api(path, options = {}, token = tokenInput.value.trim()) {
   if (!/^[0-9a-f]{48}$/i.test(token)) throw new Error("请填写终端生成的 48 位令牌。");
   const response = await fetch(path, {
     method: options.method || "GET",
@@ -14,7 +32,11 @@ async function api(path, options = {}) {
     cache:"no-store", credentials:"omit", signal:AbortSignal.timeout(9000)
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(data.error || `HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return data;
 }
 function element(tag, text, cls) {
@@ -66,11 +88,34 @@ function render(data) {
   }
 }
 async function refresh() {
-  if(requestInFlight||document.hidden||!tokenInput.value.trim())return;
-  requestInFlight=true;
-  try{render(await api("/api/status"));}
-  catch(error){connected=false;$("dot").classList.remove("ok");$("connection").textContent="未连接";notice(`连接失败：${error.message}`);for(const b of document.querySelectorAll("[data-command]"))b.disabled=true;$("stop").disabled=true;}
-  finally{requestInFlight=false;}
+  const token = tokenInput.value.trim();
+  if (requestInFlight || document.hidden || !token) return;
+  requestInFlight = true;
+  try {
+    const data = await api("/api/status", {}, token);
+    // Ignore responses for a previous token if the user edited the input mid-request.
+    if (token !== tokenInput.value.trim()) return;
+    const wasConnected = connected;
+    render(data);
+    rememberToken(token); // Only persist an authenticated session.
+    if (!wasConnected) notice("连接成功；刷新此标签页后将自动恢复连接。");
+  } catch (error) {
+    if (token !== tokenInput.value.trim()) return;
+    connected = false;
+    $("dot").classList.remove("ok");
+    $("connection").textContent = "未连接";
+    for (const button of document.querySelectorAll("[data-command]")) button.disabled = true;
+    $("stop").disabled = true;
+    if (error.status === 401) {
+      forgetToken(token); // A restarted dashboard uses a different token.
+      tokenInput.value = "";
+      notice("访问令牌已失效或错误，请粘贴本次启动的新令牌。");
+    } else {
+      notice(`连接失败：${error.message}`);
+    }
+  } finally {
+    requestInFlight = false;
+  }
 }
 async function execute(command){
   if(!connected) return notice("先连接本地控制台。");
@@ -81,7 +126,20 @@ async function execute(command){
 }
 $("connect").addEventListener("click",()=>void refresh());
 tokenInput.addEventListener("keydown",event=>{if(event.key==="Enter")void refresh();});
+tokenInput.addEventListener("input", () => {
+  connected = false;
+  $("dot").classList.remove("ok");
+  $("connection").textContent = "尚未连接";
+  for (const button of document.querySelectorAll("[data-command]")) button.disabled = true;
+  $("stop").disabled = true;
+});
 for(const button of document.querySelectorAll("[data-command]"))button.addEventListener("click",()=>void execute(button.dataset.command));
 $("stop").addEventListener("click",async()=>{if(!confirm("请求优雅停止当前调度；工作树和检查点将保留。确定吗？"))return;try{await api("/api/stop",{method:"POST",body:{}});notice("已发送停止信号，等待当前 Runner 退出。");await refresh();}catch(error){notice(`停止失败：${error.message}`);}});
 $("refresh").addEventListener("click",()=>void refresh());
 setInterval(()=>void refresh(),2500);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) void refresh(); });
+const savedToken = restoreToken();
+if (savedToken) {
+  tokenInput.value = savedToken;
+  void refresh();
+}

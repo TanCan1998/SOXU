@@ -32,7 +32,7 @@ pnpm agent:dashboard
 - 唯一允许的控制命令：`once`、`resume`、`loop`、`watch`、`stop`。
 - `running` 标签来自检查点，**不能代表真实 Pi 进程已存活**；控制台对自身启动的 Runner 才提供进程级状态。
 - 多个写请求或检测到其他协调器的活跃任务锁时拒绝并行启动，避免抢占工作树。
-- 令牌不持久化、不进入 URL/浏览器存储、不应出现在截图和工单中。
+- 令牌仅在服务器当前进程内有效。首次验证成功后，页面将令牌暂存于当前标签页的 `sessionStorage`，以便刷新后自动连接；401（例如服务端重启）会清理对应旧令牌。不会主动存入长期 `localStorage`、Cookie 或 URL；浏览器的“恢复上次会话”功能可能恢复会话存储，使用共享电脑时应特别注意。令牌不应出现在截图和工单中。
 - 不暴露完整 Pi RPC event / model prompt / 凭据。协调器输出仅做有限文本脱敏，不建议在日志内输出机密。
 
 ### 恢复已有任务
@@ -56,5 +56,6 @@ pnpm check
 Run `pnpm agent:dashboard`, open `http://127.0.0.1:47321/`, and paste the fresh token displayed in the terminal.
 The dashboard polls checkpoints, shows bounded runner logs and explicitly starts/resumes/stops only its
 own coordinator subprocesses. It cannot take over independently started Pi agents. It never auto-merges
-or releases and does not present raw Pi conversations. Access is loopback-only with a memory-only token
-and same-origin mutation checks.
+or releases and does not present raw Pi conversations. Access is loopback-only with a server-side session token
+and same-origin mutation checks. After first successful login, per-tab sessionStorage retains the token across reloads;
+stale tokens are cleared on HTTP 401, and restarting the server requires a new token.
