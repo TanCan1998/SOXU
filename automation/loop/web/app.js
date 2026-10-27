@@ -5,6 +5,7 @@ const LOG_LIMIT_KEY = "soxu.dashboard.logLimit.v1";
 const LOG_FILTER_KEY = "soxu.dashboard.logFilter.v1";
 const FOLLOW_KEY = "soxu.dashboard.followLogs.v1";
 const LOG_LIMITS = new Set([20, 50, 100, 200]);
+const preferenceStorage = typeof localStorage === "undefined" ? { getItem: () => null, setItem: () => {} } : localStorage;
 const stateLabels = { running: "进行中", paused: "已暂停", blocked: "已阻塞", pending: "等待", done: "完成" };
 const phaseLabels = {
   worktree:"准备工作树", install:"安装依赖", develop:"开发", checks:"执行检查", review:"代码审查",
@@ -281,14 +282,14 @@ async function openStream(token) {
     while (!controller.signal.aborted) {
       const result = await reader.read();
       if (result.done) break;
-      buffer += decoder.decode(result.value, { stream: true }).replace(/\r\n/g, "\n");
-      if (buffer.length > 65536) throw new Error("事件帧超限");
+      buffer = (buffer + decoder.decode(result.value, { stream: true })).replace(/\r\n/g, "\n");
       let offset;
       while ((offset = buffer.indexOf("\n\n")) >= 0) {
         const frame = buffer.slice(0, offset);
         buffer = buffer.slice(offset + 2);
         consumeSseFrame(frame);
       }
+      if (buffer.length > 65536) throw new Error("事件帧超限");
     }
   } catch (error) {
     if (!controller.signal.aborted && token === tokenInput.value.trim() && error.status === 401) {
@@ -321,11 +322,11 @@ async function execute(command) {
 }
 
 (function initializePreferences() {
-  const preferred = Number(stored(localStorage, LOG_LIMIT_KEY));
+  const preferred = Number(stored(preferenceStorage, LOG_LIMIT_KEY));
   logLimit = LOG_LIMITS.has(preferred) ? preferred : 50;
-  logFilter = ["all","system","stdout","stderr"].includes(stored(localStorage,LOG_FILTER_KEY))
-    ? stored(localStorage,LOG_FILTER_KEY) : "all";
-  followLogs = stored(localStorage,FOLLOW_KEY) !== "false";
+  logFilter = ["all","system","stdout","stderr"].includes(stored(preferenceStorage,LOG_FILTER_KEY))
+    ? stored(preferenceStorage,LOG_FILTER_KEY) : "all";
+  followLogs = stored(preferenceStorage,FOLLOW_KEY) !== "false";
   $("logLimit").value = String(logLimit);
   $("logFilter").value = logFilter;
   $("followLogs").checked = followLogs;
@@ -334,17 +335,17 @@ $("logLimit").addEventListener("change", () => {
   const selected = Number($("logLimit").value);
   if (!LOG_LIMITS.has(selected)) return;
   logLimit = selected;
-  save(localStorage, LOG_LIMIT_KEY, logLimit);
+  save(preferenceStorage, LOG_LIMIT_KEY, logLimit);
   renderLogs(true);
 });
 $("logFilter").addEventListener("change", () => {
   logFilter = $("logFilter").value;
-  save(localStorage, LOG_FILTER_KEY, logFilter);
+  save(preferenceStorage, LOG_FILTER_KEY, logFilter);
   renderLogs(true);
 });
 $("followLogs").addEventListener("change", () => {
   followLogs = Boolean($("followLogs").checked);
-  save(localStorage, FOLLOW_KEY, followLogs);
+  save(preferenceStorage, FOLLOW_KEY, followLogs);
   if (followLogs) $("logs").scrollTop = $("logs").scrollHeight;
 });
 $("connect").addEventListener("click", () => void refresh());
