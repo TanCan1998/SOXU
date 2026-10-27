@@ -15,8 +15,10 @@ const WORKTREES = resolve(ROOT, "../soxu-worktrees");
 const LOCKS = resolve(ROOT, ".soxu", "locks");
 
 function reportTaskPhase(taskId, phase, status = "running") {
-  if (typeof process.send === "function" && process.connected)
-    process.send({ type: "soxu:phase", data: { taskId, phase, status } });
+  if (typeof process.send === "function" && process.connected) {
+    try { process.send({ type: "soxu:phase", data: { taskId, phase, status } }); }
+    catch { /* Monitoring is best-effort; checkpoints remain authoritative. */ }
+  }
 }
 
 async function acquire(issueId, local) {
