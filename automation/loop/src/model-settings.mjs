@@ -3,12 +3,12 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { ROOT } from "./config.mjs";
 import { run } from "./process.mjs";
+import { isModelIdentifier } from "./model-identifiers.mjs";
 
 export const MODEL_ROLES=["developer","reviewer","product","quality","intake"];
-const TOKEN=/^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,179}$/;
 const MAX_POOL=20;
 const empty=()=>({schemaVersion:1,revision:0,global:[],roles:Object.fromEntries(MODEL_ROLES.map(r=>[r,null])),favorites:[]});
-function validItem(x) {return x && typeof x === "object" && !Array.isArray(x) && Object.keys(x).sort().join(",")==="model,provider" && typeof x.provider === "string" && typeof x.model === "string" && TOKEN.test(x.provider) && TOKEN.test(x.model);}
+function validItem(x) {return x && typeof x === "object" && !Array.isArray(x) && Object.keys(x).sort().join(",")==="model,provider" && typeof x.provider === "string" && typeof x.model === "string" && isModelIdentifier(x.provider) && isModelIdentifier(x.model);}
 function validList(x, max) {return Array.isArray(x) && x.length<=max && x.every(validItem) && new Set(x.map(v=>`${v.provider}\0${v.model}`)).size===x.length;}
 export function validateSettings(s) {
   if(!s || s.schemaVersion!==1 || !Number.isSafeInteger(s.revision) || s.revision<0 || Object.keys(s).sort().join(",")!=="favorites,global,revision,roles,schemaVersion" || !s.roles || Object.keys(s.roles).sort().join(",")!==[...MODEL_ROLES].sort().join(",") || !validList(s.global,MAX_POOL) || !validList(s.favorites,500) || MODEL_ROLES.some(r=>s.roles[r]!==null && (!validList(s.roles[r],MAX_POOL) || !s.roles[r].length))) throw new Error("invalid-model-settings");
@@ -47,7 +47,7 @@ export function parsePiModelList(text) {
   for(const line of lines.slice(header+1)) {
     if(!line.trim())continue;
     const cells=line.trim().split(/\s+/);
-    if(cells.length!==6 || !TOKEN.test(cells[0]) || !TOKEN.test(cells[1]) || !/^(yes|no)$/i.test(cells[4]) || !/^(yes|no)$/i.test(cells[5])) throw new Error("unrecognized-model-list");
+    if(cells.length!==6 || !isModelIdentifier(cells[0]) || !isModelIdentifier(cells[1]) || !/^(yes|no)$/i.test(cells[4]) || !/^(yes|no)$/i.test(cells[5])) throw new Error("unrecognized-model-list");
     const key=cells[0]+"\0"+cells[1];if(seen.has(key))continue;
     seen.add(key);result.push({provider:cells[0],model:cells[1]});
     if(result.length>5000)throw new Error("model-list-too-large");

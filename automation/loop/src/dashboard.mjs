@@ -15,6 +15,7 @@ import { readLaneStatus } from "./dashboard-lanes.mjs";
 import { IntakeManager } from "./dashboard-intake.mjs";
 import { mergeTaskPr } from "./dashboard-merge.mjs";
 import { readGithubStatus } from "./dashboard-github.mjs";
+import { isModelIdentifier } from "./model-identifiers.mjs";
 
 export const DASHBOARD_PORT = 47321;
 const COMMANDS = new Set(["once", "resume", "loop", "watch"]);
@@ -100,7 +101,7 @@ export class DashboardCoordinator extends EventEmitter {
       this.emit("dashboard:event", { type: "agent", data: activity });
     } else if (message.type === "soxu:model") {
       const {taskId,role,provider,model}=message.data ?? {};
-      const valid=s=>s===null || typeof s === "string" && /^[A-Za-z0-9][A-Za-z0-9._:/+\-]{0,179}$/.test(s);
+      const valid=s=>s===null || isModelIdentifier(s);
       if (!Number.isSafeInteger(taskId) || taskId<1 || taskId>=1e9 || !["developer","reviewer"].includes(role) || !valid(provider) || !valid(model) || Boolean(provider)!==Boolean(model)) return;
       const key=`${taskId}:${role}`;if(!this.taskModels.has(key) && this.taskModels.size>=32)return;
       this.taskModels.set(key,{taskId,role,provider,model});
