@@ -34,6 +34,8 @@ function node() {
     get firstElementChild() { return children[0]; },
     replaceChildren(...items) { result.replacements++; children.splice(0,children.length,...items); for(const x of items) x.parent = result; },
     append(...items) { children.push(...items); for(const x of items) x.parent = result; },
+    querySelectorAll(selector) { const all=[];const visit=n=>{for(const c of n.children || []){if(selector==='fieldset' && c.tagName==='fieldset' || selector==='input:checked' && c.tagName==='input' && c.checked)all.push(c);visit(c);}};visit(result);return all; },
+    querySelector(selector) { const find=n=>{for(const c of n.children || []){if(c.tagName===selector)return c;const hit=find(c);if(hit)return hit;}return null;};return find(result); },
     remove() { if (result.parent) { const i = result.parent.children.indexOf(result); if (i >= 0) result.parent.children.splice(i,1); } },
   };
   return result;
@@ -42,7 +44,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   const ids = [
     "milestoneDialog", "milestoneTitle", "milestoneDetails", "closeMilestone", "token", "tokenLabel", "authPanel", "authNotice", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh", "copyLogs", "intakeRunState", "productReports", "productCopy", "productDelete", "productClear", "qualityReports", "qualityCopy", "qualityDelete", "qualityClear",
-    "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake",
+    "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake", "draftList", "batchDrafts", "saveDraft", "saveAnswers",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -55,7 +57,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
     hidden, documentElement: {dataset:{}},
     getElementById(id) { assert.ok(elements[id], `Unexpected element: ${id}`); return elements[id]; },
     querySelectorAll(selector) { if (selector === ".agent-elapsed") return []; if (selector === "[data-command], [data-resume-issue]") return [...actions, ...elements.tasks.children.flatMap(card => card.children.filter(child => child.dataset?.resumeIssue))]; assert.equal(selector, "[data-command]"); return actions; },
-    createElement() { return node(); },
+    createElement(tag) { const n=node();n.tagName=tag;return n; },
     createTextNode(value) { return { textContent: value }; },
     addEventListener(type, fn) { listeners.set(type, fn); },
     dispatch(type) { listeners.get(type)?.(); },
@@ -379,4 +381,16 @@ test("report copy includes full content and section copy is independent",async()
  assert.match(app.clipboard[0],/摘要内容/);assert.match(app.clipboard[0],/建议一/);assert.match(app.clipboard[0],/待确认/);
  const section=app.elements.productReport.children[1];section.children[0].children[1].dispatch("click");await tick();
  assert.match(app.clipboard[1],/摘要内容/);assert.doesNotMatch(app.clipboard[1],/建议一/);
+});
+
+
+test("draft review requires a selection or custom answer before submission",async()=>{
+ const id="11111111-1111-4111-8111-111111111111";
+ const assessment={title:"Test",feasibility:"可行",plan:"计划",dependencies:"任务：解释",acceptance:"验收",unknowns:"平台",questions:[{text:"平台",options:["Windows","Linux"]}]};
+ const state={...STATUS,drafts:{busy:false,items:[{id,requirement:"一个足够长的需求描述内容",status:"review",assessment}]}};
+ const app=page({storage:new Map([[TOKEN_STORAGE_KEY,TOKEN]]),handler:()=>({ok:true,status:200,json:async()=>state})});await tick();
+ const row=app.elements.draftList.children[0];row.children.find(n=>n.textContent==="编辑").dispatch("click");
+ assert.equal(app.elements.submitIntake.disabled,true);
+ const field=app.elements.intakeResult.querySelectorAll("fieldset")[0];const custom=field.querySelector("textarea");custom.value="手工输入";field.dispatch("input");
+ assert.equal(app.elements.submitIntake.disabled,false);
 });

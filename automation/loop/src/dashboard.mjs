@@ -13,6 +13,7 @@ import { loadRoleModels } from "./agent-models.mjs";
 import { AdvisoryManager, readLatestReport, listReports, readReport, deleteReports } from "./dashboard-advisory.mjs";
 import { readLaneStatus } from "./dashboard-lanes.mjs";
 import { IntakeManager } from "./dashboard-intake.mjs";
+import { DraftStore } from "./dashboard-drafts.mjs";
 import { mergeTaskPr } from "./dashboard-merge.mjs";
 import { readGithubStatus } from "./dashboard-github.mjs";
 import { isModelIdentifier } from "./model-identifiers.mjs";
@@ -78,6 +79,7 @@ export class DashboardCoordinator extends EventEmitter {
     this.mergePr = mergePr;
     this.autoMergeEnabled = false;
     this.advisory = advisory ?? new AdvisoryManager({root,onChange:()=>{this.lanesNext=0;this.emit("dashboard:event",{type:"status",data:{}});}});
+    this.drafts = new DraftStore({root,onChange:()=>this.emit("dashboard:event", {type:"status",data:{}})});
     this.intake = intake ?? new IntakeManager({root, onChange:()=>this.emit("dashboard:event", {type:"status",data:{}})});
     this.github = {status:"loading", updatedAt:null, tasks:{}};
     this.githubNext = 0;
@@ -134,6 +136,7 @@ export class DashboardCoordinator extends EventEmitter {
     this.refreshGithub();
     this.refreshLanes();
     await this.intake.initialized;
+    await this.drafts.initialized;
     const [progress, externalLocks, modelInfo] = await Promise.all([
       localProgress(this.root, id => readCheckpoint(id, join(this.root, ".soxu", "checkpoints"))),
       liveExternalLocks(this.root),
@@ -151,6 +154,7 @@ export class DashboardCoordinator extends EventEmitter {
       github: this.github,
       autoMergeEnabled: this.autoMergeEnabled,
       intake: this.intake.publicState(),
+      drafts: this.drafts.state(),
       lanes: this.lanes,
       advisory: this.advisory.state(),
       isLive: false,
@@ -268,6 +272,7 @@ export class DashboardCoordinator extends EventEmitter {
   shutdown() {
     this.advisory.shutdown();
     this.intake.shutdown();
+    this.drafts.shutdown();
     if (this.active && !this.active.stopping) {
       try { this.stop(); } catch { this.push("Stop message failed; inspect child process before exit"); }
     }
@@ -392,7 +397,7 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
       try { return reply(200, await coordinator.snapshot()); }
       catch { return reply(503, { error: "status-unavailable" }); }
     }
-    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge", "/api/intake-assess", "/api/intake-submit", "/api/intake-clear", "/api/advisory-run", "/api/advisory-delete", "/api/model-settings"].includes(request.url)) {
+    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge", "/api/intake-assess", "/api/intake-submit", "/api/intake-clear", "/api/drafts-save", "/api/drafts-move", "/api/drafts-remove", "/api/drafts-assess", "/api/drafts-answer", "/api/drafts-batch", "/api/drafts-resolve", "/api/advisory-run", "/api/advisory-delete", "/api/model-settings"].includes(request.url)) {
       if (request.headers.origin !== origin || request.headers["content-type"] !== "application/json") {
         return reply(403, { error: "invalid-request-origin" });
       }
@@ -412,6 +417,19 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
           if (!body || Object.keys(body).join(",") !== "lane" || typeof body.lane !== "string") return reply(400,{error:"invalid-body"});
           return reply(202, coordinator.advisory.start(body.lane));
         }
+        if (request.url.startsWith("/api/drafts-")) {
+          if (!body || typeof body!=="object" || Array.isArray(body)) return reply(400,{error:"invalid-body"});
+          const keys=Object.keys(body).sort().join(","); let result;
+          if(request.url==="/api/drafts-save" && keys==="id,requirement") result=await coordinator.drafts.save(body);
+          else if(request.url==="/api/drafts-move" && keys==="direction,id") result=await coordinator.drafts.move(body.id,body.direction);
+          else if(request.url==="/api/drafts-remove" && keys==="id") result=await coordinator.drafts.remove(body.id);
+          else if(request.url==="/api/drafts-assess" && keys==="id") result=await coordinator.drafts.evaluate(body.id);
+          else if(request.url==="/api/drafts-answer" && keys==="answers,id,milestone,ready") result=await coordinator.drafts.answer(body.id,body.answers,body.ready,body.milestone);
+          else if(request.url==="/api/drafts-batch" && keys==="ids") result=await coordinator.drafts.batch(body.ids);
+          else if(request.url==="/api/drafts-resolve" && keys==="created,id,url") result=await coordinator.drafts.resolve(body.id,body.created,body.url);
+          else return reply(400,{error:"invalid-body"});
+          return reply(200,result);
+        }
         if (request.url === "/api/intake-assess") {
           if (!body || Object.keys(body).join(",") !== "requirement") return reply(400,{error:"invalid-body"});
           return reply(202, await coordinator.intake.start(body.requirement));
@@ -420,10 +438,7 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
           if (!body || Object.keys(body).join(",") !== "id" || typeof body.id !== "string") return reply(400,{error:"invalid-body"});
           return reply(200, await coordinator.intake.clearUnknown(body.id));
         }
-        if (request.url === "/api/intake-submit") {
-          if (!body || Object.keys(body).sort().join(",") !== "id,milestone,ready" || typeof body.id !== "string" || typeof body.ready !== "boolean" || !(body.milestone === null || /^M[0-4]$/.test(body.milestone))) return reply(400,{error:"invalid-body"});
-          return reply(200, await coordinator.intake.confirm(body.id, body.ready, body.milestone));
-        }
+        if (request.url === "/api/intake-submit") return reply(409,{error:"use-draft-confirmation"});
         if (request.url === "/api/run") {
           if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.command !== "string")
             return reply(400, { error: "invalid-command" });
