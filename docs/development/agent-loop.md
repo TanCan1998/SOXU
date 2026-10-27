@@ -29,7 +29,7 @@ pnpm agent:worktrees            # 查看各任务落后、工作树修改和活�
 pnpm agent:worktrees -- --sync  # 只安全更新干净的早期任务
 ```
 
-`--sync` 会对**没有活动锁、处于 worktree/install/develop 阶段且可快进**的工作树更新最新 main。对于未提交修改，先用 Git stash（包含未跟踪文件）生成可恢复备份，再快进和恢复变更；有冲突时记录 `mergeConflict` 与 stash SHA，保留原任务代码，由 `pnpm agent:resume` 调用 Developer 自行分析最新 main、解决冲突，经依赖安装、测试、Reviewer 审查后继续。不会自动丢弃 stash、`reset --hard` 或跳过质量门禁。历史分叉、受保护操作、活动锁及备份异常会安全暂停。不自动消耗模型额度重试超过 policy 的限制；本命令本身不调用模型。
+`--sync` 会对**没有活动锁、处于 worktree/install/develop/checks/review/finalChecks 阶段且可快进**的工作树更新最新 main。对于未提交修改，先用 Git stash（包含未跟踪文件）生成可恢复备份，再快进和恢复变更；有冲突时记录 `mergeConflict` 与 stash SHA，保留原任务代码，由 `pnpm agent:resume` 调用 Developer 自行分析最新 main、解决冲突，经依赖安装、测试、Reviewer 审查后继续。不会自动丢弃 stash、`reset --hard` 或跳过质量门禁。历史分叉、受保护操作、活动锁及备份异常会安全暂停。不自动消耗模型额度重试超过 policy 的限制；本命令本身不调用模型。
 
 ### 超时与手动恢复
 
@@ -42,6 +42,8 @@ pnpm agent:worktrees -- --sync  # 只安全更新干净的早期任务
 ### 一句话恢复
 
 当额度或网络问题解决后，直接在工作目录运行 `pnpm agent:say -- "继续 SOXU"`。它会离线解析指令并优先选择**最后一个暂停**的任务。`--dry-run` 只列出将要恢复的检查点，不调用模型；“恢复所有暂停的任务”必须由用户明确说出才会批量执行。GitHub 与本地模式从检查点自动判断。详见 `.pi/skills/soxu-recover/SKILL.md`。
+
+对于 `blocked`，先人工检查并修复原因，再用 `pnpm agent:resume -- --blocked --issue 123 --dry-run` 预览，去掉 `--dry-run` 执行。同步 main 后会重新执行检查和审查；不会跳过密钥检测。
 
 ### 恢复、停机、失败
 

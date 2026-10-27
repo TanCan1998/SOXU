@@ -65,7 +65,7 @@ test("dirty task edits survive nonconflicting main fast-forward with saved stash
     assert.match(await git(f.wt, "stash", "show", "-p", "--include-untracked", state.syncBackup.sha), /irreplaceable/);
   } finally { await rm(f.outer, { recursive:true, force:true }); }
 });
-test("active lock and reviewed checkpoint block synchronization", async () => {
+test("active lock and committed checkpoint block synchronization", async () => {
   const f = await fixture();
   try {
     const locks = join(f.root, ".soxu", "locks");
@@ -73,7 +73,7 @@ test("active lock and reviewed checkpoint block synchronization", async () => {
     await writeFile(join(locks, "github-issue-1.lock"), JSON.stringify({pid:process.pid}));
     assert.equal((await inspectWorktrees({ root:f.root, sync:true }))[0].reason, "worktree-locked");
     await rm(join(locks, "github-issue-1.lock"));
-    await writeCheckpoint({ ...f.state, phase:"review", testedTree:"example" }, f.dir);
+    await writeCheckpoint({ ...f.state, phase:"push", commit:"example" }, f.dir);
     assert.equal((await inspectWorktrees({ root:f.root, sync:true }))[0].reason, "advanced-phase");
     assert.equal(await git(f.wt, "rev-parse", "HEAD"), f.old);
   } finally { await rm(f.outer, { recursive:true, force:true }); }
@@ -173,4 +173,20 @@ test("checkpoint at review/postConflictInstall may resume when already on latest
       assert.equal(recovered.blocked.length,0);
     }
   }finally{await rm(f.outer,{recursive:true,force:true});}
+});
+
+ test("blocked review sync preserves edits and invalidates prior evidence", async () => {
+  const f = await fixture();
+  try {
+    await writeFile(join(f.wt, "task.txt"), "task progress");
+    await git(f.wt, "add", "task.txt");
+    await writeCheckpoint({ ...f.state, status:"blocked", phase:"review", testedTree:"old", reviewedTree:"old" }, f.dir);
+    assert.equal((await inspectWorktrees({root:f.root, sync:true}))[0].reason, "synced");
+    const saved = await readCheckpoint(1, f.dir);
+    assert.equal(saved.phase, "recoveryInstall");
+    assert.equal(saved.testedTree, null);
+    assert.equal(saved.reviewedTree, null);
+    assert.equal(await readFile(join(f.wt, "task.txt"), "utf8"), "task progress");
+    assert.ok(saved.syncBackup.sha);
+  } finally { await rm(f.outer, {recursive:true, force:true}); }
 });

@@ -39,7 +39,7 @@ export async function readCheckpoint(id, directory = DIR, local = false) {
   const old = await load(join(directory, legacyName(id)));
   return old && Boolean(old.local) === local ? old : null;
 }
-export async function listPaused(directory = DIR) {
+export async function listPaused(directory = DIR, { includeBlocked = false } = {}) {
   let files;
   try { files = await readdir(directory); }
   catch (err) { if (err.code === "ENOENT") return []; throw err; }
@@ -47,7 +47,7 @@ export async function listPaused(directory = DIR) {
   // Prefer namespaced entries; old issue-N checkpoints are read-only migration fallbacks.
   for (const name of files.filter(x => /^(?:local-|github-)?issue-\d+\.json$/.test(x)).sort((a,b)=>Number(a.startsWith("issue-"))-Number(b.startsWith("issue-")))) {
     const state = await load(join(directory, name));
-    if (!state || !["paused", "running"].includes(state.status)) continue;
+    if (!state || !["paused", "running", ...(includeBlocked ? ["blocked"] : [])].includes(state.status)) continue;
     const local = Boolean(state.local);
     if (name.startsWith("local-") && !local || name.startsWith("github-") && local) throw new Error(`Checkpoint namespace mismatch: ${name}`);
     const key = checkpointName(state.issue?.number, local);
