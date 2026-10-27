@@ -77,6 +77,10 @@ pub struct WorktreeRecord {
     pub path: String,
     pub branch: Option<String>,
     pub primary: bool,
+    /// 磁盘上的工作树目录当前不存在（Git 标记 prunable 或已被删除）。
+    /// 只是引用状态：会话记录与索引快照继续保留，供人工核对与恢复。
+    #[serde(default)]
+    pub missing: bool,
     pub created_at_ms: u64,
 }
 
@@ -88,6 +92,7 @@ impl WorktreeRecord {
             path: root.to_string_lossy().to_string(),
             branch: None,
             primary: true,
+            missing: false,
             created_at_ms: now_ms(),
         }
     }

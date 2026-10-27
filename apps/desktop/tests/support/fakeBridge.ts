@@ -6,15 +6,22 @@
  */
 
 import type {
+  CreateWorktreeInput,
   EntryRef,
   EntryText,
   HistoryPage,
+  ProjectId,
   ProjectSummary,
   RuntimeEvent,
   RuntimeStarted,
   RuntimeStatus,
   SessionId,
   SessionMode,
+  WorktreeDiffView,
+  WorktreeId,
+  WorktreeRemovalView,
+  WorktreeSummary,
+  WorktreeWorkspace,
   WorkspaceBridge,
 } from "../../src/workspace/types.ts";
 
@@ -32,6 +39,36 @@ export function emptyPage(sessionId: SessionId, offset = 0, total = 0): HistoryP
     next: null,
     bytesRead: 0,
     clipped: false,
+  };
+}
+
+/** 一份"干净、可删除"的附加工作树；用例按需覆盖字段。 */
+export function sampleWorktree(overrides: Partial<WorktreeSummary> = {}): WorktreeSummary {
+  const id = overrides.id ?? "wkt_agent_issue_5";
+  return {
+    id,
+    projectId: overrides.projectId ?? "prj_1",
+    path: overrides.path ?? `F:/work/${id}`,
+    name: overrides.name ?? id.replace("wkt_", ""),
+    branch: overrides.branch ?? "agent/issue-5",
+    head: overrides.head ?? "0123456789abcdef0123456789abcdef01234567",
+    primary: overrides.primary ?? false,
+    missing: overrides.missing ?? false,
+    locked: overrides.locked ?? null,
+    prunable: overrides.prunable ?? null,
+    dirty: overrides.dirty ?? false,
+    staged: overrides.staged ?? 0,
+    unstaged: overrides.unstaged ?? 0,
+    untracked: overrides.untracked ?? 0,
+    conflicts: overrides.conflicts ?? 0,
+    changesTruncated: overrides.changesTruncated ?? false,
+    indexLocked: overrides.indexLocked ?? false,
+    operation: overrides.operation ?? null,
+    sessionIds: overrides.sessionIds ?? [],
+    activeSessionIds: overrides.activeSessionIds ?? [],
+    blockers: overrides.blockers ?? [],
+    removable: overrides.removable ?? (overrides.blockers?.length ?? 0) === 0,
+    token: overrides.token ?? `tok-${id}`,
   };
 }
 
@@ -54,6 +91,23 @@ export class FakeBridge implements WorkspaceBridge {
   cancelError: string | null = null;
   historyGate: Promise<void> | null = null;
   status: RuntimeStatus | null = null;
+  worktreeRoot = "F:/work/project";
+  worktreeList: WorktreeSummary[] = [];
+  staleWorktrees: string[] = [];
+  pruneToken = "tok-prune";
+  worktreeListError: string | null = null;
+  worktreeListGate: Promise<void> | null = null;
+  createError: string | null = null;
+  createGate: Promise<void> | null = null;
+  planError: string | null = null;
+  planOverride: WorktreeSummary | null = null;
+  diffError: string | null = null;
+  diff: WorktreeDiffView | null = null;
+  removeError: string | null = null;
+  removeGate: Promise<void> | null = null;
+  pruneError: string | null = null;
+  /** 每次删除成功后从 worktreeList 里移除的工作树 id。 */
+  readonly removed: WorktreeId[] = [];
 
   count(method: string): number {
     return this.calls.filter((call) => call.method === method).length;
@@ -148,6 +202,96 @@ export class FakeBridge implements WorkspaceBridge {
 
   async releaseSession(sessionId: SessionId): Promise<void> {
     this.calls.push({ method: "releaseSession", args: [sessionId] });
+  }
+
+  async listWorktrees(projectId: ProjectId): Promise<WorktreeWorkspace> {
+    this.calls.push({ method: "listWorktrees", args: [projectId] });
+    if (this.worktreeListGate) await this.worktreeListGate;
+    if (this.worktreeListError) throw new Error(this.worktreeListError);
+    return {
+      projectId,
+      root: this.worktreeRoot,
+      worktrees: this.worktreeList.map((item) => ({ ...item })),
+      stale: [...this.staleWorktrees],
+      pruneToken: this.pruneToken,
+    };
+  }
+
+  async createWorktree(
+    projectId: ProjectId,
+    input: CreateWorktreeInput,
+  ): Promise<WorktreeSummary> {
+    this.calls.push({ method: "createWorktree", args: [projectId, input] });
+    if (this.createGate) await this.createGate;
+    if (this.createError) throw new Error(this.createError);
+    const created = sampleWorktree({
+      id: `wkt_${input.branch.replace(/[^a-z0-9]+/gi, "_")}`,
+      projectId,
+      path: `${this.worktreeRoot}-worktrees/${input.branch}`,
+      name: input.branch,
+      branch: input.branch,
+    });
+    this.worktreeList = [...this.worktreeList, created];
+    return created;
+  }
+
+  async planWorktreeRemoval(
+    projectId: ProjectId,
+    worktreeId: WorktreeId,
+  ): Promise<WorktreeSummary> {
+    this.calls.push({ method: "planWorktreeRemoval", args: [projectId, worktreeId] });
+    if (this.planError) throw new Error(this.planError);
+    if (this.planOverride) return { ...this.planOverride };
+    const found = this.worktreeList.find((item) => item.id === worktreeId);
+    if (!found) throw new Error("E_GIT_WORKTREE_UNKNOWN: 工作树未登记");
+    return { ...found };
+  }
+
+  async worktreeDiff(
+    projectId: ProjectId,
+    worktreeId: WorktreeId,
+    staged: boolean,
+  ): Promise<WorktreeDiffView> {
+    this.calls.push({ method: "worktreeDiff", args: [projectId, worktreeId, staged] });
+    if (this.diffError) throw new Error(this.diffError);
+    return (
+      this.diff ?? {
+        worktreeId,
+        staged,
+        files: [],
+        totalFiles: 0,
+        patch: "",
+        truncated: false,
+        bytesRead: 0,
+      }
+    );
+  }
+
+  async removeWorktree(
+    projectId: ProjectId,
+    worktreeId: WorktreeId,
+    token: string,
+  ): Promise<WorktreeRemovalView> {
+    this.calls.push({ method: "removeWorktree", args: [projectId, worktreeId, token] });
+    if (this.removeGate) await this.removeGate;
+    if (this.removeError) throw new Error(this.removeError);
+    const removed = this.worktreeList.find((item) => item.id === worktreeId);
+    this.worktreeList = this.worktreeList.filter((item) => item.id !== worktreeId);
+    this.removed.push(worktreeId);
+    return {
+      projectId,
+      worktreeId,
+      path: removed?.path ?? "",
+      branch: removed?.branch ?? null,
+    };
+  }
+
+  async pruneWorktrees(projectId: ProjectId, token: string): Promise<number> {
+    this.calls.push({ method: "pruneWorktrees", args: [projectId, token] });
+    if (this.pruneError) throw new Error(this.pruneError);
+    const count = this.staleWorktrees.length;
+    this.staleWorktrees = [];
+    return count;
   }
 
   subscribe(handler: (event: RuntimeEvent) => void): () => void {

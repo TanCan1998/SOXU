@@ -6,19 +6,27 @@ import ProjectSidebar from "./components/ProjectSidebar.vue";
 import RuntimeInspector from "./components/RuntimeInspector.vue";
 import SessionTabs from "./components/SessionTabs.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
+import WorktreeDialog from "./components/WorktreeDialog.vue";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
-import type { SessionId } from "./workspace/types.ts";
+import type { CreateWorktreeInput, SessionId, WorktreeId } from "./workspace/types.ts";
 
 const store = useWorkspaceStore();
 const info = ref<RuntimeInfo | null>(null);
 const sidebarOpen = ref(true);
 const inspectorOpen = ref(true);
 const settingsOpen = ref(false);
+/** 工作树面板观察的项目；null 表示面板关闭。 */
+const worktreeProjectId = ref<string | null>(null);
 const rootPath = ref("");
 const theme = ref<"light" | "dark">(initialTheme());
 
 const activeTab = computed(() => store.activeTab);
+const worktreeProject = computed(
+  () => store.state.projects.find((project) => project.id === worktreeProjectId.value) ?? null,
+);
+const worktreeProjectName = computed(() => worktreeProject.value?.name ?? "项目");
+const worktreeProjectSessions = computed(() => worktreeProject.value?.sessions ?? []);
 const lastSession = computed(() =>
   [...store.sessionList].sort((left, right) => right.updatedAtMs - left.updatedAtMs)[0] ?? null,
 );
@@ -35,8 +43,60 @@ watch(theme, (value) => {
   if (typeof localStorage !== "undefined") localStorage.setItem("soxu.theme", value);
 });
 
-function openSession(payload: { sessionId: SessionId; projectId: string; title: string }) {
+function openSession(payload: {
+  sessionId: SessionId;
+  projectId: string;
+  title: string;
+  worktreeId?: WorktreeId;
+}) {
   void store.openSession(payload);
+}
+
+function openWorktrees(projectId: string) {
+  worktreeProjectId.value = projectId;
+}
+
+function closeWorktrees() {
+  worktreeProjectId.value = null;
+}
+
+function openSessionFromWorktree(payload: {
+  sessionId: SessionId;
+  projectId: string;
+  title: string;
+  worktreeId: WorktreeId;
+}) {
+  closeWorktrees();
+  void store.openSession(payload);
+}
+
+function refreshWorktrees() {
+  const projectId = worktreeProjectId.value;
+  if (projectId) void store.openWorktrees(projectId);
+}
+
+function selectWorktree(worktreeId: WorktreeId) {
+  store.selectWorktree(worktreeId);
+}
+
+function createWorktree(input: CreateWorktreeInput) {
+  void store.createWorktree(input);
+}
+
+function previewWorktreeDiff(worktreeId: WorktreeId, staged: boolean) {
+  void store.previewWorktreeDiff(worktreeId, staged);
+}
+
+function planWorktreeRemoval(worktreeId: WorktreeId) {
+  void store.planWorktreeRemoval(worktreeId);
+}
+
+function confirmWorktreeRemoval() {
+  void store.confirmWorktreeRemoval();
+}
+
+function pruneWorktrees() {
+  void store.pruneWorktrees();
 }
 
 function newTemporary() {
@@ -85,6 +145,7 @@ function retry() {
     projectId: tab.projectId,
     title: tab.title,
     mode: tab.mode,
+    worktreeId: tab.worktreeId,
   };
   void (async () => {
     await store.closeTab(meta.sessionId);
@@ -129,6 +190,7 @@ onMounted(async () => {
       sessionId: first.id,
       projectId: first.projectId,
       title: first.title,
+      worktreeId: first.worktreeId,
     });
   }
 });
@@ -152,6 +214,7 @@ onUnmounted(() => {
       @new-temporary="newTemporary"
       @add-project="(root: string) => void store.addProject(root)"
       @refresh-project="(id: string) => void store.refreshProject(id)"
+      @open-worktrees="openWorktrees"
       @open-settings="settingsOpen = true"
       @toggle-theme="theme = theme === 'light' ? 'dark' : 'light'"
     />
@@ -262,6 +325,25 @@ onUnmounted(() => {
       @close="inspectorOpen = false"
       @refresh-projects="() => void store.refreshProjects()"
       @stop="stop"
+    />
+
+    <WorktreeDialog
+      :open="worktreeProjectId !== null"
+      :project-id="worktreeProjectId"
+      :project-name="worktreeProjectName"
+      :bridge-available="store.bridgeAvailable"
+      :view="store.worktreeView"
+      :sessions="worktreeProjectSessions"
+      @close="closeWorktrees"
+      @open-session="openSessionFromWorktree"
+      @refresh="refreshWorktrees"
+      @select="selectWorktree"
+      @create="createWorktree"
+      @diff="previewWorktreeDiff"
+      @plan-removal="planWorktreeRemoval"
+      @confirm-removal="confirmWorktreeRemoval"
+      @cancel-removal="() => store.cancelWorktreeRemoval()"
+      @prune="pruneWorktrees"
     />
 
     <SettingsDialog

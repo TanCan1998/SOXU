@@ -21,6 +21,7 @@ import {
   type SessionId,
   type SessionMode,
   type SessionTab,
+  type WorktreeId,
   type WorkspaceBridge,
   type WorkspaceState,
 } from "./types.ts";
@@ -41,12 +42,15 @@ export interface SessionMeta {
   projectId: string;
   title: string;
   mode?: SessionMode;
+  /** 会话所属工作树；只记录身份，不影响 Tab 的独立状态。 */
+  worktreeId?: WorktreeId | null;
 }
 
 export function createTab(meta: SessionMeta): SessionTab {
   return {
     sessionId: meta.sessionId,
     projectId: meta.projectId,
+    worktreeId: meta.worktreeId ?? null,
     title: meta.title,
     mode: meta.mode ?? "persistent",
     status: "idle",

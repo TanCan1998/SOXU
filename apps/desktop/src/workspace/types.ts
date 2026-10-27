@@ -7,11 +7,14 @@
 
 export type ProjectId = string;
 export type SessionId = string;
+export type WorktreeId = string;
 export type SessionMode = "persistent" | "temporary";
 
 export interface SessionSummary {
   id: SessionId;
   projectId: ProjectId;
+  /** 会话所属工作树；切换/选择工作树不会改写它（身份来自会话目录）。 */
+  worktreeId: WorktreeId;
   title: string;
   fileName: string;
   entryCount: number;
@@ -121,6 +124,115 @@ export type RuntimeEvent = RuntimeEventBody & {
   generation: number;
 };
 
+/**
+ * 一个 Git 工作树的视图（Rust `WorktreeSummary` 的镜像）。
+ *
+ * `token` 与 `removable` 由后端根据当前 Git 状态计算：状态一变令牌即失效，
+ * 因此 UI 不能缓存令牌后隔很久再删除。
+ */
+export interface WorktreeSummary {
+  id: WorktreeId;
+  projectId: ProjectId;
+  path: string;
+  name: string;
+  branch: string | null;
+  head: string | null;
+  /** 项目主工作树：永不允许删除。 */
+  primary: boolean;
+  /** 目录不存在或 Git 已标记 prunable（异常退出/手工删除后的残留）。 */
+  missing: boolean;
+  locked: string | null;
+  prunable: string | null;
+  dirty: boolean;
+  staged: number;
+  unstaged: number;
+  untracked: number;
+  conflicts: number;
+  /** 改动文件清单被上限裁剪；计数仍然完整。 */
+  changesTruncated: boolean;
+  indexLocked: boolean;
+  /** 进行中的 Git 操作（merge/rebase/cherry-pick…）。 */
+  operation: string | null;
+  sessionIds: SessionId[];
+  /** 仍有运行时挂载的会话；非空时后端拒绝删除。 */
+  activeSessionIds: SessionId[];
+  /** 阻止删除的稳定标识（见 soxu-git-worktree 的 RemovalBlocker）。 */
+  blockers: string[];
+  removable: boolean;
+  /** 删除确认令牌，与当前状态绑定。 */
+  token: string;
+}
+
+export interface WorktreeWorkspace {
+  projectId: ProjectId;
+  root: string;
+  worktrees: WorktreeSummary[];
+  /** Git 已标记 prunable 的工作树路径。 */
+  stale: string[];
+  pruneToken: string;
+}
+
+export interface CreateWorktreeInput {
+  branch: string;
+  /** true：新建分支；false：检出既有分支。 */
+  newBranch: boolean;
+  /** 新建分支的起点，默认 HEAD。 */
+  base: string | null;
+  /** 目标目录；省略时使用项目旁的 <项目名>-worktrees/<分支>。 */
+  path: string | null;
+}
+
+export interface WorktreeDiffFile {
+  status: string;
+  path: string;
+  added: number | null;
+  removed: number | null;
+  binary: boolean;
+}
+
+export interface WorktreeDiffView {
+  worktreeId: WorktreeId;
+  staged: boolean;
+  files: WorktreeDiffFile[];
+  totalFiles: number;
+  patch: string;
+  /** 补丁或文件清单被上限裁剪（只读预览，不影响磁盘）。 */
+  truncated: boolean;
+  bytesRead: number;
+}
+
+export interface WorktreeRemovalView {
+  projectId: ProjectId;
+  worktreeId: WorktreeId;
+  path: string;
+  branch: string | null;
+}
+
+/**
+ * 工作树面板状态：一次只观察一个项目。
+ *
+ * `pendingRemoval` 是**待确认的删除计划**（只读），不是已执行的动作；
+ * 只有 `removable` 为真且令牌非空时 UI 才允许调用删除。
+ */
+export interface WorktreeState {
+  projectId: ProjectId | null;
+  root: string;
+  loading: boolean;
+  error: string | null;
+  worktrees: WorktreeSummary[];
+  stale: string[];
+  pruneToken: string;
+  selectedId: WorktreeId | null;
+  diff: WorktreeDiffView | null;
+  diffLoading: boolean;
+  diffError: string | null;
+  pendingRemoval: WorktreeSummary | null;
+  pendingError: string | null;
+  removing: boolean;
+  creating: boolean;
+  pruning: boolean;
+}
+
 /** 视图使用的最小白名单：Tauri 实现之外，测试与浏览器预览都可以替换它。 */
 export interface WorkspaceBridge {
   listProjects(): Promise<ProjectSummary[]>;
@@ -135,6 +247,22 @@ export interface WorkspaceBridge {
   runtimeStatus(sessionId: SessionId): Promise<RuntimeStatus | null>;
   retainSession(sessionId: SessionId): Promise<void>;
   releaseSession(sessionId: SessionId): Promise<void>;
+  listWorktrees(projectId: ProjectId): Promise<WorktreeWorkspace>;
+  createWorktree(projectId: ProjectId, input: CreateWorktreeInput): Promise<WorktreeSummary>;
+  /** 只读：重新计算删除计划与令牌，不修改磁盘。 */
+  planWorktreeRemoval(projectId: ProjectId, worktreeId: WorktreeId): Promise<WorktreeSummary>;
+  worktreeDiff(
+    projectId: ProjectId,
+    worktreeId: WorktreeId,
+    staged: boolean,
+  ): Promise<WorktreeDiffView>;
+  /** 危险操作：必须携带后端刚下发的令牌；失败时磁盘保持不变。 */
+  removeWorktree(
+    projectId: ProjectId,
+    worktreeId: WorktreeId,
+    token: string,
+  ): Promise<WorktreeRemovalView>;
+  pruneWorktrees(projectId: ProjectId, token: string): Promise<number>;
   /** 返回取消订阅函数；组件卸载时必须调用。 */
   subscribe(handler: (event: RuntimeEvent) => void): () => void;
 }
@@ -179,6 +307,8 @@ export interface TabRuntime {
 export interface SessionTab {
   sessionId: SessionId;
   projectId: ProjectId;
+  /** 打开 Tab 时记录的工作树；工作树选择变化不会改写它。 */
+  worktreeId: WorktreeId | null;
   title: string;
   mode: SessionMode;
   status: TabStatus;
@@ -197,10 +327,33 @@ export interface WorkspaceState {
   projectsLoading: boolean;
   projectsError: string | null;
   bridgeAvailable: boolean;
+  /** 工作树面板；与 Tab 状态相互独立。 */
+  worktrees: WorktreeState;
 }
 
 export const HISTORY_PAGE_SIZE = 40;
 export const MAX_DIAGNOSTICS = 20;
+
+export function createWorktreeState(): WorktreeState {
+  return {
+    projectId: null,
+    root: "",
+    loading: false,
+    error: null,
+    worktrees: [],
+    stale: [],
+    pruneToken: "",
+    selectedId: null,
+    diff: null,
+    diffLoading: false,
+    diffError: null,
+    pendingRemoval: null,
+    pendingError: null,
+    removing: false,
+    creating: false,
+    pruning: false,
+  };
+}
 
 export function createWorkspaceState(): WorkspaceState {
   return {
@@ -210,5 +363,6 @@ export function createWorkspaceState(): WorkspaceState {
     projectsLoading: false,
     projectsError: null,
     bridgeAvailable: true,
+    worktrees: createWorktreeState(),
   };
 }

@@ -173,6 +173,8 @@ cargo fmt --all -- --check
 
 ## 相关文档
 
+- [Git 工作树服务与桌面集成](../architecture/worktree-service.md)（工作树枚举、创建、
+  Diff 与受确认删除；本文件的 Tab/事件规则同样适用）
 - [Pi RPC Supervisor](agent-runtime.md)
 - [会话目录与 JSONL 索引契约](../architecture/session-catalog.md)
 - [Pi RPC 适配契约](../specifications/rpc-contract.md)

@@ -34,6 +34,8 @@ pub struct AppState {
     pub titles: Mutex<HashMap<String, String>>,
     /// 启动/停止的串行闸门：同一会话不会被两个并发 start 拉起两次。
     pub start_guard: tokio::sync::Mutex<()>,
+    /// 工作树写操作（创建/删除/prune）的串行闸门：破坏性操作不并发执行。
+    pub worktree_guard: tokio::sync::Mutex<()>,
 }
 
 impl AppState {
@@ -57,6 +59,7 @@ impl AppState {
             fanout: Arc::new(EventFanout::new()),
             titles: Mutex::new(HashMap::new()),
             start_guard: tokio::sync::Mutex::new(()),
+            worktree_guard: tokio::sync::Mutex::new(()),
         })
     }
 
