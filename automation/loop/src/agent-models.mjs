@@ -37,7 +37,7 @@ export function resolveRoleModels(configuration, env = process.env) {
 }
 
 export async function loadRoleModels(env = process.env, {index=0, root=ROOT} = {}) {
-  const path = resolve(ROOT, 'automation/agent-models.json');
+  const path = resolve(root, 'automation/agent-models.json');
   const config = JSON.parse(await readFile(path, 'utf8'));
   const baseline=resolveRoleModels(config, env);
   const settings=await readModelSettings(root);

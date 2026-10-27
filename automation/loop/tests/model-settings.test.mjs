@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {mkdtemp,rm} from "node:fs/promises";
+import {mkdtemp,rm,mkdir,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {readModelSettings,saveModelSettings,selectModel,parsePiModelList,getPiModels} from "../src/model-settings.mjs";
@@ -18,6 +18,10 @@ test("Pi table parsing accepts only explicit rows and does not return warning te
 test("settings persist explicit global, role override and pins; revisions prevent lost updates",async()=>{
   const root=await mkdtemp(join(tmpdir(),"soxu-models-"));
   try {
+    await mkdir(join(root,"automation"));
+    await writeFile(join(root,"automation","agent-models.json"),JSON.stringify({schemaVersion:1,roles:{developer:{provider:"target",model:"developer"},reviewer:{provider:"target",model:"reviewer"}}}));
+    const baseline=await loadRoleModels({}, {root});
+    assert.equal(baseline.developer.provider,"target");
     const initial=await readModelSettings(root);initial.global=[a,b];initial.roles.reviewer=[c];initial.favorites=[b];
     const saved=await saveModelSettings(initial,root);assert.equal(saved.revision,1);
     assert.deepEqual(await readModelSettings(root),saved);

@@ -4,7 +4,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EventEmitter } from "node:events";
-import { ROOT } from "./config.mjs";
+import { ROOT, TOOL_ROOT } from "./config.mjs";
 import { readCheckpoint } from "./checkpoint.mjs";
 import { localProgress } from "./status.mjs";
 import { safeActivity } from "./dashboard-activity.mjs";
@@ -25,7 +25,7 @@ const GROUPS = ["running", "paused", "blocked", "pending", "done"];
 const MAX_LOGS = 500;
 const MAX_STREAM_CLIENTS = 8;
 const PHASES = new Set(["worktree", "install", "develop", "checks", "review", "postConflictInstall", "recoveryInstall", "finalChecks", "commit", "push", "createPr", "merge", "done"]);
-const WEB_DIR = join(ROOT, "automation", "loop", "web");
+const WEB_DIR = join(TOOL_ROOT, "automation", "loop", "web");
 const ASSETS = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
   ["/app.js", ["app.js", "text/javascript; charset=utf-8"]],
@@ -202,12 +202,12 @@ export class DashboardCoordinator extends EventEmitter {
           throw Object.assign(new Error("task-not-blocked"), { status: 409 });
         args = ["resume", "--blocked", "--issue", String(issue)];
       }
-      const script = join(this.root, "automation", "loop", "src", "cli.mjs");
+      const script = join(TOOL_ROOT, "automation", "loop", "src", "cli.mjs");
       const child = this.spawn(script, args, {
         cwd: this.root,
         stdio: ["ignore", "pipe", "pipe", "ipc"],
         windowsHide: true,
-        env: {...process.env, SOXU_DASHBOARD_AUTO_MERGE: this.autoMergeEnabled ? "1" : "0"},
+        env: {...process.env, SOXU_PROJECT_ROOT: this.root, SOXU_DASHBOARD_AUTO_MERGE: this.autoMergeEnabled ? "1" : "0"},
       });
       const job = { child, command, startedAt: new Date().toISOString(), stopping: false };
       this.active = job;

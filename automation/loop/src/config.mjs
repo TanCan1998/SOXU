@@ -1,7 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
-export const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
+import { isAbsolute, resolve } from "node:path";
+export const TOOL_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
+const projectRoot = process.env.SOXU_PROJECT_ROOT;
+if (projectRoot !== undefined && (!projectRoot || !isAbsolute(projectRoot))) {
+  throw new Error("SOXU_PROJECT_ROOT must be a non-empty absolute path");
+}
+// The legacy layout remains the default until the independent distribution is ready.
+export const ROOT = projectRoot ? resolve(projectRoot) : TOOL_ROOT;
 export async function policy() {
   const value = JSON.parse(await readFile(resolve(ROOT, "automation/policy.json"), "utf8"));
   for (const name of ["maxConcurrentAgents", "maxRoundsPerInvocation", "maxRetries", "maxChangedFiles", "maxChangedBytes"]) {

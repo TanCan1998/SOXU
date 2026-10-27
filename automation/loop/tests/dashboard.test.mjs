@@ -85,12 +85,14 @@ test("strict localhost auth, read-only status and explicit CSRF checks", async()
 
 test("dashboard only controls its own fork via IPC and rejects overlapping runs",async()=>{
   const root=await fixture(), children=[];
-  const spawn=(file,args)=>{const child=new EventEmitter();child.pid=54321;child.connected=true;child.stdout=new PassThrough();child.stderr=new PassThrough();child.messages=[];child.send=msg=>child.messages.push(msg);children.push({file,args,child});return child;};
+  const spawn=(file,args,options)=>{const child=new EventEmitter();child.pid=54321;child.connected=true;child.stdout=new PassThrough();child.stderr=new PassThrough();child.messages=[];child.send=msg=>child.messages.push(msg);children.push({file,args,options,child});return child;};
   const coordinator=new DashboardCoordinator({root,spawn,githubStatus});
   try{
     const result=await coordinator.start("resume");
     assert.equal(result.command,"resume");
     assert.deepEqual(children[0].args,["resume"]);
+    assert.equal(children[0].options.env.SOXU_PROJECT_ROOT,root);
+    assert.notEqual(children[0].file,join(root,"automation","loop","src","cli.mjs"));
     await assert.rejects(()=>coordinator.start("once"),error=>error.status===409);
     children[0].child.stdout.write("pi safe log\n");
     children[0].child.stderr.write("token=topsecret\n");
