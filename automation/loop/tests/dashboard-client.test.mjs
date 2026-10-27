@@ -23,7 +23,7 @@ function response(status = 200) {
 function node() {
   const listeners = new Map(), children = [];
   const result = {
-    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "",
+    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "", replacements:0,
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
     classList: { add() {}, remove() {}, contains(value) { return result.className.split(" ").includes(value); } },
     addEventListener(type, fn) { listeners.set(type, fn); },
@@ -31,13 +31,13 @@ function node() {
     get children() { return children; },
     get lastElementChild() { return children.at(-1); },
     get firstElementChild() { return children[0]; },
-    replaceChildren(...items) { children.splice(0,children.length,...items); for(const x of items) x.parent = result; },
+    replaceChildren(...items) { result.replacements++; children.splice(0,children.length,...items); for(const x of items) x.parent = result; },
     append(...items) { children.push(...items); for(const x of items) x.parent = result; },
     remove() { if (result.parent) { const i = result.parent.children.indexOf(result); if (i >= 0) result.parent.children.splice(i,1); } },
   };
   return result;
 }
-function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map() } = {}) {
+function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map(), streamSupport = false } = {}) {
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
@@ -66,7 +66,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
     removeItem(key) { storage.delete(key); },
   };
   runInNewContext(APP, {
-    document, sessionStorage, localStorage: { getItem(key) { return preferences.get(key) ?? null; }, setItem(key, value) { preferences.set(key, String(value)); } },
+    document, window:{addEventListener(){}}, ...(streamSupport ? {AbortController, TextDecoder} : {}), sessionStorage, localStorage: { getItem(key) { return preferences.get(key) ?? null; }, setItem(key, value) { preferences.set(key, String(value)); } },
     setInterval() {}, setTimeout() { return 1; }, clearTimeout() {},
     AbortSignal: { timeout() { return undefined; } },
     fetch: async (path, options) => {
@@ -223,4 +223,27 @@ test("PR title links to GitHub and merge sends the selected issue and PR", async
   assert.equal(link.textContent,"Implement supervisor");assert.equal(link.href,"https://github.com/a/b/pull/21");
   button.dispatch("click");await tick();
   assert.deepEqual(JSON.parse(app.requests.find(r=>r.path==="/api/merge").options.body),{issue:1,pr:21});
+});
+
+ test("SSE frame failure cancels and aborts old stream before reconnect", async () => {
+  let cancelled=0, released=0, signal;
+  const reader={read:async()=>({done:false,value:new Uint8Array(65537).fill(65)}), cancel:async()=>{cancelled++;},releaseLock:()=>{released++;}};
+  const app=page({streamSupport:true,handler:(path,options)=>{
+    if(path==="/api/events") {signal=options.signal;return {ok:true,status:200,body:{getReader:()=>reader}};}
+    return response();
+  }});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");
+  await tick();await tick();
+  assert.equal(signal.aborted,true);assert.equal(cancelled,1);assert.equal(released,1);
+  app.elements.refresh.dispatch("click");await tick();await tick();
+  assert.equal(app.requests.filter(r=>r.path==="/api/events").length,1,"status refresh must not bypass pending reconnect backoff");
+});
+
+test("unchanged agent snapshots do not rebuild DOM on every status poll",async()=>{
+  const snapshot={...STATUS,agents:[{taskId:1,role:"developer",state:"waiting",tool:null,startedAt:"2026-10-27T00:00:00.000Z",activitySince:"2026-10-27T00:00:00.000Z"}]};
+  const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  assert.equal(app.elements.agentCards.replacements,1);
+  for(let i=0;i<100;i++){app.elements.refresh.dispatch("click");await tick();}
+  assert.equal(app.elements.agentCards.replacements,1);
 });

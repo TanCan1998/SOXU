@@ -52,6 +52,8 @@ test("strict localhost auth, read-only status and explicit CSRF checks", async()
     assert.equal(response.body.runner,null);
     for(const secret of ["SECRET PROMPT","SHOULD_NOT_LEAK","F:\\secret"])assert.ok(!JSON.stringify(response.body).includes(secret));
     assert.equal(response.headers["access-control-allow-origin"],undefined);
+    const favicon=await call(port,{path:"/favicon.ico",token:null});
+    assert.equal(favicon.status,204);
     const homepage=await call(port,{path:"/",token:null});
     assert.equal(homepage.status,200);
     assert.match(homepage.body,/SOXU/);
