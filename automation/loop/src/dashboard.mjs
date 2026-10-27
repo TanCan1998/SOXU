@@ -150,6 +150,16 @@ export class DashboardCoordinator extends EventEmitter {
       liveExternalLocks(this.root),
       Promise.all([readModelSettings(this.root),loadRoleModels(process.env,{root:this.root})]).then(([settings,selected])=>({status:"ok",settings,selected,envOverrides:{developer:Boolean(process.env.SOXU_DEVELOPER_PROVIDER || process.env.SOXU_DEVELOPER_MODEL),reviewer:Boolean(process.env.SOXU_REVIEWER_PROVIDER || process.env.SOXU_REVIEWER_MODEL)}})).catch(()=>({status:"unavailable"})),
     ]);
+    // Checkpoints use GitHub issue numbers, which need not match TASK identifiers.
+    const github = this.github.status === "ok" ? {
+      ...this.github, tasks: {...this.github.tasks, __queue: await Promise.all((this.github.tasks.__queue ?? []).map(async item => {
+        try {
+          const state = await readCheckpoint(item.number, join(this.root, ".soxu", "checkpoints"), false);
+          const valid = state && !state.local && state.issue?.number === item.number && ["running","paused","blocked","done"].includes(state.status);
+          return {...item, checkpoint: valid ? {status:state.status, phase:PHASES.has(state.phase) ? state.phase : null} : null};
+        } catch { return {...item, checkpointUnavailable:true}; }
+      }))}
+    } : this.github;
     return {
       schemaVersion: 2,
       instanceId: this.instanceId,
@@ -159,7 +169,7 @@ export class DashboardCoordinator extends EventEmitter {
       modelInfo,
       generatedAt: new Date().toISOString(),
       source: "local-checkpoints",
-      github: this.github,
+      github,
       autoMergeEnabled: this.autoMergeEnabled,
       intake: this.intake.publicState(),
       drafts: this.drafts.state(),

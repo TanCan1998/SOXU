@@ -335,16 +335,20 @@ function render(data) {
   $("lessonsStatus").textContent=lessons?.status === "available" ? `已记录 ${lessons.count} 条教训，${lessons.eligible} 条达到提出申请的条件。每条须有至少 3 个不同日期的证据；维护者核实、批准并通过单独治理 PR，不自动修改规则。` : "复盘规则：同一规则须有至少 3 个不同日期的证据，才可提出人工晋升申请；教训记录状态待核实。";
   renderProjectPhase(data.github,data);
   const queueItems = data.github?.status === "ok" ? data.github.tasks?.__queue || [] : [];
-  const queueKey=JSON.stringify([data.github?.status,queueItems]);
+  const queueKey=JSON.stringify([data.github?.status,queueItems,data.tasks,data.taskPhases]);
   const queue=$("queueList");
   if (queueKey !== lastQueueKey) {
     lastQueueKey=queueKey; queue.replaceChildren();
+    if (data.github?.status !== "ok") queue.append(element("div","GitHub 需求列表暂不可用，请检查连接后重试。","empty"));
+    else if (!queueItems.length) queue.append(element("div","没有已创建的需求。","empty"));
     for (const item of queueItems) {
     const row=element("div",undefined,"queue-item");
     const title=element(item.url ? "a" : "span",`#${item.number} ${item.title}`,"pr-link");
     if (item.url && /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(item.url)) {title.href=item.url;title.target="_blank";title.rel="noopener noreferrer";}
     const labels=item.labels || [];
-    const state=labels.includes("agent:blocked") ? "等待人工处理" : labels.includes("agent:paused") ? "已暂停" : labels.includes("agent:pr") ? "PR 待处理" : labels.includes("agent:in-progress") ? "执行中" : labels.includes("agent:waiting") ? "等待依赖" : "可执行";
+    const checkpoint=item.checkpoint;
+    const live=(data.taskPhases || []).find(t=>t.taskId===item.number);
+    const state=item.state === "CLOSED" ? (item.merged ? "已关闭 · PR 已合并" : "已关闭 · 合并状态待核实") : live?.status === "running" ? "执行中 · "+live.phase : checkpoint?.status === "paused" ? "已暂停 · "+(checkpoint.phase || "阶段未知") : checkpoint?.status === "blocked" ? "已阻塞 · "+(checkpoint.phase || "阶段未知") : checkpoint?.status === "running" ? "本地记录：执行中 · "+(checkpoint.phase || "阶段未知") : item.checkpointUnavailable ? "本地状态不可用" : labels.includes("agent:blocked") ? "等待人工处理" : labels.includes("agent:paused") ? "已暂停" : labels.includes("agent:pr") ? "PR 待处理" : labels.includes("agent:in-progress") ? "GitHub 标签：执行中" : labels.includes("agent:waiting") ? "等待依赖" : labels.includes("agent:ready") ? "可执行" : "未分类";
     row.append(title,element("span",state,"queue-state"));queue.append(row);
     }
   }

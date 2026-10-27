@@ -65,11 +65,12 @@ export async function seedIssues() {
   const existing = JSON.parse(await gh(["issue", "list", "--state", "all", "--limit", "300", "--json", "title"], ROOT));
   const tasks = await loadTaskCatalog();
   for (const task of tasks) {
-    if (existing.some(x => x.title.startsWith(`[${task.id}] `))) continue;
+    if (existing.some(x => taskIdFromIssueTitle(x.title) === task.id)) continue;
     const file = join(ROOT, "tasks", "backlog", `${task.id}.md`);
     // Dependencies are released by listIssues() only after predecessor Issues are CLOSED.
     const label = task.dependencies.length ? "agent:waiting" : "agent:ready";
-    await gh(["issue", "create", "--title", `[${task.id}] ${task.title}`, "--body-file", file, "--label", label], ROOT);
+    const names={"TASK-001":"实现 Pi RPC 进程管理","TASK-002":"实现项目与会话目录","TASK-003":"构建多会话工作区","TASK-004":"实现进程内存预算","TASK-005":"实现 Worktree 集成","TASK-006":"完善发布就绪检查"};
+    await gh(["issue", "create", "--title", `[${task.milestone ?? "未归类"}] [${task.id}] ${names[task.id] ?? task.title}`, "--body-file", file, "--label", label], ROOT);
     console.log(`Created Issue ${task.id} (${label})`);
   }
 }

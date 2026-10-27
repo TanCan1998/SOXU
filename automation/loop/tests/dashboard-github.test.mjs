@@ -49,3 +49,14 @@ test("running step status is bounded and unavailable jobs do not fail the snapsh
  assert.equal(a.step.name,"Install"); assert.equal(a.stepObservedAt,"2026-10-27T10:00:00Z");
  assert.equal(b.stepStatus,"unavailable");
 });
+
+test("queue includes existing catalog tasks, unlabeled issues and closed issues",()=>{
+ const catalog=[{id:"TASK-001",milestone:"M1",dependencies:[]}];
+ const issues=[{number:1,title:"[M1] [TASK-001] 实现管理",state:"OPEN",labels:[]},
+  {number:2,title:"[未归类] [ISSUE-2] 现有需求",state:"OPEN",labels:[]},
+  {number:3,title:"[M0] [ISSUE-3] 已关闭",state:"CLOSED",labels:[]}];
+ const data=buildGithubStatus(catalog,issues,[]);
+ assert.equal(data["TASK-001"].issue,1);
+ assert.deepEqual(data.__queue.map(x=>x.number),[1,2,3]);
+ assert.equal(data.__queue[2].state,"CLOSED");
+});

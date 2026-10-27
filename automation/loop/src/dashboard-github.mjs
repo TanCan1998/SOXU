@@ -71,9 +71,7 @@ export function buildGithubStatus(catalog, issues, prs) {
     else if(labels.has("agent:in-progress"))target.running++;
   }
   tasks.__roadmap={stages:Object.values(stages),unclassified,limited:issues.length>=1000 || prs.length>=1000};
-  tasks.__queue = issues.filter(i => !taskIdFromIssueTitle(i.title) && i.state === "OPEN" &&
-    (i.labels ?? []).some(l => ["agent:ready","agent:blocked","agent:waiting","agent:in-progress","agent:paused","agent:pr"].includes(l.name)))
-    .slice(0,100).map(i => ({number:i.number,title:String(i.title ?? "").slice(0,160),
+  tasks.__queue = issues.map(i => ({number:i.number,title:String(i.title ?? "").slice(0,160), state:i.state, merged:merged.has(i.number),
       labels:(i.labels ?? []).map(l=>l.name).filter(n=>["agent:ready","agent:blocked","agent:waiting","agent:in-progress","agent:paused","agent:pr"].includes(n)),
       url: safeIssueUrl(i.url,i.number)}));
   return tasks;

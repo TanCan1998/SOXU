@@ -42,7 +42,7 @@ test("confirmed requirement is classified in the chosen milestone title",async()
   let args;
   const execute=async(bin,argv)=>{args=argv;return {stdout:"https://github.com/a/b/issues/99\n"};};
   await submitRequirement("/repo",{id:"test",requirement:"需求",assessment,ready:true,milestone:"M2"},execute);
-  assert.equal(args[args.indexOf("--title")+1],"[M2] 新需求");
+  assert.equal(args[args.indexOf("--title")+1],"[M2] [REQ-test] 新需求");
 });
 
 
