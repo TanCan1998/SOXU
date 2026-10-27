@@ -23,9 +23,9 @@ function response(status = 200) {
 function node() {
   const listeners = new Map();
   return {
-    value: "", textContent: "", disabled: false, dataset: {},
+    value: "", textContent: "", disabled: false, checked: false, dataset: {},
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
-    classList: { add() {}, remove() {} },
+    classList: { add() {}, remove() {}, contains() { return false; } },
     addEventListener(type, fn) { listeners.set(type, fn); },
     dispatch(type, event = {}) { listeners.get(type)?.(event); },
     replaceChildren() {}, append() {},
@@ -35,6 +35,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false 
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
+    "logLimit", "logFilter", "followLogs", "logCount", "agentCards",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -46,7 +47,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false 
   const document = {
     hidden,
     getElementById(id) { assert.ok(elements[id], `Unexpected element: ${id}`); return elements[id]; },
-    querySelectorAll(selector) { assert.equal(selector, "[data-command]"); return actions; },
+    querySelectorAll(selector) { if (selector === ".agent-elapsed") return []; assert.equal(selector, "[data-command]"); return actions; },
     createElement() { return node(); },
     createTextNode(value) { return { textContent: value }; },
     addEventListener(type, fn) { listeners.set(type, fn); },
@@ -59,8 +60,8 @@ function page({ storage = new Map(), handler = () => response(), hidden = false 
     removeItem(key) { storage.delete(key); },
   };
   runInNewContext(APP, {
-    document, sessionStorage,
-    setInterval() {},
+    document, sessionStorage, localStorage: { getItem() { return null; }, setItem() {} },
+    setInterval() {}, setTimeout() { return 1; }, clearTimeout() {},
     AbortSignal: { timeout() { return undefined; } },
     fetch: async (path, options) => {
       requests.push({ path, options });
@@ -84,9 +85,9 @@ test("authenticated token survives same-tab reload and reconnects automatically"
   await tick();
   assert.equal(reloaded.elements.token.value, TOKEN);
   assert.equal(reloaded.elements.connection.textContent, "本机已连接");
-  assert.equal(reloaded.requests.length, 1);
-  assert.equal(reloaded.requests[0].path, "/api/status");
-  assert.equal(reloaded.requests[0].options.headers["X-SOXU-Control-Token"], TOKEN);
+  const statusRequests = reloaded.requests.filter(x => x.path === "/api/status");
+  assert.equal(statusRequests.length, 1);
+  assert.equal(statusRequests[0].options.headers["X-SOXU-Control-Token"], TOKEN);
 });
 
 test("rejecting a token clears only the matching stored session", async () => {
@@ -130,7 +131,7 @@ test("hidden-page reload restores the token when the page becomes visible", asyn
   view.document.hidden = false;
   view.document.dispatch("visibilitychange");
   await tick();
-  assert.equal(view.requests.length, 1);
+  assert.equal(view.requests.filter(x => x.path === "/api/status").length, 1);
   assert.equal(view.elements.connection.textContent, "本机已连接");
 });
 
