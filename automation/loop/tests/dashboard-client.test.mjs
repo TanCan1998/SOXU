@@ -307,3 +307,16 @@ test("model picker groups providers, pins and saves selected global model",async
   const body=JSON.parse(app.requests.find(x=>x.path==="/api/model-settings").options.body);
   assert.deepEqual(body.global,[{provider:"magpie",model:"a"}]);assert.deepEqual(body.favorites,[{provider:"magpie",model:"a"}]);
 });
+
+test("large model catalog limits rendered rows and keeps search available",async()=>{
+  const settings={schemaVersion:1,revision:0,global:[],roles:{developer:null,reviewer:null,product:null,quality:null,intake:null},favorites:[]};
+  const snapshot={...STATUS,modelInfo:{status:"ok",settings,selected:{}}};
+  const models=Array.from({length:400},(_,i)=>({provider:"p",model:"model-"+String(i).padStart(3,"0")}));
+  const app=page({handler:path=>({ok:true,status:200,json:async()=>path==="/api/model-catalog"?{models}:snapshot})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  app.elements.openModels.dispatch("click");await tick();
+  assert.equal(app.elements.modelGroups.children[0].children.length,301);
+  assert.match(app.elements.modelGroups.children[1].textContent,/前 300/);
+  app.elements.modelSearch.value="model-399";app.elements.modelSearch.dispatch("input");
+  assert.equal(app.elements.modelGroups.children[0].children.length,2);
+});

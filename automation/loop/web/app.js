@@ -550,11 +550,14 @@ function renderModelChoices() {
     groups.get(item.provider).push(item);
   }
   const container=$("modelGroups");container.replaceChildren();
+  let remaining=300;
   for (const [provider,models] of [...groups].sort(([a,aa],[b,bb])=>Number(bb.some(x=>favorites.has(modelKey(x))))-Number(aa.some(x=>favorites.has(modelKey(x)))) || a.localeCompare(b))) {
+    if (!remaining) break;
     const group=element("details",undefined,"model-group");group.open=Boolean(query) || models.some(x=>favorites.has(modelKey(x)));
     group.append(element("summary",provider+" · "+models.length));
     models.sort((a,b)=>Number(favorites.has(modelKey(b)))-Number(favorites.has(modelKey(a))) || a.model.localeCompare(b.model));
-    for (const item of models) {
+    const visible=models.slice(0,remaining); remaining-=visible.length;
+    for (const item of visible) {
       const row=element("div",undefined,"model-option"), label=element("label"), input=element("input");
       input.type="checkbox";input.checked=selected.some(x=>modelKey(x)===modelKey(item));input.disabled=inherit || (!item.available && !input.checked);
       input.addEventListener("change",()=>{
@@ -570,6 +573,7 @@ function renderModelChoices() {
     container.append(group);
   }
   if (!groups.size) container.append(element("p","没有匹配模型","hint"));
+  else if ([...groups.values()].reduce((total,rows)=>total+rows.length,0)>300) container.append(element("p","仅展示前 300 个模型，请继续搜索以缩小范围。","hint"));
 }
 async function refreshModelCatalog() {
   $("modelMessage").textContent="正在读取本机 Pi 模型列表…";
