@@ -40,8 +40,8 @@ $env:SOXU_REVIEWER_MODEL = 'auto/deepseek-v4.1-flash'
 
 node ../soxu-agent-loop/automation/loop/src/cli.mjs models                # 零模型调用，只检查解析后的配置
 node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor                # 检查工具安装
-node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run      # 预览领取任务
-node ../soxu-agent-loop/automation/loop/src/cli.mjs once                  # 只有在确认额度/认证/权限后才运行
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --dry-run      # 预览领取任务
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start                  # 只有在确认额度/认证/权限后才运行
 ```
 
 关闭 PowerShell 后该会话环境变量消失。需要恢复继承配置时执行 `Remove-Item Env:SOXU_DEVELOPER_MODEL` 等六个变量，或启动新终端。**不要在脚本、README、Git 仓库保存密钥**；Pi 认证应按官方登录和本机凭据管理办法设置。调度器会隔离部分外部密钥环境变量，因此依赖裸环境 API Key 的供应商应先验证 Pi 本机登录是否可用。
@@ -51,7 +51,7 @@ node ../soxu-agent-loop/automation/loop/src/cli.mjs once                  # 只�
 - Pi 模型 ID 可能随供应商变动，**先用已安装 Pi CLI 的 `--list-models`** 查实际 ID。
 - 已开启任务的模型不会自动随着 PiDeck 中另一会话的选择而切换。
 - Runner 对角色模型参数做有限字符集校验，避免 Windows `cmd.exe` 调用时的命令注入。
-- 额度错误或网络失败会暂停当前任务、保留 Worktree；人工执行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 再恢复。
+- 额度错误或网络失败会暂停当前任务、保留 Worktree；人工执行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start` 再恢复。
 - 模型选择与预算必须经用户确认，不自动选更贵的备选服务商。
 
 参考：[Pi CLI 用法](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)；[Pi Settings](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/settings.md)；[自定义模型](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/models.md)。

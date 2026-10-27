@@ -55,7 +55,7 @@ node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor      # Inspect tools,
 
 ## Updating existing task worktrees
 
-Merging into `main` does not update existing task worktrees. Run `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs` to inspect lag and `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs -- --sync` to safely preserve task edits in a recovery stash, fast-forward eligible early-phase branches to latest main and reapply edits. For conflicts, `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` invokes the Developer to resolve them before checks and review. Stash backups are kept. See [Agent Loop guide](docs/development/agent-loop.md).
+Merging into `main` does not update existing task worktrees. Run `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs` to inspect lag and `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs -- --sync` to safely preserve task edits in a recovery stash, fast-forward eligible early-phase branches to latest main and reapply edits. For conflicts, `node ../soxu-agent-loop/automation/loop/src/cli.mjs start` invokes the Developer to resolve them before checks and review. Stash backups are kept. See [Agent Loop guide](docs/development/agent-loop.md).
 
 ## Start and monitor autonomous development
 
@@ -64,14 +64,13 @@ node scripts/init-git.mjs          # Safe no-op for existing repos
 # First configure origin and main-branch protection, then once:
 node ../soxu-agent-loop/automation/loop/src/cli.mjs seed-issues
 node ../soxu-agent-loop/automation/loop/src/cli.mjs status          # Offline local task/checkpoint snapshot (not live GitHub)
-node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run        # Preview eligible tasks
-node ../soxu-agent-loop/automation/loop/src/cli.mjs once                     # One controlled batch
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --dry-run   # Preview: recovery if any, else next batch
+node ../soxu-agent-loop/automation/loop/src/cli.mjs start                # Recover paused/blocked first, else run next batch
 node ../soxu-agent-loop/automation/loop/src/cli.mjs loop                     # Bounded development rounds
 # node ../soxu-agent-loop/automation/loop/src/cli.mjs watch                  # Only on an authorized dedicated runner
 
-node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --dry-run      # Preview recovery
-node ../soxu-agent-loop/automation/loop/src/cli.mjs resume                  # Resume paused runs
-node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"         # Local natural-language recovery shortcut
+# Interrupts, quota and network failures use the same entry point:
+node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"         # Natural-language shortcut
 
 pnpm tauri:dev                     # Launch desktop app separately
 ```

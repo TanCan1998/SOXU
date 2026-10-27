@@ -8,7 +8,7 @@
 4. GitHub 设置 main branch protection：要求 PR、必过 `quality` 检查、禁止强制推送与删除；允许 auto-merge。**首次上线须手工核验有效保护，不能依赖 Agent 自己开启。**
 5. `gh auth login`、`pi --version`、`node ../soxu-agent-loop/automation/loop/src/cli.mjs models`，启动 `node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor`；设置最低权限的远程认证，不能将 PAT 放到 Issue 或 `.env` 里。
 6. `node ../soxu-agent-loop/automation/loop/src/cli.mjs seed-issues` 创建初始化 Issues；无依赖任务标记 `agent:ready`，有依赖的标记 `agent:waiting`。`agent:blocked` 为人工/故障封锁，不会自行解除。升级自 v1.5 的 TASK-006 可能有旧默认 blocked 标签，需人工核对后改为 waiting。
-7. `node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run` 检查队列；`node ../soxu-agent-loop/automation/loop/src/cli.mjs once` 执行一批；`node ../soxu-agent-loop/automation/loop/src/cli.mjs loop` 执行 policy 限制的最多 5 轮，不是无保护无限循环。需要持续运行时可显式启动 `node ../soxu-agent-loop/automation/loop/src/cli.mjs watch`：每 10 分钟轮询，单次最多 8 小时/12 个任务，遇阻塞自动退出；由 OS 任务调度器在授权环境中重启下一轮。运行中按 Ctrl+C 停止。
+7. `node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --dry-run` 检查队列；`node ../soxu-agent-loop/automation/loop/src/cli.mjs start` 执行一批；`node ../soxu-agent-loop/automation/loop/src/cli.mjs loop` 执行 policy 限制的最多 5 轮，不是无保护无限循环。需要持续运行时可显式启动 `node ../soxu-agent-loop/automation/loop/src/cli.mjs watch`：每 10 分钟轮询，单次最多 8 小时/12 个任务，遇阻塞自动退出；由 OS 任务调度器在授权环境中重启下一轮。运行中按 Ctrl+C 停止。
 
 ## 核心算法
 
@@ -21,7 +21,7 @@ GitHub Issues（TASK ID 依赖已满足、`agent:ready` 或可提升的 `agent:w
 
 ### Worktree 与最新 main 的同步
 
-已有 Worktree 不会自动接收后续合并到 `main` 的提交。`node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 会在模型调用前检查并安全快进所选任务；如存在未提交任务成果或其他风险，则保留检查点并跳过该任务，不能自动合并。也可以执行：
+已有 Worktree 不会自动接收后续合并到 `main` 的提交。`node ../soxu-agent-loop/automation/loop/src/cli.mjs start` 会在模型调用前检查并安全快进所选任务；如存在未提交任务成果或其他风险，则保留检查点并跳过该任务，不能自动合并。也可以执行：
 
 ```powershell
 git fetch origin main
@@ -29,25 +29,25 @@ node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs            # �
 node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs -- --sync  # 只安全更新干净的早期任务
 ```
 
-`--sync` 会对**没有活动锁、处于 worktree/install/develop/checks/review/finalChecks 阶段且可快进**的工作树更新最新 main。对于未提交修改，先用 Git stash（包含未跟踪文件）生成可恢复备份，再快进和恢复变更；有冲突时记录 `mergeConflict` 与 stash SHA，保留原任务代码，由 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 调用 Developer 自行分析最新 main、解决冲突，经依赖安装、测试、Reviewer 审查后继续。不会自动丢弃 stash、`reset --hard` 或跳过质量门禁。历史分叉、受保护操作、活动锁及备份异常会安全暂停。不自动消耗模型额度重试超过 policy 的限制；本命令本身不调用模型。
+`--sync` 会对**没有活动锁、处于 worktree/install/develop/checks/review/finalChecks 阶段且可快进**的工作树更新最新 main。对于未提交修改，先用 Git stash（包含未跟踪文件）生成可恢复备份，再快进和恢复变更；有冲突时记录 `mergeConflict` 与 stash SHA，保留原任务代码，由 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start` 调用 Developer 自行分析最新 main、解决冲突，经依赖安装、测试、Reviewer 审查后继续。不会自动丢弃 stash、`reset --hard` 或跳过质量门禁。历史分叉、受保护操作、活动锁及备份异常会安全暂停。不自动消耗模型额度重试超过 policy 的限制；本命令本身不调用模型。
 
 ### 超时与手动恢复
 
-所有任务均有启动、连续无进展和绝对总时长三类超时保护。出现额度不足、网络中断、超时后，不做自动付费 API 重试；Git Worktree 与当前阶段保存在 `.soxu/checkpoints/`。**只需说“继续 SOXU”或运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume`**；不需要手动清理 Issue/Worktree。详情参见 `docs/development/timeouts-and-recovery.md`。
+所有任务均有启动、连续无进展和绝对总时长三类超时保护。出现额度不足、网络中断、超时后，不做自动付费 API 重试；Git Worktree 与当前阶段保存在 `.soxu/checkpoints/`。**只需说“继续 SOXU”或运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start`**；不需要手动清理 Issue/Worktree。详情参见 `docs/development/timeouts-and-recovery.md`。
 
 ### 本地开发模式
 
-`node automation/loop/src/cli.mjs once --local --dry-run` 或 `... once --local`，源自本地 TASK 定义；本地模式只创建独立分支和提交，不进行远程 PR/合并。**后继任务必须等前置任务的具体提交合入本地 `main` 才能运行**，仅有 done checkpoint 不足以解锁；Runner 不自动合并，避免误合并脏 Worktree。执行模式仍要先生成锁文件并安装依赖。
+`node automation/loop/src/cli.mjs start --local --dry-run` 或 `... once --local`，源自本地 TASK 定义；本地模式只创建独立分支和提交，不进行远程 PR/合并。**后继任务必须等前置任务的具体提交合入本地 `main` 才能运行**，仅有 done checkpoint 不足以解锁；Runner 不自动合并，避免误合并脏 Worktree。执行模式仍要先生成锁文件并安装依赖。
 
 ### 一句话恢复
 
 当额度或网络问题解决后，直接在工作目录运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"`。它会离线解析指令并优先选择**最后一个暂停**的任务。`--dry-run` 只列出将要恢复的检查点，不调用模型；“恢复所有暂停的任务”必须由用户明确说出才会批量执行。GitHub 与本地模式从检查点自动判断。详见 `.pi/skills/soxu-recover/SKILL.md`。
 
-对于 `blocked`，先人工检查并修复原因，可在 WebUI 的任务列表中选择“恢复此任务”，也可以用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --blocked --issue 123 --dry-run` 预览，去掉 `--dry-run` 执行。同步 main 后会重新执行检查和审查；不会跳过密钥检测。
+对于 `blocked`，先人工检查并修复原因，可在 WebUI 的任务列表中选择“启动”，也可以用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --blocked --issue 123 --dry-run` 预览，去掉 `--dry-run` 执行。同步 main 后会重新执行检查和审查；不会跳过密钥检测。
 
 ### 恢复、停机、失败
 
-- 额度/网络/超时：Issue 可达时转 `agent:paused`，本地检查点与 Worktree 保留；使用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 按阶段恢复。其他失败转 `agent:blocked`，不得绕过测试或规则。
+- 额度/网络/超时：Issue 可达时转 `agent:paused`，本地检查点与 Worktree 保留；使用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start` 按阶段恢复。其他失败转 `agent:blocked`，不得绕过测试或规则。
 - 运行时可以 `Ctrl+C` 中断 Runner；中断期间可能保留 Pi 子进程或编译进程，需在隔离环境检查并结束；不能直接删除可能有未提交改动的 Worktree。
 - 任何权限/密钥/工具链缺失导致检查无法运行，都属于失败，不得绕过。
 - 当前版本对 Pi 和 pnpm/Cargo 的子进程树执行终止与超时保护，但**尚未经过 Windows 实机完整验证，也没有多主机协调**。
@@ -98,7 +98,7 @@ GitHub 模式每次调用 Developer 前（包括恢复和检查修复），查�
 
 ### 相近 PR 与 GitHub CI 步骤
 
-开发模型调用前还按任务标题和开放 PR 标题的共同词语生成最多五个疑似相近候选，仅作为待人工核实的启发式证据，不能证明重复，也会漏报或误报。发现候选时阻塞；核实后显式使用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --blocked --issue <编号>` 继续，精确关联同 Issue 的 PR 仍阻塞。检查不提供跨机器原子保证。
+开发模型调用前还按任务标题和开放 PR 标题的共同词语生成最多五个疑似相近候选，仅作为待人工核实的启发式证据，不能证明重复，也会漏报或误报。发现候选时阻塞；核实后显式使用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs start -- --blocked --issue <编号>` 继续，精确关联同 Issue 的 PR 仍阻塞。检查不提供跨机器原子保证。
 
 WebUI 的 GitHub 快照最多并行查询五个运行中 Actions 任务的步骤状态（需要 GitHub Actions 读取权限）。显示当前步骤和步骤开始/完成的最近变化时间，缺失权限或不可用时显示未知；它不是最后日志时间，也不据此判断卡死。运行中的日志下载不可用时请打开 GitHub Actions 查看；不为了监控自动重试任务或模型。
 
