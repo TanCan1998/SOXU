@@ -230,6 +230,21 @@ function updateElapsed() {
   for (const label of document.querySelectorAll(".agent-elapsed"))
     label.textContent = "运行 " + fmt(label.dataset.startedAt) + " · 当前状态 " + fmt(label.dataset.activitySince);
 }
+function showMilestoneDetail(id, name, stage, limited) {
+  $("milestoneTitle").textContent = id + " · " + name;
+  const list=$("milestoneDetails"); list.replaceChildren();
+  if (limited) list.append(element("p","GitHub 查询达到上限，以下明细可能不完整。","hint"));
+  if (!stage || !Array.isArray(stage.items)) list.append(element("p","明细暂不可用，请检查 GitHub 连接。","hint"));
+  else if (!stage.items.length) list.append(element("p","该里程碑暂无已归类任务。","hint"));
+  else for (const item of stage.items) {
+    const row=element("div",undefined,"milestone-detail-row");
+    const label=element(item.url ? "a" : "span", "#"+item.number+" "+item.title);
+    if(item.url) { label.href=item.url; label.target="_blank"; label.rel="noopener noreferrer"; }
+    const status=item.merged ? "已合入" : item.state === "CLOSED" ? "已关闭 · 合并待核实" : item.labels.includes("agent:blocked") ? "已阻塞" : item.labels.includes("agent:paused") ? "已暂停" : item.labels.includes("agent:in-progress") ? "进行中" : "待处理";
+    row.append(label,element("span",status,"subtle")); list.append(row);
+  }
+  $("milestoneDialog").showModal();
+}
 function renderProjectPhase(github, data) {
   const names={M0:"工程治理",M1:"产品原型",M2:"多 Agent",M3:"开发工具",M4:"交付发布"};
   const roadmap=github?.status === "ok" ? github.tasks?.__roadmap : null;
@@ -247,6 +262,9 @@ function renderProjectPhase(github, data) {
     if(active)running++;else if(state==="paused")paused++;
     if(!unknown){total+=stage.total;merged+=stage.merged;}
     const card=element("article",undefined,"milestone-card");card.dataset.status=state;
+    card.setAttribute("role","button");card.setAttribute("tabindex","0");card.setAttribute("aria-label",id+" · "+names[id]+"，查看任务明细");
+    const show=()=>showMilestoneDetail(id,names[id],stage,Boolean(roadmap?.limited));
+    card.addEventListener("click",show);card.addEventListener("keydown",event=>{if(event.key==="Enter" || event.key===" "){event.preventDefault();show();}});
     const labels={unknown:"待核实",running:"进行中",paused:"暂停 / 阻塞",completed:"任务已合入 · 验收待确认",waiting:"等待推进"};
     const head=element("div",undefined,"milestone-heading");head.append(element("strong",id+" · "+names[id]),element("span",labels[state],"milestone-state"));card.append(head);
     const track=element("div",undefined,"milestone-track"), fill=element("span",undefined,"milestone-fill");
@@ -714,6 +732,7 @@ document.addEventListener("visibilitychange", () => {
     if (connected && !streamController && !reconnectTimer) void openStream(tokenInput.value.trim());
   }
 });
+$("closeMilestone").addEventListener("click",()=>$("milestoneDialog").close());
 const savedToken = restoreToken();
 if (savedToken) {
   tokenInput.value = savedToken;

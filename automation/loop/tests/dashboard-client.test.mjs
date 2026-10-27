@@ -40,7 +40,7 @@ function node() {
 }
 function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map(), streamSupport = false } = {}) {
   const ids = [
-    "token", "tokenLabel", "authPanel", "authNotice", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
+    "milestoneDialog", "milestoneTitle", "milestoneDetails", "closeMilestone", "token", "tokenLabel", "authPanel", "authNotice", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
     "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake",
   ];
@@ -240,13 +240,18 @@ test("theme preference survives reload", async()=>{
 });
 
 test("project milestones derive dynamic task counts and live evidence",async()=>{
-  const stages=[{id:"M0",total:0,merged:0,paused:0,unknown:0,issues:[]},{id:"M1",total:3,merged:2,paused:0,unknown:0,issues:[1,2,3]},{id:"M2",total:1,merged:0,paused:1,unknown:0,issues:[4]}];
+  const stages=[{id:"M0",total:0,merged:0,paused:0,unknown:0,issues:[]},{id:"M1",total:3,merged:2,paused:0,unknown:0,issues:[1,2,3],items:[{number:1,title:"任务一",state:"CLOSED",url:"https://github.com/TanCan1998/SOXU/issues/1",labels:[],merged:true}]},{id:"M2",total:1,merged:0,paused:1,unknown:0,issues:[4]}];
   const snapshot={...STATUS,runner:{command:"once",startedAt:"2026-10-27T00:00:00Z"},taskPhases:[{taskId:3,status:"running"}],github:{status:"ok",updatedAt:"2026-10-27T00:00:00Z",tasks:{__roadmap:{stages,unclassified:2,limited:false}}}};
   const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
   app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
   assert.equal(app.elements.projectPhaseTitle.textContent,"1 个里程碑正在推进");
   assert.equal(app.elements.projectPhaseCount.textContent,"2 / 4 项已合入");
   assert.equal(app.elements.roadmapCards.children[1].dataset.status,"running");
+  app.elements.roadmapCards.children[1].dispatch("click");
+  assert.equal(app.elements.milestoneDialog.open,true);
+  assert.equal(app.elements.milestoneTitle.textContent,"M1 · 产品原型");
+  assert.equal(app.elements.milestoneDetails.children[0].children[0].textContent,"#1 任务一");
+  app.elements.closeMilestone.dispatch("click"); assert.equal(app.elements.milestoneDialog.open,false);
   assert.equal(app.elements.roadmapCards.children[2].dataset.status,"paused");
   snapshot.github={status:"unavailable"};app.elements.refresh.dispatch("click");await tick();
   assert.equal(app.elements.projectPhaseTitle.textContent,"项目里程碑状态待核实");

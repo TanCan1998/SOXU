@@ -40,7 +40,7 @@ export function buildGithubStatus(catalog, issues, prs) {
       pr: pr ? {number: pr.number, title: String(pr.title ?? "").slice(0,200), url: safePrUrl(pr.url, pr.number), state: pr.mergedAt ? "merged" : pr.state === "OPEN" ? "open" : "closed", ci} : null };
   }
   // Progress is derived from all explicitly classified Issues, never from a fixed task count.
-  const stages=Object.fromEntries(["M0","M1","M2","M3","M4"].map(id=>[id,{id,total:0,merged:0,running:0,paused:0,unknown:0,issues:[]}]));
+  const stages=Object.fromEntries(["M0","M1","M2","M3","M4"].map(id=>[id,{id,total:0,merged:0,running:0,paused:0,unknown:0,issues:[],items:[]}]));
   const catalogById=new Map(catalog.map(t=>[t.id,t]));
   let unclassified=0;
   for (const issue of issues) {
@@ -53,6 +53,7 @@ export function buildGithubStatus(catalog, issues, prs) {
     const labels=new Set((issue.labels ?? []).map(l=>l.name));
     if (!stage || !stages[stage]) {if(id || [...labels].some(n=>n.startsWith("agent:"))) unclassified++;continue;}
     const target=stages[stage];target.total++;target.issues.push(issue.number);
+    target.items.push({number:issue.number,title:String(issue.title ?? "").slice(0,160),state:issue.state,url:safeIssueUrl(issue.url,issue.number),labels:[...labels].filter(n=>["agent:blocked","agent:paused","agent:in-progress"].includes(n)),merged:issue.state === "CLOSED" && merged.has(issue.number)});
     if(issue.state === "CLOSED") {if(merged.has(issue.number))target.merged++;else target.unknown++;}
     else if(labels.has("agent:paused") || labels.has("agent:blocked"))target.paused++;
     else if(labels.has("agent:in-progress"))target.running++;
