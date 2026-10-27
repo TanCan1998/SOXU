@@ -18,7 +18,9 @@ export function safeActivity(message) {
 }
 
 export function createPiActivityReporter(taskId, role, { send = message => {
-  if (typeof process.send === "function" && process.connected) process.send(message);
+  if (typeof process.send === "function" && process.connected) {
+    try { process.send(message); } catch { /* Telemetry must never interrupt paid Pi work. */ }
+  }
 }, now = () => new Date().toISOString() } = {}) {
   if (!ROLES.has(role) || !Number.isSafeInteger(taskId) || taskId <= 0) throw new Error("Invalid Pi activity identity");
   const startedAt = now();
