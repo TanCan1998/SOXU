@@ -6,9 +6,11 @@
 
 **项目状态：准备启动 / 工程原型阶段。** 当前仓库包含早期 Tauri + Vue 工程骨架和可运行的 Node.js Agent 开发调度器；SOXU 最终桌面产品**尚未完成**。历史 ZIP 包版本（如 v1.3）代表原型工程迭代，并非正式 SOXU 软件发行版本。
 
-## PiDeck 只读任务观测（按需）
+## 本地 Web Agent 控制台
 
-可运行 `pnpm agent:observe`，在 PiDeck 安装 `integrations/pideck/soxu-observer` 宿主插件并授权固定回环端口 47321，输入启动终端的临时令牌。此接口只提供本地任务检查点，不接管 Pi RPC；真实会话仍由 PiDeck 的原生 JSONL 历史浏览。参见 [操作说明](docs/development/pideck-observer.md)。
+`pnpm agent:dashboard` 启动按需开放的本地控制台：在浏览器访问 `http://127.0.0.1:47321/`，
+输入终端提供的临时令牌，查看任务阶段和有限日志，并手动运行、停止、恢复 Agent Loop。
+不依赖 PiDeck、不接管其他终端的 Pi 进程。完整说明见 [Dashboard 操作手册](docs/development/dashboard.md)。
 
 ## 产品目标
 

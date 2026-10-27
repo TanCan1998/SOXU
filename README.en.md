@@ -6,9 +6,12 @@
 
 **Status: pre-launch / engineering prototype.** This repository contains an early Tauri + Vue desktop skeleton and a Node.js development Agent Loop. **The finished SOXU desktop product does not exist yet.** Historical ZIP labels (such as v1.3) identify bootstrap iterations, not released SOXU application versions.
 
-## Read-only PiDeck task observer (opt-in)
+## Local Agent Web dashboard
 
-Run `pnpm agent:observe` on demand. Install the `integrations/pideck/soxu-observer` host plugin in PiDeck, consent to loopback port 47321, and enter the ephemeral token from the startup terminal. This only exposes local task checkpoints; it does not attach to Pi RPC. Continue browsing native Pi JSONL chat history in PiDeck. See [integration guide](docs/development/pideck-observer.md).
+Run `pnpm agent:dashboard`, open `http://127.0.0.1:47321/`, and enter the ephemeral token
+shown in the terminal. View checkpoint progress and bounded runner logs, or explicitly run,
+stop, and resume Agent Loop tasks. No PiDeck dependency or external-process takeover.
+See the [dashboard guide](docs/development/dashboard.md).
 
 ## Product goals
 

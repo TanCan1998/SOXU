@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOXU · Agent Loop</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<header class="top"><div class="brand"><div class="symbol">S</div><div><strong>SOXU</strong><span>Agent Control Center</span></div></div>
+<div class="connection"><span id="dot" class="dot"></span><span id="connection">尚未连接</span></div></header>
+<main>
+<section class="hero"><div><p class="eyebrow">本地 · 只读进度 + 显式控制</p><h1>自主开发控制台</h1><p class="hint">查看任务检查点、调度状态和日志。所有操作仅在这台计算机执行。</p></div>
+<div class="auth"><label for="token">本次启动的访问令牌</label><div class="inline"><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴终端中的令牌"><button id="connect">连接</button></div></div></section>
+<section class="stats" aria-label="任务统计"><div class="stat"><span>总任务</span><strong id="total">—</strong></div><div class="stat"><span>进行中</span><strong id="running">—</strong></div><div class="stat"><span>待处理</span><strong id="pending">—</strong></div><div class="stat"><span>完成</span><strong id="done">—</strong></div></section>
+<section class="panel"><div class="panel-heading"><div><h2>开发调度</h2><p class="hint" id="runner">等待连接</p></div><span class="status-pill" id="badge">未连接</span></div>
+<div class="actions"><button class="action" data-command="resume">恢复中断任务</button><button class="action" data-command="once">执行下一批</button><button class="action" data-command="loop">启动有界循环</button><button class="action" data-command="watch">持续监控开发</button><button class="danger" id="stop" disabled>安全停止</button></div>
+<p class="notice" id="notice">控制台只能停止自身启动的任务；其他终端的任务仅展示状态。持续监控会产生模型调用费用，需单独确认。</p></section>
+<section class="panel"><div class="panel-heading"><div><h2>任务列表</h2><p class="hint">按照本地检查点显示，状态不会伪装成实时 Pi 进程心跳。</p></div><span id="updated" class="subtle"></span></div><div id="tasks" class="tasks"><div class="empty">连接后显示任务</div></div></section>
+<section class="panel"><div class="panel-heading"><div><h2>执行日志</h2><p class="hint">仅展示协调器 stdout/stderr，非完整 Pi 模型对话。</p></div><button id="refresh" class="ghost">刷新</button></div><div id="logs" class="logs" role="log" aria-live="off"><div class="empty">暂无日志</div></div></section>
+<footer>SOXU · 127.0.0.1 only · autoMerge / autoRelease 始终由项目策略控制</footer>
+</main><script src="/app.js" defer></script></body></html>

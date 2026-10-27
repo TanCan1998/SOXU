@@ -29,6 +29,6 @@
     "agent:product": "node automation/loop/src/advisory-cli.mjs product",
     "agent:quality": "node automation/loop/src/advisory-cli.mjs quality",
     "agent:lessons": "node automation/loop/src/advisory-cli.mjs lessons",
-    "agent:observe": "node automation/loop/src/observer-cli.mjs"
+    "agent:dashboard": "node automation/loop/src/dashboard-cli.mjs"
   }
 }
