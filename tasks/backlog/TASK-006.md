@@ -2,7 +2,7 @@
 id: TASK-006
 milestone: M4
 priority: P2
-dependencies: [TASK-001, TASK-002, TASK-003, TASK-004]
+dependencies: [TASK-001, TASK-002, TASK-003, TASK-004, TASK-005]
 ---
 
 # Release readiness hardening
@@ -16,7 +16,7 @@ dependencies: [TASK-001, TASK-002, TASK-003, TASK-004]
 - 预发布制品、签名/公证能力边界及人工授权规则核验。
 
 ## 验收标准
-- [ ] TASK-001～004 的对应 Issue 均已完成且代码已合入 main，不能仅凭 PR 打开；TASK-005 已取消，不作为发布前置条件。
+- [ ] TASK-001～005 的对应 Issue 均已完成且代码已合入 main，不能仅凭 PR 打开。
 - [ ] 版本、依赖锁文件、测试/CI、安装/卸载等有可核验证据。
 - [ ] 缺少签名、macOS 公证或平台 Runner 时如实报告限制，不宣称已验证。
 - [ ] 不跳过安全/发布门禁；预发布仅按既定 policy 和显式授权执行。
