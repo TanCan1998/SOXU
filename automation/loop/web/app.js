@@ -4,7 +4,6 @@ const TOKEN_STORAGE_KEY = "soxu.dashboard.sessionToken.v1";
 const LOG_LIMIT_KEY = "soxu.dashboard.logLimit.v1";
 const LOG_FILTER_KEY = "soxu.dashboard.logFilter.v1";
 const PAGE_KEY = "soxu.dashboard.page.v1";
-const PHASE_KEY = "soxu.dashboard.projectPhase.v1";
 const THEME_KEY = "soxu.dashboard.theme.v1";
 const FOLLOW_KEY = "soxu.dashboard.followLogs.v1";
 const LOG_LIMITS = new Set([20, 50, 100, 200]);
@@ -20,6 +19,7 @@ let connected = false, requestInFlight = false;
 let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", renderedLogKey = "";
 let agents = new Map(), lastAgentKey = "", streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
 let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null, lastIntakeKey = "", lastQueueKey = "";
+let lastRoadmapKey = "";
 let advisoryState = null, loadedReportKeys = {product:"",quality:""};
 let modelSettings = null, modelDraft = null, modelCatalog = [], actualModels = new Map();
 
@@ -55,6 +55,7 @@ function lostAuthorization(token) {
   connected = false;
   $("dot").classList.remove("ok");
   $("connection").textContent = "未连接";
+  $("globalRun").dataset.status="unknown"; $("globalRun").textContent="未连接";
   disableControls();
   stopStream();
   notice("访问令牌已失效或错误，请粘贴本次启动的新令牌。");
@@ -86,7 +87,7 @@ function resetInstance(next) {
   lastAgentKey = "";
   lastTaskKey = "";
   renderedLogKey = "";
-  lastIntakeKey = ""; lastQueueKey = "";
+  lastIntakeKey = ""; lastQueueKey = ""; lastRoadmapKey = "";
 }
 function mergeLog(line) {
   if (!line || !Number.isSafeInteger(line.seq) || !["system", "stdout", "stderr"].includes(line.stream)
@@ -151,6 +152,10 @@ function renderTasks(data) {
   node.replaceChildren();
   for (const task of [...tasks].sort((a, b) => a.id - b.id)) {
     const card = element("article", undefined, "task");
+    const live=Boolean(data.runner) && (data.taskPhases ?? []).some(p=>p.taskId === (data.github?.tasks?.["TASK-"+String(task.id).padStart(3,"0")]?.issue ?? task.id) && p.status === "running");
+    const merged=data.github?.tasks?.["TASK-"+String(task.id).padStart(3,"0")]?.pr?.state === "merged";
+    card.dataset.status=live ? "running" : ["paused","blocked"].includes(task.status) ? "paused" : merged ? "completed" : "waiting";
+    if (live) {const effect=element("div",undefined,"task-motion");effect.setAttribute("aria-hidden","true");card.append(effect);}
     card.append(element("div", "#" + task.id, "task-id"), element("div", task.title, "task-name"));
     const status = element("div", stateLabels[task.status] || task.status, "task-state");
     status.dataset.state = task.status;
@@ -224,32 +229,38 @@ function updateElapsed() {
   for (const label of document.querySelectorAll(".agent-elapsed"))
     label.textContent = "运行 " + fmt(label.dataset.startedAt) + " · 当前状态 " + fmt(label.dataset.activitySince);
 }
-function renderProjectPhase(github) {
-  if (github?.status !== "ok") {
-    $("projectPhaseDetail").textContent="GitHub 状态不可用；六项任务进度待核实。当前阶段由维护者在本机设置。";
-    $("projectPhaseCount").textContent="—";
-    $("projectProgressFill").style.width="0%";
-    $("projectProgress").setAttribute("aria-valuenow","0");
-    $("projectProgress").setAttribute("aria-valuetext","状态未知");
-    return;
+function renderProjectPhase(github, data) {
+  const names={M0:"工程治理",M1:"产品原型",M2:"多 Agent",M3:"开发工具",M4:"交付发布"};
+  const roadmap=github?.status === "ok" ? github.tasks?.__roadmap : null;
+  const key=JSON.stringify([roadmap,Boolean(data.runner),data.taskPhases]);
+  if(key===lastRoadmapKey)return;
+  lastRoadmapKey=key;
+  const phases=new Set(data.runner ? (data.taskPhases ?? []).filter(p=>p.status === "running").map(p=>p.taskId) : []);
+  const node=$("roadmapCards");node.replaceChildren();
+  let running=0, paused=0, total=0, merged=0;
+  for (const id of Object.keys(names)) {
+    const stage=roadmap?.stages?.find(x=>x.id===id);
+    const unknown=!roadmap || roadmap.limited || !stage || !stage.total;
+    const active=!unknown && stage.issues.some(number=>phases.has(number));
+    const state=unknown ? "unknown" : active ? "running" : stage.paused ? "paused" : stage.merged===stage.total && !stage.unknown ? "completed" : "waiting";
+    if(active)running++;else if(state==="paused")paused++;
+    if(!unknown){total+=stage.total;merged+=stage.merged;}
+    const card=element("article",undefined,"milestone-card");card.dataset.status=state;
+    const labels={unknown:"待核实",running:"进行中",paused:"暂停 / 阻塞",completed:"任务已合入 · 验收待确认",waiting:"等待推进"};
+    const head=element("div",undefined,"milestone-heading");head.append(element("strong",id+" · "+names[id]),element("span",labels[state],"milestone-state"));card.append(head);
+    const track=element("div",undefined,"milestone-track"), fill=element("span",undefined,"milestone-fill");
+    track.setAttribute("role","progressbar");track.setAttribute("aria-label",id+" 已归类任务的合入进度");
+    if(!unknown){track.setAttribute("aria-valuemin","0");track.setAttribute("aria-valuemax",String(stage.total));track.setAttribute("aria-valuenow",String(stage.merged));fill.style.width=`${stage.merged/stage.total*100}%`;}
+    track.setAttribute("aria-valuetext",unknown ? "未知" : `${stage.merged} / ${stage.total} 项已合入${active ? "，执行进度未知" : ""}`);
+    track.append(fill);if(active){const motion=element("span",undefined,"milestone-motion");motion.setAttribute("aria-hidden","true");track.append(motion);}card.append(track);
+    card.append(element("small",unknown ? "暂无完整的归类与合并证据" : `${stage.merged} / ${stage.total} 项已合入`+(stage.unknown ? ` · ${stage.unknown} 项完成证据待核实` : ""),"hint"));
+    node.append(card);
   }
-  const tasks=github.tasks || {};
-  const ids=["TASK-001","TASK-002","TASK-003","TASK-004","TASK-005","TASK-006"];
-  if (ids.some(id=>!tasks[id] || !tasks[id].issue)) {
-    $("projectPhaseDetail").textContent="当前六项任务的 Issue 不完整，合并进度待核实。当前阶段由维护者在本机设置。";
-    $("projectPhaseCount").textContent="—";
-    $("projectProgressFill").style.width="0%";
-    $("projectProgress").setAttribute("aria-valuetext","状态未知");
-    return;
-  }
-  const merged=id=>tasks[id].issueState === "CLOSED" && tasks[id].pr?.state === "merged";
-  const count=ids.filter(merged).length;
-  $("projectPhaseDetail").textContent="当前阶段由维护者在本机设置；六项任务按 Issue 关闭且 PR 合并计算，不代表阶段验收。";
-  $("projectPhaseCount").textContent=`${count} / 6 已合并`;
-  $("projectProgressFill").style.width=`${count / 6 * 100}%`;
-  $("projectProgress").setAttribute("aria-valuenow",String(count));
-  $("projectProgress").setAttribute("aria-valuetext",`${count} 项已合并，共 6 项`);
+  $("projectPhaseTitle").textContent=!roadmap ? "项目里程碑状态待核实" : running ? `${running} 个里程碑正在推进` : paused ? `${paused} 个里程碑有暂停或阻塞任务` : "已归类里程碑当前无活跃任务";
+  $("projectPhaseCount").textContent=roadmap && !roadmap.limited ? `${merged} / ${total} 项已合入` : "—";
+  $("projectPhaseDetail").textContent=!roadmap ? "GitHub 状态不可用，无法判断里程碑进度。" : roadmap.limited ? "GitHub 查询达到上限，进度待核实。" : `按任务元数据或 GitHub 里程碑自动归类；未归类 ${roadmap.unclassified} 项。运行状态基于控制台活动，数据可能有延迟。`;
 }
+
 function render(data) {
   if (typeof data.instanceId === "string") resetInstance(data.instanceId);
   connected = true;
@@ -258,6 +269,9 @@ function render(data) {
   const tasks = data.tasks || [];
   for (const group of ["running", "pending", "done"]) $(group).textContent = tasks.filter(t => t.status === group).length;
   $("total").textContent = tasks.length;
+  const blocked=tasks.filter(t=>t.status === "blocked" || t.status === "paused").length;
+  $("globalRun").dataset.status=data.runner || data.externalLocks ? "running" : blocked ? "paused" : "idle";
+  $("globalRun").textContent=data.runner ? "调度运行中" : data.externalLocks ? "外部任务运行中" : blocked ? `${blocked} 项暂停 / 阻塞` : "调度空闲";
   $("badge").dataset.state = data.runner ? (data.runner.stopping ? "stopping" : "running") : data.externalLocks ? "external" : "idle";
   $("badge").textContent = data.runner ? (data.runner.stopping ? "停止中" : "运行中") : data.externalLocks ? "外部任务执行中" : "空闲";
   $("runner").textContent = data.runner ? "正在执行 " + data.runner.command + " · 开始于 " + new Date(data.runner.startedAt).toLocaleTimeString()
@@ -286,7 +300,7 @@ function render(data) {
   }
   const lessons=data.lanes?.lessons;
   $("lessonsStatus").textContent=lessons?.status === "available" ? `已记录 ${lessons.count} 条教训，${lessons.eligible} 条达到提出申请的条件。每条须有至少 3 个不同日期的证据；维护者核实、批准并通过单独治理 PR，不自动修改规则。` : "复盘规则：同一规则须有至少 3 个不同日期的证据，才可提出人工晋升申请；教训记录状态待核实。";
-  renderProjectPhase(data.github);
+  renderProjectPhase(data.github,data);
   const queueItems = data.github?.status === "ok" ? data.github.tasks?.__queue || [] : [];
   const queueKey=JSON.stringify([data.github?.status,queueItems]);
   const queue=$("queueList");
@@ -332,6 +346,7 @@ async function refresh() {
       connected = false;
       $("dot").classList.remove("ok");
       $("connection").textContent = "连接中断";
+      $("globalRun").dataset.status="unknown"; $("globalRun").textContent="状态未知";
       disableControls();
       notice("连接失败：" + error.message);
     }
@@ -563,6 +578,7 @@ function renderModelChoices() {
       input.addEventListener("change",()=>{
         const current=getScopePool() || [];const pair={provider:item.provider,model:item.model};
         const next=input.checked ? [...current,pair] : current.filter(x=>modelKey(x)!==modelKey(item));
+        if (next.length>20) {input.checked=false;$("modelMessage").textContent="每个模型池最多选择 20 个模型。";return;}
         if(scope==="global")modelDraft.global=next;else modelDraft.roles[scope]=next;
       });
       label.append(input,document.createTextNode(" "+item.model+(item.available ? "" : "（未在本次列表中）")));
@@ -599,14 +615,6 @@ $("saveModels").addEventListener("click",async()=>{
   catch(error){$("modelMessage").textContent="保存失败："+error.message;}
 });
 
-function setProjectPhase(value) {
-  const names={unknown:"项目当前阶段待确认",M0:"M0 · 工程治理",M1:"M1 · 产品原型",M2:"M2 · 多 Agent",M3:"M3 · 开发工具",M4:"M4 · 发布"};
-  const selected=Object.hasOwn(names,value) ? value : "unknown";
-  $("phaseSelect").value=selected;
-  $("projectPhaseTitle").textContent=names[selected];
-  save(preferenceStorage,PHASE_KEY,selected);
-}
-$("phaseSelect").addEventListener("change",()=>setProjectPhase($("phaseSelect").value));
 for (const lane of ["product","quality"]) {
   const cap=lane[0].toUpperCase()+lane.slice(1);
   $("open"+cap).addEventListener("click",()=>void openAdvisory(lane));
@@ -632,12 +640,11 @@ $("submitIntake").addEventListener("click", async () => {
   const ready=Boolean($("queueReady").checked);
   if (!confirm(ready ? "确认提交并加入可执行队列？请确保前置依赖已完成。" : "确认创建 GitHub 需求并标记为阻塞，等待人工核对依赖？")) return;
   $("submitIntake").disabled=true;
-  try {const result=await api("/api/intake-submit",{method:"POST",body:{id:currentIntake.id,ready}});renderIntake(result);}
+  try {const result=await api("/api/intake-submit",{method:"POST",body:{id:currentIntake.id,ready,milestone:$("intakeMilestone").value || null}});renderIntake(result);}
   catch(error){$("intakeResult").textContent=error.message === "potential-secret" ? "检测到疑似密钥，未提交。请删除敏感内容后重新评估。" : "提交结果可能不确定，请先检查 GitHub，避免重复提交。";}
 });
 (function initializePreferences() {
   showPage(stored(preferenceStorage,PAGE_KEY) || "Overview");
-  setProjectPhase(stored(preferenceStorage,PHASE_KEY) || "unknown");
   const theme = stored(preferenceStorage,THEME_KEY);
   setTheme(theme === "light" || theme === "dark" ? theme : "dark");
   const preferred = Number(stored(preferenceStorage, LOG_LIMIT_KEY));

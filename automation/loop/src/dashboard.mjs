@@ -143,6 +143,7 @@ export class DashboardCoordinator extends EventEmitter {
       instanceId: this.instanceId,
       agents: [...this.agents.values()],
       taskModels: [...this.taskModels.values()],
+      taskPhases: this.active ? [...this.phases.entries()].map(([taskId,value])=>({taskId,phase:value.phase,status:value.status})) : [],
       modelInfo,
       generatedAt: new Date().toISOString(),
       source: "local-checkpoints",
@@ -407,8 +408,8 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
           return reply(200, await coordinator.intake.clearUnknown(body.id));
         }
         if (request.url === "/api/intake-submit") {
-          if (!body || Object.keys(body).sort().join(",") !== "id,ready" || typeof body.id !== "string" || typeof body.ready !== "boolean") return reply(400,{error:"invalid-body"});
-          return reply(200, await coordinator.intake.confirm(body.id, body.ready));
+          if (!body || Object.keys(body).sort().join(",") !== "id,milestone,ready" || typeof body.id !== "string" || typeof body.ready !== "boolean" || !(body.milestone === null || /^M[0-4]$/.test(body.milestone))) return reply(400,{error:"invalid-body"});
+          return reply(200, await coordinator.intake.confirm(body.id, body.ready, body.milestone));
         }
         if (request.url === "/api/run") {
           if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.command !== "string")

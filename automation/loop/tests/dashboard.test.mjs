@@ -144,7 +144,7 @@ test("merge and session setting endpoints require authentication and validate ta
 
 test("intake endpoints require authentication and explicit approval", async()=>{
   const root=await fixture(), calls=[];
-  const intake={publicState:()=>null,start:r=>{calls.push(["assess",r]);return {id:"x",status:"assessing"};},confirm:async(id,ready)=>{calls.push(["submit",id,ready]);return {id,status:"submitted"};},shutdown(){}};
+  const intake={publicState:()=>null,start:r=>{calls.push(["assess",r]);return {id:"x",status:"assessing"};},confirm:async(id,ready,milestone)=>{calls.push(["submit",id,ready,milestone]);return {id,status:"submitted"};},shutdown(){}};
   const coordinator=new DashboardCoordinator({root,intake});
   const {server}=createDashboardServer({root,token:TOKEN,coordinator});
   try{
@@ -154,8 +154,8 @@ test("intake endpoints require authentication and explicit approval", async()=>{
     assert.equal((await post("/api/intake-assess",{requirement:"a test requirement"},null)).status,401);
     assert.equal((await post("/api/intake-assess",{requirement:"a test requirement"})).status,202);
     assert.equal((await post("/api/intake-submit",{id:"x"})).status,400);
-    assert.equal((await post("/api/intake-submit",{id:"x",ready:false})).status,200);
-    assert.deepEqual(calls,[["assess","a test requirement"],["submit","x",false]]);
+    assert.equal((await post("/api/intake-submit",{id:"x",ready:false,milestone:null})).status,200);
+    assert.deepEqual(calls,[["assess","a test requirement"],["submit","x",false,null]]);
   }finally{await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
 });
 

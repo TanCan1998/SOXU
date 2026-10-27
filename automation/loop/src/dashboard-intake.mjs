@@ -15,7 +15,7 @@ export function parseIntake(text) {
   for (const name of ["title","feasibility","plan","dependencies","acceptance","unknowns"]) {
     if (typeof result[name] !== "string" || !result[name].trim() || result[name].length > (name === "title" ? 120 : 3000)) throw fail("invalid-assessment",422);
   }
-  if (/^\s*\[TASK-\d+\]/i.test(result.title) || /[\r\n]/.test(result.title)) throw fail("invalid-assessment",422);
+  if (/^\s*\[(?:TASK-\d+|M[0-4])\]/i.test(result.title) || /[\r\n]/.test(result.title)) throw fail("invalid-assessment",422);
   return Object.fromEntries(["title","feasibility","plan","dependencies","acceptance","unknowns"].map(k=>[k,result[k]]));
 }
 export async function assessRequirement(root, requirement, signal, modelIndex=0, onModel=()=>{}) {
@@ -31,7 +31,7 @@ export async function submitRequirement(root, draft, execute=run) {
     const body=["## 用户需求",draft.requirement,"", "## Agent 评估（未经验证）", `### 可行性\n${draft.assessment.feasibility}`,`### 建议安排\n${draft.assessment.plan}`,`### 依赖与前置条件\n${draft.assessment.dependencies}`,`### 验收标准\n${draft.assessment.acceptance}`,`### 未知与待确认\n${draft.assessment.unknowns}`,"",`<!-- soxu-intake:${draft.id} -->`].join("\n\n");
     const path=join(folder,"issue.md"); await writeFile(path,body,{mode:0o600});
     // New unclassified requests are deliberately blocked until dependencies are reviewed.
-    const result=await execute("gh",["issue","create","--title",draft.assessment.title,"--body-file",path,"--label",draft.ready ? "agent:ready" : "agent:blocked"],{cwd:root,timeoutMs:45000});
+    const result=await execute("gh",["issue","create","--title",draft.milestone ? `[${draft.milestone}] ${draft.assessment.title}` : draft.assessment.title,"--body-file",path,"--label",draft.ready ? "agent:ready" : "agent:blocked"],{cwd:root,timeoutMs:45000});
     const url=result.stdout.trim();
     if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(url)) throw fail("submit-result-unknown",503);
     return url;
@@ -40,7 +40,7 @@ export async function submitRequirement(root, draft, execute=run) {
 export class IntakeManager {
   constructor({root,assess=assessRequirement,submit=submitRequirement,onChange=()=>{}}) {this.root=root;this.assess=assess;this.submit=submit;this.onChange=onChange;this.draft=null;this.abort=null;this.modelIndex=0;this.marker=join(root,".soxu","intake","pending-submit.json");
     this.initialized=readFile(this.marker,"utf8").then(raw=>{const saved=JSON.parse(raw);this.draft={id:saved.id,status:"unknown",requirement:"",error:"上次提交结果不确定，请先到 GitHub 检查是否已创建，再解除锁定。"};this.onChange();}).catch(err=>{if(err.code!=="ENOENT") throw err;});}
-  publicState() {const d=this.draft;if(!d)return null;return {id:d.id,status:d.status,requirement:d.requirement,assessment:d.assessment ?? null,url:d.url ?? null,ready:d.ready ?? null,error:d.error ?? null,model:d.model ?? null};}
+  publicState() {const d=this.draft;if(!d)return null;return {id:d.id,status:d.status,requirement:d.requirement,assessment:d.assessment ?? null,url:d.url ?? null,ready:d.ready ?? null,milestone:d.milestone ?? null,error:d.error ?? null,model:d.model ?? null};}
   async start(requirement) {
     await this.initialized;
     if(typeof requirement!=="string" || requirement.trim().length<10 || requirement.length>6000) throw fail("invalid-requirement");
@@ -49,16 +49,17 @@ export class IntakeManager {
     Promise.resolve().then(()=>this.assess(this.root,d.requirement,this.abort.signal,this.modelIndex++,model=>{d.model=model;this.onChange();})).then(result=>{d.assessment=result;d.status="review";}).catch(()=>{d.status="failed";d.error="评估失败，请检查网络、额度或模型配置后手动重新评估。";}).finally(()=>{this.abort=null;this.onChange();});
     return this.publicState();
   }
-  async confirm(id, ready) {
+  async confirm(id, ready, milestone=null) {
     await this.initialized;
-    const d=this.draft;if(typeof ready !== "boolean") throw fail("invalid-queue-choice");
+    const d=this.draft;if(milestone !== null && !/^M[0-4]$/.test(milestone)) throw fail("invalid-milestone");
+    if(typeof ready !== "boolean") throw fail("invalid-queue-choice");
     if(!d || d.id!==id || d.status!=="review") throw fail("assessment-not-ready",409);
     const text=JSON.stringify([d.requirement,d.assessment]);
     if (/(?:-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9]{24,})/.test(text)) throw fail("potential-secret",409);
     await mkdir(join(this.root,".soxu","intake"),{recursive:true});
     try {await writeFile(this.marker,JSON.stringify({id:d.id}),{flag:"wx",mode:0o600});}
     catch(err){if(err.code==="EEXIST") throw fail("submit-unresolved",409);throw err;}
-    d.status="submitting";d.ready=ready;this.onChange();
+    d.status="submitting";d.ready=ready;d.milestone=milestone;this.onChange();
     try {d.url=await this.submit(this.root,d);await rm(this.marker,{force:true});d.status="submitted";}
     catch {d.status="unknown";d.error="提交结果不确定：请先到 GitHub 检查是否已创建，避免重复提交。";}
     this.onChange();return this.publicState();
