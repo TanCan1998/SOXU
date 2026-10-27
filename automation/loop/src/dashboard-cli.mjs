@@ -2,7 +2,7 @@
 import { DASHBOARD_PORT, dashboardToken, createDashboardServer } from "./dashboard.mjs";
 
 const token = dashboardToken();
-const { server, coordinator } = createDashboardServer({ token });
+const { server, coordinator, stopStreams } = createDashboardServer({ token });
 server.once("error", error => {
   console.error(`SOXU dashboard failed: ${error.code ?? "unknown"}`);
   process.exitCode = 1;
@@ -13,5 +13,5 @@ server.listen(DASHBOARD_PORT, "127.0.0.1", () => {
   console.log("Open browser, paste token. Only jobs started here can be stopped here. Ctrl+C exits.");
 });
 for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.once(signal, () => { coordinator.shutdown(); server.close(); });
+  process.once(signal, () => { coordinator.shutdown(); stopStreams(); server.close(); });
 }

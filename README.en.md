@@ -10,7 +10,7 @@
 
 Run `pnpm agent:dashboard`, open `http://127.0.0.1:47321/`, and enter the ephemeral token
 shown in the terminal. View checkpoint progress and bounded runner logs, or explicitly run,
-stop, and resume Agent Loop tasks. After successful authentication, the token is held in per-tab `sessionStorage` so reloads reconnect automatically; restarting the dashboard requires a fresh token. No PiDeck dependency or external-process takeover.
+stop, and resume Agent Loop tasks. The dashboard uses authenticated SSE for incremental coordinator logs and Developer/Reviewer activity, with a 15-second HTTP calibration fallback. Show the most recent 50 logs by default (configurable: 20/50/100/200), filter by source and toggle auto-follow. Activity shows only status, tool name and elapsed time—never prompts or raw model/tool content. After successful authentication, the token is held in per-tab `sessionStorage` so reloads reconnect automatically; restarting the dashboard requires a fresh token. No PiDeck dependency or external-process takeover.
 See the [dashboard guide](docs/development/dashboard.md).
 
 ## Product goals

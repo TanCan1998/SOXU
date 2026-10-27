@@ -1,91 +1,207 @@
 const $ = id => document.getElementById(id);
 const tokenInput = $("token");
-let connected = false, requestInFlight = false, latestSequence = 0;
 const TOKEN_STORAGE_KEY = "soxu.dashboard.sessionToken.v1";
-// Keep this per-tab only: the server rotates its secret on each dashboard launch.
+const LOG_LIMIT_KEY = "soxu.dashboard.logLimit.v1";
+const LOG_FILTER_KEY = "soxu.dashboard.logFilter.v1";
+const FOLLOW_KEY = "soxu.dashboard.followLogs.v1";
+const LOG_LIMITS = new Set([20, 50, 100, 200]);
+const preferenceStorage = typeof localStorage === "undefined" ? { getItem: () => null, setItem: () => {} } : localStorage;
+const stateLabels = { running: "进行中", paused: "已暂停", blocked: "已阻塞", pending: "等待", done: "完成" };
+const phaseLabels = {
+  worktree:"准备工作树", install:"安装依赖", develop:"开发", checks:"执行检查", review:"代码审查",
+  postConflictInstall:"冲突后安装", finalChecks:"最终检查", commit:"提交", push:"推送",
+  createPr:"创建 PR", merge:"等待合并", done:"完成"
+};
+const activityLabels = { waiting:"等待模型", generating:"生成中", tool:"执行工具", completed:"已完成", failed:"失败" };
+let connected = false, requestInFlight = false;
+let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", renderedLogKey = "";
+let agents = new Map(), streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
+let logLimit = 50, logFilter = "all", followLogs = true;
+
+function stored(storage, key) { try { return storage.getItem(key); } catch { return null; } }
+function save(storage, key, value) { try { storage.setItem(key, String(value)); } catch {} }
 function restoreToken() {
-  try {
-    const value = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-    if (!value) return "";
-    if (/^[0-9a-f]{48}$/i.test(value)) return value;
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-  } catch { /* Storage may be blocked by browser privacy settings. */ }
+  const token = stored(sessionStorage, TOKEN_STORAGE_KEY);
+  if (token && /^[0-9a-f]{48}$/i.test(token)) return token;
+  if (token) forgetToken(token);
   return "";
-}
-function rememberToken(token) {
-  try { sessionStorage.setItem(TOKEN_STORAGE_KEY, token); } catch {}
 }
 function forgetToken(token) {
   try {
     if (sessionStorage.getItem(TOKEN_STORAGE_KEY) === token) sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   } catch {}
 }
-const stateLabels = { running: "进行中", paused: "已暂停", blocked: "已阻塞", pending: "等待", done: "完成" };
-const phaseLabels = { worktree:"准备工作树", install:"安装依赖", develop:"开发", checks:"执行检查", review:"代码审查", finalChecks:"最终检查", commit:"提交", push:"推送", createPr:"创建 PR", merge:"等待合并", done:"完成" };
 function notice(message) { $("notice").textContent = message; }
+function element(tag, value, className) {
+  const result = document.createElement(tag);
+  if (value !== undefined) result.textContent = String(value);
+  if (className) result.className = className;
+  return result;
+}
+function disableControls() {
+  for (const button of document.querySelectorAll("[data-command]")) button.disabled = true;
+  $("stop").disabled = true;
+}
+function lostAuthorization(token) {
+  if (token !== tokenInput.value.trim()) return;
+  forgetToken(token);
+  tokenInput.value = "";
+  connected = false;
+  $("dot").classList.remove("ok");
+  $("connection").textContent = "未连接";
+  disableControls();
+  stopStream();
+  notice("访问令牌已失效或错误，请粘贴本次启动的新令牌。");
+}
 async function api(path, options = {}, token = tokenInput.value.trim()) {
   if (!/^[0-9a-f]{48}$/i.test(token)) throw new Error("请填写终端生成的 48 位令牌。");
   const response = await fetch(path, {
     method: options.method || "GET",
     headers: { "X-SOXU-Control-Token": token, ...(options.method ? { "Content-Type": "application/json" } : {}) },
     ...(options.method ? { body: JSON.stringify(options.body ?? {}) } : {}),
-    cache:"no-store", credentials:"omit", signal:AbortSignal.timeout(9000)
+    cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(9000)
   });
   const data = await response.json();
   if (!response.ok) {
-    const error = new Error(data.error || `HTTP ${response.status}`);
+    const error = new Error(data.error || "HTTP " + response.status);
     error.status = response.status;
     throw error;
   }
   return data;
 }
-function element(tag, text, cls) {
-  const el = document.createElement(tag);
-  if (text !== undefined) el.textContent = String(text);
-  if (cls) el.className = cls;
-  return el;
+
+function resetInstance(next) {
+  if (instanceId === next) return;
+  instanceId = next;
+  latestSequence = 0;
+  logs = [];
+  agents.clear();
+  lastTaskKey = "";
+  renderedLogKey = "";
+}
+function mergeLog(line) {
+  if (!line || !Number.isSafeInteger(line.seq) || !["system", "stdout", "stderr"].includes(line.stream)
+      || typeof line.message !== "string" || typeof line.time !== "string") return;
+  if (line.seq <= latestSequence) return;
+  if (latestSequence && line.seq > latestSequence + 1) void refresh();
+  latestSequence = line.seq;
+  logs.push(line);
+  if (logs.length > 500) logs.splice(0, logs.length - 500);
+  renderLogs();
+}
+function rebuildLogs(items) {
+  const incoming = Array.isArray(items) ? items : [];
+  const last = incoming.at(-1)?.seq ?? 0;
+  if (last < latestSequence) return;
+  if (last === latestSequence && logs.length && incoming.length === logs.length) return;
+  logs = incoming.filter(item => item && Number.isSafeInteger(item.seq)
+    && ["system","stdout","stderr"].includes(item.stream)).slice(-500);
+  latestSequence = last;
+  renderLogs(true);
+}
+function visibleLogs() {
+  return logs.filter(item => logFilter === "all" || item.stream === logFilter).slice(-logLimit);
+}
+function logElement(entry) {
+  const line = element("div", undefined, "log");
+  line.dataset.stream = entry.stream;
+  line.dataset.seq = String(entry.seq);
+  line.append(element("span", new Date(entry.time).toLocaleTimeString(), "time"), document.createTextNode(entry.message));
+  return line;
+}
+function renderLogs(force = false) {
+  const container = $("logs");
+  const rows = visibleLogs();
+  const key = logFilter + ":" + logLimit + ":" + (rows[0]?.seq ?? 0) + ":" + (rows.at(-1)?.seq ?? 0) + ":" + rows.length;
+  if (!force && key === renderedLogKey) return;
+  const wasAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 35;
+  if (rows.length === 0) {
+    container.replaceChildren(element("div", "暂无符合条件的日志", "empty"));
+  } else {
+    const previous = container.lastElementChild;
+    const lastSeq = Number(previous?.dataset?.seq);
+    const appendOne = !force && previous && previous.classList.contains("log")
+      && rows.length > 1 && rows.at(-2).seq === lastSeq;
+    if (appendOne) {
+      container.append(logElement(rows.at(-1)));
+      while (container.children.length > rows.length) container.firstElementChild.remove();
+    } else {
+      container.replaceChildren(...rows.map(logElement));
+    }
+  }
+  renderedLogKey = key;
+  $("logCount").textContent = rows.length + " / " + logs.length + " 条";
+  if (followLogs && wasAtBottom) container.scrollTop = container.scrollHeight;
+}
+function renderTasks(data) {
+  const tasks = data.tasks || [];
+  const key = JSON.stringify(tasks);
+  if (lastTaskKey === key) return;
+  lastTaskKey = key;
+  const node = $("tasks");
+  node.replaceChildren();
+  for (const task of [...tasks].sort((a, b) => a.id - b.id)) {
+    const card = element("article", undefined, "task");
+    card.append(element("div", "#" + task.id, "task-id"), element("div", task.title, "task-name"));
+    const status = element("div", stateLabels[task.status] || task.status, "task-state");
+    status.dataset.state = task.status;
+    card.append(status, element("div", phaseLabels[task.phase] || task.phase || "尚未开始", "task-stage"),
+      element("div", task.updatedAt ? new Date(task.updatedAt).toLocaleTimeString() : "—", "task-time"));
+    node.append(card);
+  }
+  if (!tasks.length) node.append(element("div", "暂无任务", "empty"));
+}
+function renderAgents() {
+  const node = $("agentCards");
+  node.replaceChildren();
+  const entries = [...agents.values()].sort((a,b) => a.taskId - b.taskId || a.role.localeCompare(b.role));
+  for (const activity of entries) {
+    const item = element("article", undefined, "agent-card");
+    const role = activity.role === "developer" ? "Developer" : "Reviewer";
+    const state = activityLabels[activity.state] || "未知";
+    item.append(element("strong", "#" + activity.taskId + " · " + role),
+      element("span", state + (activity.tool ? " · " + activity.tool : ""), "agent-state"));
+    const elapsed = element("span", "", "agent-elapsed");
+    elapsed.dataset.startedAt = activity.startedAt;
+    elapsed.dataset.activitySince = activity.activitySince;
+    item.append(elapsed);
+    node.append(item);
+  }
+  if (!entries.length) node.append(element("div", "暂无 Dashboard 启动的 Pi 会话活动", "empty"));
+  updateElapsed();
+}
+function updateElapsed() {
+  const fmt = timestamp => {
+    const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(timestamp)) / 1000));
+    if (!Number.isFinite(seconds)) return "—";
+    return Math.floor(seconds / 3600).toString().padStart(2,"0") + ":" +
+      Math.floor(seconds % 3600 / 60).toString().padStart(2,"0") + ":" +
+      (seconds % 60).toString().padStart(2,"0");
+  };
+  for (const label of document.querySelectorAll(".agent-elapsed"))
+    label.textContent = "运行 " + fmt(label.dataset.startedAt) + " · 当前状态 " + fmt(label.dataset.activitySince);
 }
 function render(data) {
+  if (typeof data.instanceId === "string") resetInstance(data.instanceId);
   connected = true;
-  $("connection").textContent = "本机已连接";
   $("dot").classList.add("ok");
+  $("connection").textContent = "本机已连接";
   const tasks = data.tasks || [];
-  for (const group of ["running","pending","done"]) $(""+group).textContent = tasks.filter(t => t.status === group).length;
+  for (const group of ["running", "pending", "done"]) $(group).textContent = tasks.filter(t => t.status === group).length;
   $("total").textContent = tasks.length;
   $("badge").textContent = data.runner ? (data.runner.stopping ? "停止中" : "运行中") : data.externalLocks ? "外部任务执行中" : "空闲";
-  $("runner").textContent = data.runner ? `正在执行 ${data.runner.command} · 开始于 ${new Date(data.runner.startedAt).toLocaleTimeString()}`
-    : data.externalLocks ? `检测到 ${data.externalLocks} 个正在运行的工作树锁（此处不能停止）`
-    : data.lastRun ? `上次执行 ${data.lastRun.command} · 退出码 ${data.lastRun.exitCode ?? "未知"}` : "未启动调度";
+  $("runner").textContent = data.runner ? "正在执行 " + data.runner.command + " · 开始于 " + new Date(data.runner.startedAt).toLocaleTimeString()
+    : data.externalLocks ? "检测到 " + data.externalLocks + " 个正在运行的工作树锁（此处不能停止）"
+    : data.lastRun ? "上次执行 " + data.lastRun.command + " · 退出码 " + (data.lastRun.exitCode ?? "未知") : "未启动调度";
   $("updated").textContent = "更新于 " + new Date(data.generatedAt).toLocaleTimeString();
   for (const button of document.querySelectorAll("[data-command]")) button.disabled = data.busy;
   $("stop").disabled = !data.runner || data.runner.stopping;
-  const node = $("tasks");
-  node.replaceChildren();
-  const sorted = [...tasks].sort((a,b) => a.id - b.id);
-  for (const task of sorted) {
-    const card = element("article",undefined,"task");
-    card.append(element("div","#"+task.id,"task-id"),element("div",task.title,"task-name"));
-    const status = element("div",stateLabels[task.status]||task.status,"task-state");
-    status.dataset.state=task.status;
-    card.append(status, element("div",phaseLabels[task.phase]||task.phase||"尚未开始","task-stage"),
-      element("div",task.updatedAt?new Date(task.updatedAt).toLocaleTimeString():"—","task-time"));
-    node.append(card);
+  renderTasks(data);
+  if (Array.isArray(data.agents)) {
+    agents = new Map(data.agents.map(a => [a.taskId + ":" + a.role, a]));
+    renderAgents();
   }
-  if (!tasks.length) node.append(element("div","暂无任务","empty"));
-  const logNode=$("logs"), nearBottom=logNode.scrollTop+logNode.clientHeight>=logNode.scrollHeight-35;
-  if (data.log.length===0) {
-    logNode.replaceChildren(element("div","暂无协调器日志","empty"));
-  } else if (data.log[data.log.length-1].seq!==latestSequence) {
-    logNode.replaceChildren();
-    for(const entry of data.log) {
-      const line=element("div",undefined,"log");
-      line.dataset.stream=entry.stream;
-      line.append(element("span",new Date(entry.time).toLocaleTimeString(),"time"),document.createTextNode(entry.message));
-      logNode.append(line);
-    }
-    latestSequence=data.log[data.log.length-1].seq;
-    if(nearBottom)logNode.scrollTop=logNode.scrollHeight;
-  }
+  rebuildLogs(data.log);
 }
 async function refresh() {
   const token = tokenInput.value.trim();
@@ -93,51 +209,173 @@ async function refresh() {
   requestInFlight = true;
   try {
     const data = await api("/api/status", {}, token);
-    // Ignore responses for a previous token if the user edited the input mid-request.
     if (token !== tokenInput.value.trim()) return;
     const wasConnected = connected;
     render(data);
-    rememberToken(token); // Only persist an authenticated session.
-    if (!wasConnected) notice("连接成功；刷新此标签页后将自动恢复连接。");
+    save(sessionStorage, TOKEN_STORAGE_KEY, token);
+    if (!wasConnected) notice("连接成功；页面将实时更新，刷新后自动恢复。");
+    if (!streamController) void openStream(token);
   } catch (error) {
     if (token !== tokenInput.value.trim()) return;
-    connected = false;
-    $("dot").classList.remove("ok");
-    $("connection").textContent = "未连接";
-    for (const button of document.querySelectorAll("[data-command]")) button.disabled = true;
-    $("stop").disabled = true;
     if (error.status === 401) {
-      forgetToken(token); // A restarted dashboard uses a different token.
-      tokenInput.value = "";
-      notice("访问令牌已失效或错误，请粘贴本次启动的新令牌。");
+      lostAuthorization(token);
     } else {
-      notice(`连接失败：${error.message}`);
+      connected = false;
+      $("dot").classList.remove("ok");
+      $("connection").textContent = "连接中断";
+      disableControls();
+      notice("连接失败：" + error.message);
     }
-  } finally {
-    requestInFlight = false;
+  } finally { requestInFlight = false; }
+}
+
+function stopStream() {
+  if (reconnectTimer !== null) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (streamController) streamController.abort();
+  streamController = null;
+  streamToken = null;
+  retries = 0;
+}
+function onStreamEvent(type, data) {
+  if (type === "hello") {
+    if (data.instanceId && instanceId && data.instanceId !== instanceId) void refresh();
+  } else if (type === "log") {
+    mergeLog(data);
+  } else if (type === "agent") {
+    if (!data || !Number.isSafeInteger(data.taskId) || !["developer","reviewer"].includes(data.role)) return;
+    agents.set(data.taskId + ":" + data.role, data);
+    if (agents.size > 32) agents.delete(agents.keys().next().value);
+    renderAgents();
+  } else if (type === "status") {
+    void refresh();
   }
 }
-async function execute(command){
-  if(!connected) return notice("先连接本地控制台。");
-  if(command==="watch"&&!confirm("持续监控可重复执行 Agent 任务并产生模型费用。确认启用受策略限制的 watch？"))return;
-  if(command==="resume"&&!confirm("即将恢复全部中断任务，可能产生模型调用。确认？"))return;
-  try{const result=await api("/api/run",{method:"POST",body:{command}});notice(`已接受：${result.command}。停止仅作用于此控制台启动的任务。`);await refresh();}
-  catch(error){notice(`操作失败：${error.message}`);}
+function consumeSseFrame(frame) {
+  let kind = "message", payload = "";
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event:")) kind = line.slice(6).trim();
+    else if (line.startsWith("data:")) payload += line.slice(5).trimStart();
+  }
+  if (!payload || !["hello","log","agent","status"].includes(kind)) return;
+  try { onStreamEvent(kind, JSON.parse(payload)); } catch {}
 }
-$("connect").addEventListener("click",()=>void refresh());
-tokenInput.addEventListener("keydown",event=>{if(event.key==="Enter")void refresh();});
+async function openStream(token) {
+  if (streamController || typeof AbortController === "undefined") return;
+  const controller = new AbortController();
+  streamController = controller;
+  streamToken = token;
+  try {
+    const response = await fetch("/api/events", {
+      headers: { "X-SOXU-Control-Token": token },
+      cache: "no-store", credentials: "omit", signal: controller.signal
+    });
+    if (!response.ok) {
+      const error = new Error("SSE HTTP " + response.status);
+      error.status = response.status;
+      throw error;
+    }
+    if (!response.body?.getReader) return; // Keep periodic HTTP calibration in limited environments.
+    retries = 0;
+    const decoder = new TextDecoder();
+    const reader = response.body.getReader();
+    let buffer = "";
+    while (!controller.signal.aborted) {
+      const result = await reader.read();
+      if (result.done) break;
+      buffer = (buffer + decoder.decode(result.value, { stream: true })).replace(/\r\n/g, "\n");
+      let offset;
+      while ((offset = buffer.indexOf("\n\n")) >= 0) {
+        const frame = buffer.slice(0, offset);
+        buffer = buffer.slice(offset + 2);
+        consumeSseFrame(frame);
+      }
+      if (buffer.length > 65536) throw new Error("事件帧超限");
+    }
+  } catch (error) {
+    if (!controller.signal.aborted && token === tokenInput.value.trim() && error.status === 401) {
+      lostAuthorization(token);
+      return;
+    }
+  } finally {
+    if (streamController !== controller) return;
+    streamController = null;
+    streamToken = null;
+    if (!controller.signal.aborted && token === tokenInput.value.trim() && connected) {
+      retries = Math.min(retries + 1, 5);
+      const wait = Math.min(15000, 750 * 2 ** retries) + Math.floor(Math.random() * 300);
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        if (connected && !document.hidden) void openStream(token);
+      }, wait);
+    }
+  }
+}
+async function execute(command) {
+  if (!connected) return notice("先连接本地控制台。");
+  if (command === "watch" && !confirm("持续监控可重复执行 Agent 任务并产生模型费用。确认启用受策略限制的 watch？")) return;
+  if (command === "resume" && !confirm("即将恢复全部中断任务，可能产生模型调用。确认？")) return;
+  try {
+    const result = await api("/api/run", { method:"POST", body:{ command } });
+    notice("已接受：" + result.command + "。停止仅作用于此控制台启动的任务。");
+    await refresh();
+  } catch (error) { notice("操作失败：" + error.message); }
+}
+
+(function initializePreferences() {
+  const preferred = Number(stored(preferenceStorage, LOG_LIMIT_KEY));
+  logLimit = LOG_LIMITS.has(preferred) ? preferred : 50;
+  logFilter = ["all","system","stdout","stderr"].includes(stored(preferenceStorage,LOG_FILTER_KEY))
+    ? stored(preferenceStorage,LOG_FILTER_KEY) : "all";
+  followLogs = stored(preferenceStorage,FOLLOW_KEY) !== "false";
+  $("logLimit").value = String(logLimit);
+  $("logFilter").value = logFilter;
+  $("followLogs").checked = followLogs;
+})();
+$("logLimit").addEventListener("change", () => {
+  const selected = Number($("logLimit").value);
+  if (!LOG_LIMITS.has(selected)) return;
+  logLimit = selected;
+  save(preferenceStorage, LOG_LIMIT_KEY, logLimit);
+  renderLogs(true);
+});
+$("logFilter").addEventListener("change", () => {
+  logFilter = $("logFilter").value;
+  save(preferenceStorage, LOG_FILTER_KEY, logFilter);
+  renderLogs(true);
+});
+$("followLogs").addEventListener("change", () => {
+  followLogs = Boolean($("followLogs").checked);
+  save(preferenceStorage, FOLLOW_KEY, followLogs);
+  if (followLogs) $("logs").scrollTop = $("logs").scrollHeight;
+});
+$("connect").addEventListener("click", () => void refresh());
+tokenInput.addEventListener("keydown", event => { if (event.key === "Enter") void refresh(); });
 tokenInput.addEventListener("input", () => {
+  stopStream();
   connected = false;
   $("dot").classList.remove("ok");
   $("connection").textContent = "尚未连接";
-  for (const button of document.querySelectorAll("[data-command]")) button.disabled = true;
-  $("stop").disabled = true;
+  disableControls();
 });
-for(const button of document.querySelectorAll("[data-command]"))button.addEventListener("click",()=>void execute(button.dataset.command));
-$("stop").addEventListener("click",async()=>{if(!confirm("请求优雅停止当前调度；工作树和检查点将保留。确定吗？"))return;try{await api("/api/stop",{method:"POST",body:{}});notice("已发送停止信号，等待当前 Runner 退出。");await refresh();}catch(error){notice(`停止失败：${error.message}`);}});
-$("refresh").addEventListener("click",()=>void refresh());
-setInterval(()=>void refresh(),2500);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) void refresh(); });
+for (const button of document.querySelectorAll("[data-command]"))
+  button.addEventListener("click", () => void execute(button.dataset.command));
+$("stop").addEventListener("click", async () => {
+  if (!confirm("请求优雅停止当前调度；工作树和检查点将保留。确定吗？")) return;
+  try {
+    await api("/api/stop", { method:"POST", body:{} });
+    notice("已发送停止信号，等待当前 Runner 退出。");
+    await refresh();
+  } catch (error) { notice("停止失败：" + error.message); }
+});
+$("refresh").addEventListener("click", () => void refresh());
+setInterval(() => void refresh(), 15000);
+setInterval(() => { if (!document.hidden) updateElapsed(); }, 1000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    void refresh();
+    if (connected && !streamController && !reconnectTimer) void openStream(tokenInput.value.trim());
+  }
+});
 const savedToken = restoreToken();
 if (savedToken) {
   tokenInput.value = savedToken;

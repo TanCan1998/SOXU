@@ -21,20 +21,27 @@ function response(status = 200) {
   };
 }
 function node() {
-  const listeners = new Map();
-  return {
-    value: "", textContent: "", disabled: false, dataset: {},
+  const listeners = new Map(), children = [];
+  const result = {
+    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "",
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
-    classList: { add() {}, remove() {} },
+    classList: { add() {}, remove() {}, contains(value) { return result.className.split(" ").includes(value); } },
     addEventListener(type, fn) { listeners.set(type, fn); },
     dispatch(type, event = {}) { listeners.get(type)?.(event); },
-    replaceChildren() {}, append() {},
+    get children() { return children; },
+    get lastElementChild() { return children.at(-1); },
+    get firstElementChild() { return children[0]; },
+    replaceChildren(...items) { children.splice(0,children.length,...items); for(const x of items) x.parent = result; },
+    append(...items) { children.push(...items); for(const x of items) x.parent = result; },
+    remove() { if (result.parent) { const i = result.parent.children.indexOf(result); if (i >= 0) result.parent.children.splice(i,1); } },
   };
+  return result;
 }
-function page({ storage = new Map(), handler = () => response(), hidden = false } = {}) {
+function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map() } = {}) {
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
+    "logLimit", "logFilter", "followLogs", "logCount", "agentCards",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -46,7 +53,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false 
   const document = {
     hidden,
     getElementById(id) { assert.ok(elements[id], `Unexpected element: ${id}`); return elements[id]; },
-    querySelectorAll(selector) { assert.equal(selector, "[data-command]"); return actions; },
+    querySelectorAll(selector) { if (selector === ".agent-elapsed") return []; assert.equal(selector, "[data-command]"); return actions; },
     createElement() { return node(); },
     createTextNode(value) { return { textContent: value }; },
     addEventListener(type, fn) { listeners.set(type, fn); },
@@ -59,8 +66,8 @@ function page({ storage = new Map(), handler = () => response(), hidden = false 
     removeItem(key) { storage.delete(key); },
   };
   runInNewContext(APP, {
-    document, sessionStorage,
-    setInterval() {},
+    document, sessionStorage, localStorage: { getItem(key) { return preferences.get(key) ?? null; }, setItem(key, value) { preferences.set(key, String(value)); } },
+    setInterval() {}, setTimeout() { return 1; }, clearTimeout() {},
     AbortSignal: { timeout() { return undefined; } },
     fetch: async (path, options) => {
       requests.push({ path, options });
@@ -84,9 +91,9 @@ test("authenticated token survives same-tab reload and reconnects automatically"
   await tick();
   assert.equal(reloaded.elements.token.value, TOKEN);
   assert.equal(reloaded.elements.connection.textContent, "本机已连接");
-  assert.equal(reloaded.requests.length, 1);
-  assert.equal(reloaded.requests[0].path, "/api/status");
-  assert.equal(reloaded.requests[0].options.headers["X-SOXU-Control-Token"], TOKEN);
+  const statusRequests = reloaded.requests.filter(x => x.path === "/api/status");
+  assert.equal(statusRequests.length, 1);
+  assert.equal(statusRequests[0].options.headers["X-SOXU-Control-Token"], TOKEN);
 });
 
 test("rejecting a token clears only the matching stored session", async () => {
@@ -115,7 +122,7 @@ test("temporary network errors retain the token and allow reconnection", async (
   } });
   await tick();
   assert.equal(storage.get(TOKEN_STORAGE_KEY), TOKEN);
-  assert.equal(view.elements.connection.textContent, "未连接");
+  assert.equal(view.elements.connection.textContent, "连接中断");
   available = true;
   view.elements.refresh.dispatch("click");
   await tick();
@@ -130,7 +137,7 @@ test("hidden-page reload restores the token when the page becomes visible", asyn
   view.document.hidden = false;
   view.document.dispatch("visibilitychange");
   await tick();
-  assert.equal(view.requests.length, 1);
+  assert.equal(view.requests.filter(x => x.path === "/api/status").length, 1);
   assert.equal(view.elements.connection.textContent, "本机已连接");
 });
 
@@ -155,4 +162,34 @@ test("an earlier response cannot authenticate a newly edited token", async () =>
   await tick();
   assert.equal(storage.has(TOKEN_STORAGE_KEY), false);
   assert.notEqual(view.elements.connection.textContent, "本机已连接");
+});
+
+test("log settings show only latest 50 / 20 / 100 / 200 rows and remember preference", async () => {
+  const preferences = new Map();
+  const entries = Array.from({length:240},(_,i)=>({
+    seq:i+1, time:"2026-10-27T00:00:00.000Z", message:"line "+i, stream:i%2?"stdout":"stderr"
+  }));
+  const view = page({preferences, handler: () => ({
+    ok:true, status:200, json:async()=>({...STATUS,log:entries,instanceId:"test-server"})
+  })});
+  view.elements.token.value = TOKEN;
+  view.elements.connect.dispatch("click");
+  await tick();
+  assert.equal(view.elements.logs.children.length,50);
+  for(const expected of [20,100,200]){
+    view.elements.logLimit.value = String(expected);
+    view.elements.logLimit.dispatch("change");
+    assert.equal(view.elements.logs.children.length,expected);
+    assert.equal(preferences.get("soxu.dashboard.logLimit.v1"),String(expected));
+  }
+  view.elements.logFilter.value = "stderr";
+  view.elements.logFilter.dispatch("change");
+  assert.equal(view.elements.logs.children.length,120);
+  assert.equal(preferences.get("soxu.dashboard.logFilter.v1"),"stderr");
+});
+
+test("log limit defaults to 50 after invalid local preference", async () => {
+  const preferences=new Map([["soxu.dashboard.logLimit.v1","99999"]]);
+  const view=page({preferences});
+  assert.equal(view.elements.logLimit.value,"50");
 });

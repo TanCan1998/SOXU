@@ -12,6 +12,12 @@
 <div class="actions"><button class="action" data-command="resume">恢复中断任务</button><button class="action" data-command="once">执行下一批</button><button class="action" data-command="loop">启动有界循环</button><button class="action" data-command="watch">持续监控开发</button><button class="danger" id="stop" disabled>安全停止</button></div>
 <p class="notice" id="notice">控制台只能停止自身启动的任务；其他终端的任务仅展示状态。持续监控会产生模型调用费用，需单独确认。</p></section>
 <section class="panel"><div class="panel-heading"><div><h2>任务列表</h2><p class="hint">按照本地检查点显示，状态不会伪装成实时 Pi 进程心跳。</p></div><span id="updated" class="subtle"></span></div><div id="tasks" class="tasks"><div class="empty">连接后显示任务</div></div></section>
-<section class="panel"><div class="panel-heading"><div><h2>执行日志</h2><p class="hint">仅展示协调器 stdout/stderr，非完整 Pi 模型对话。</p></div><button id="refresh" class="ghost">刷新</button></div><div id="logs" class="logs" role="log" aria-live="off"><div class="empty">暂无日志</div></div></section>
+<section class="panel"><div class="panel-heading"><div><h2>Agent 活动</h2><p class="hint">仅 Dashboard 启动的 Pi 任务；显示当前状态、工具名称和耗时，不展示对话正文。</p></div></div><div id="agentCards" class="agent-cards"><div class="empty">等待连接</div></div></section>
+<section class="panel"><div class="panel-heading"><div><h2>执行日志</h2><p class="hint">SSE 实时追加 · 默认显示最新 50 条 · 仅协调器脱敏日志</p></div><button id="refresh" class="ghost">校准状态</button></div>
+<div class="log-settings"><label for="logLimit">显示最新</label><select id="logLimit" aria-label="日志显示条数"><option value="20">20 条</option><option value="50" selected>50 条</option><option value="100">100 条</option><option value="200">200 条</option></select>
+<label for="logFilter">来源</label><select id="logFilter"><option value="all">全部</option><option value="system">系统</option><option value="stdout">标准输出</option><option value="stderr">错误</option></select>
+<label class="follow-label"><input type="checkbox" id="followLogs" checked> 自动跟随</label>
+<span id="logCount" class="subtle">0 / 0 条</span></div>
+<div id="logs" class="logs" role="log" aria-live="off"><div class="empty">暂无日志</div></div></section>
 <footer>SOXU · 127.0.0.1 only · autoMerge / autoRelease 始终由项目策略控制</footer>
 </main><script src="/app.js" defer></script></body></html>

@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { ROOT } from "./config.mjs";
 import { git, run } from "./process.mjs";
 import { runPi, parseReview } from "./rpc.mjs";
+import { createPiActivityReporter } from "./dashboard-activity.mjs";
 import { slug, inspectChanges } from "./guards.mjs";
 import { labelIssue, commentIssue, createPr, branchProtectionEnabled, autoMerge } from "./github.mjs";
 import { readCheckpoint, writeCheckpoint } from "./checkpoint.mjs";
@@ -12,6 +13,13 @@ import { classifyFailure, isRecoverable, safeFailureMessage } from "./errors.mjs
 
 const WORKTREES = resolve(ROOT, "../soxu-worktrees");
 const LOCKS = resolve(ROOT, ".soxu", "locks");
+
+function reportTaskPhase(taskId, phase, status = "running") {
+  if (typeof process.send === "function" && process.connected) {
+    try { process.send({ type: "soxu:phase", data: { taskId, phase, status } }); }
+    catch { /* Monitoring is best-effort; checkpoints remain authoritative. */ }
+  }
+}
 
 async function acquire(issueId, local) {
   await mkdir(LOCKS, { recursive: true });
@@ -84,17 +92,19 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
     const oldStatus = state.status;
     state.status = "running";
     await writeCheckpoint(state);
+    reportTaskPhase(issue.number, state.phase);
     if (!local) await labelIssue(issue.number, "agent:in-progress", resume ? (oldStatus === "paused" ? "agent:paused" : null) : "agent:ready");
     const wt = await worktreeFor(issue, local, state);
     state.branch = wt.branch; state.directory = wt.directory;
     state.base ??= await git(["rev-parse", "HEAD"], wt.directory);
     if (state.phase === "worktree") state.phase = "install";
     await writeCheckpoint(state);
+    reportTaskPhase(issue.number, state.phase);
     const roleModels = await loadRoleModels();
     const mainDocs = await readFile(join(ROOT, "AGENTS.md"), "utf8");
     const devRole = await readFile(join(ROOT, "agents/roles/developer.md"), "utf8");
     const reviewRole = await readFile(join(ROOT, "agents/roles/reviewer.md"), "utf8");
-    const checkpoint = async phase => { state.phase = phase; await writeCheckpoint(state); };
+    const checkpoint = async phase => { state.phase = phase; await writeCheckpoint(state); reportTaskPhase(issue.number, phase); };
     const unresolved = async () => Boolean(await git(["ls-files", "--unmerged"], wt.directory));
     const verifyCommittedHead = async () => {
       const head = await git(["rev-parse", "HEAD"], wt.directory);
@@ -111,7 +121,9 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
           await checkpoint("develop"); break;
         case "develop": {
           console.log(`Pi Developer model: ${roleModels.developer.provider ?? "Pi default"}/${roleModels.developer.model ?? "inherited"}`);
-          const dev = await runPi({ cwd: wt.directory, timeouts: policy.timeouts, modelSelection: roleModels.developer,
+          const developerActivity = createPiActivityReporter(issue.number, "developer");
+          let dev;
+          try { dev = await runPi({ cwd: wt.directory, timeouts: policy.timeouts, modelSelection: roleModels.developer, onEvent: developerActivity.onEvent,
             prompt: promptFor("Developer", mainDocs + "\n" + devRole, issue,
               state.mergeConflict ? [
                 "MANDATORY MAIN INTEGRATION: Git HEAD has been safely fast-forwarded to latest origin/main.",
@@ -123,7 +135,8 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
                 "When finished, resolve unmerged index entries, implement the task and run relevant tests.",
                 state.feedback ?? "",
               ].join("\n") : state.feedback,
-              resume || state.attempt > 0), signal });
+              resume || state.attempt > 0), signal }); developerActivity.finish(true); }
+          catch (error) { developerActivity.finish(false); throw error; }
           console.log(`Developer completed attempt ${state.attempt + 1}, response ${dev.text.length} chars`);
           if (state.mergeConflict && await unresolved()) {
             if ((state.conflictFixAttempts ?? 0) >= policy.maxRetries)
@@ -154,8 +167,11 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
           const preReviewTree = await git(["write-tree"], wt.directory);
           if (nextPhaseForTree("review", state, preReviewTree) !== "review") { await checkpoint("checks"); break; }
           console.log(`Pi Reviewer model: ${roleModels.reviewer.provider ?? "Pi default"}/${roleModels.reviewer.model ?? "inherited"}`);
-          const review = await runPi({ cwd: wt.directory, timeouts: { ...policy.timeouts, piHardMinutes: policy.timeouts.reviewHardMinutes }, modelSelection: roleModels.reviewer,
-            prompt: `${reviewRole}\n\n${mainDocs}\n\nReview the staged diff versus HEAD for Issue #${issue.number}: ${issue.title}. Do not edit files.\nUse git diff --cached to read the implementation.\nReturn only the required SOXU_REVIEW_RESULT JSON marker on its own final line.`, signal });
+          const reviewerActivity = createPiActivityReporter(issue.number, "reviewer");
+          let review;
+          try { review = await runPi({ cwd: wt.directory, timeouts: { ...policy.timeouts, piHardMinutes: policy.timeouts.reviewHardMinutes }, modelSelection: roleModels.reviewer, onEvent: reviewerActivity.onEvent,
+            prompt: `${reviewRole}\n\n${mainDocs}\n\nReview the staged diff versus HEAD for Issue #${issue.number}: ${issue.title}. Do not edit files.\nUse git diff --cached to read the implementation.\nReturn only the required SOXU_REVIEW_RESULT JSON marker on its own final line.`, signal }); reviewerActivity.finish(true); }
+          catch (error) { reviewerActivity.finish(false); throw error; }
           await inspectChanges(wt.directory, state.base, policy);
           const postReviewTree = await git(["write-tree"], wt.directory);
           if (postReviewTree !== preReviewTree) {
@@ -218,6 +234,7 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
         case "done":
           state.status = "done";
           await writeCheckpoint(state);
+          reportTaskPhase(issue.number, "done", "done");
           if (local) console.log(`Local branch ready: ${state.branch} (${state.directory})`);
           else console.log(`PR ready: ${state.pr}`);
           return { status: local ? "local-branch" : "pr", issue: issue.number, branch: state.branch, pr: state.pr };
@@ -232,6 +249,7 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
       state.reason = failure.kind;
       state.lastError = safeFailureMessage(failure);
       await writeCheckpoint(state);
+      reportTaskPhase(issue.number, state.phase ?? "worktree", state.status);
     }
     console.error(`issue #${issue.number} ${paused ? "paused" : "blocked"} at ${state?.phase ?? "startup"}: ${safeFailureMessage(failure)}`);
     if (!local && failure.kind !== "network") {
