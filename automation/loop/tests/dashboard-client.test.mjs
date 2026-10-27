@@ -26,6 +26,7 @@ function node() {
     value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "", style: {}, replacements:0, setAttribute() {},
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
     classList: { add() {}, remove() {}, contains(value) { return result.className.split(" ").includes(value); } },
+    showModal() {result.open=true;}, close() {result.open=false;},
     addEventListener(type, fn) { listeners.set(type, fn); },
     dispatch(type, event = {}) { listeners.get(type)?.(event); },
     get children() { return children; },
@@ -41,7 +42,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
-    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "phaseSelect", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "submitIntake", "clearIntake",
+    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "phaseSelect", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "submitIntake", "clearIntake",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -269,4 +270,18 @@ test("unchanged agent snapshots do not rebuild DOM on every status poll",async()
   assert.equal(app.elements.agentCards.replacements,1);
   for(let i=0;i<100;i++){app.elements.refresh.dispatch("click");await tick();}
   assert.equal(app.elements.agentCards.replacements,1);
+});
+
+test("product and quality open separate report dialogs and run only on explicit click",async()=>{
+  const report={lane:"product",summary:"建议",findings:[],unknowns:[],createdAt:"2026-10-27T00:00:00Z"};
+  const app=page({handler:path=>({ok:true,status:200,json:async()=>path.includes("advisory-report")?{report}:STATUS})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  app.elements.openProduct.dispatch("click");await tick();
+  assert.equal(app.elements.productDialog.open,true);
+  assert.equal(app.requests.some(x=>x.path==="/api/advisory-run"),false);
+  app.elements.runProduct.dispatch("click");await tick();
+  assert.deepEqual(JSON.parse(app.requests.find(x=>x.path==="/api/advisory-run").options.body),{lane:"product"});
+  app.elements.closeProduct.dispatch("click");app.elements.openQuality.dispatch("click");await tick();
+  assert.equal(app.elements.qualityDialog.open,true);
+  assert.ok(app.requests.some(x=>x.path==="/api/advisory-report?lane=quality"));
 });

@@ -158,3 +158,19 @@ test("intake endpoints require authentication and explicit approval", async()=>{
     assert.deepEqual(calls,[["assess","a test requirement"],["submit","x",false]]);
   }finally{await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
 });
+
+test("advisory endpoints require authentication and explicit one-shot launch",async()=>{
+  const root=await fixture(),calls=[];
+  const advisory={state:()=>({active:null,last:null}),start:lane=>{calls.push(lane);return {active:{lane}};},shutdown(){}};
+  const coordinator=new DashboardCoordinator({root,advisory});
+  const {server}=createDashboardServer({root,token:TOKEN,coordinator});
+  try {
+    await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
+    const port=server.address().port,origin=`http://127.0.0.1:${port}`;
+    assert.equal((await call(port,{path:"/api/advisory-report?lane=product",token:null})).status,401);
+    assert.equal((await call(port,{path:"/api/advisory-report?lane=product"})).body.report,null);
+    assert.equal((await call(port,{path:"/api/advisory-run",method:"POST",origin,body:{lane:"product",extra:true}})).status,400);
+    assert.equal((await call(port,{path:"/api/advisory-run",method:"POST",origin,body:{lane:"product"}})).status,202);
+    assert.deepEqual(calls,["product"]);
+  }finally{await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+});

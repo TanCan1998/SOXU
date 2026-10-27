@@ -19,6 +19,7 @@ let connected = false, requestInFlight = false;
 let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", renderedLogKey = "";
 let agents = new Map(), lastAgentKey = "", streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
 let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null, lastIntakeKey = "", lastQueueKey = "";
+let advisoryState = null, loadedReportKeys = {product:"",quality:""};
 
 function stored(storage, key) { try { return storage.getItem(key); } catch { return null; } }
 function save(storage, key, value) { try { storage.setItem(key, String(value)); } catch {} }
@@ -267,8 +268,17 @@ function render(data) {
     : data.github?.status === "unavailable" ? "GitHub 状态不可用：请检查 gh 登录和网络；任务与 CI 状态未知" : "GitHub 状态加载中";
   $("developmentLane").textContent = data.runner ? "控制台调度运行中" : data.externalLocks ? "存在外部任务锁" : "控制台当前空闲";
   const reportLabel = lane => !lane ? "状态加载中" : lane.status === "unavailable" ? "本地报告状态不可用" : lane.status === "empty" ? "暂无本地建议报告" : `本地报告 ${lane.count} 份 · 最近 ${new Date(lane.lastAt).toLocaleString()}`;
-  $("productLane").textContent=reportLabel(data.lanes?.product);
-  $("qualityLane").textContent=reportLabel(data.lanes?.quality);
+  advisoryState = data.advisory ?? null;
+  for (const lane of ["product","quality"]) {
+    const prefix=lane === "product" ? "product" : "quality";
+    const current=advisoryState?.active?.lane === lane;
+    const last=advisoryState?.last?.lane === lane ? advisoryState.last : null;
+    $(prefix+"Lane").textContent=current ? "正在分析" : reportLabel(data.lanes?.[lane]);
+    $("run"+prefix[0].toUpperCase()+prefix.slice(1)).disabled=Boolean(advisoryState?.active);
+    $(prefix+"RunState").textContent=current ? "正在分析；可关闭弹窗，任务会继续。" : last?.status === "failed" ? "上次分析失败（"+last.reason+"）；未自动重试。" : last?.status === "completed" ? "上次分析完成，结果仍需人工核实。" : "手动运行一次只读分析，结果需人工核实。";
+    const reportKey=last?.status === "completed" ? last.finishedAt : "";
+    if (reportKey && $(prefix+"Dialog").open && loadedReportKeys[lane] !== reportKey) {loadedReportKeys[lane]=reportKey;void loadAdvisory(lane);}
+  }
   const lessons=data.lanes?.lessons;
   $("lessonsStatus").textContent=lessons?.status === "available" ? `已记录 ${lessons.count} 条教训，${lessons.eligible} 条达到提出申请的条件。每条须有至少 3 个不同日期的证据；维护者核实、批准并通过单独治理 PR，不自动修改规则。` : "复盘规则：同一规则须有至少 3 个不同日期的证据，才可提出人工晋升申请；教训记录状态待核实。";
   renderProjectPhase(data.github);
@@ -410,6 +420,33 @@ async function openStream(token) {
     }
   }
 }
+async function loadAdvisory(lane) {
+  const prefix=lane === "product" ? "product" : "quality", node=$(prefix+"Report");
+  node.replaceChildren(element("p","正在读取本地报告…","hint"));
+  try {
+    const {report}=await api("/api/advisory-report?lane="+lane);
+    if (!report) {node.replaceChildren(element("p","暂无报告，请手动开始分析。","hint"));return;}
+    node.replaceChildren();
+    node.append(element("p", "未经核实的模型建议" + (report.createdAt ? " · " + new Date(report.createdAt).toLocaleString() : ""), "notice"));
+    const summary=element("div",undefined,"assessment-block");summary.append(element("strong","摘要"),element("p",report.summary));node.append(summary);
+    for (const finding of report.findings) {
+      const block=element("div",undefined,"assessment-block");
+      block.append(element("strong",finding.title),element("p",finding.recommendation),element("small","置信度："+finding.confidence+" · 证据："+(finding.evidence.join("；") || "未提供"),"hint"));node.append(block);
+    }
+    if (report.unknowns.length) {const block=element("div",undefined,"assessment-block");block.append(element("strong","待核实"),element("p",report.unknowns.join("\n")));node.append(block);}
+  } catch(error) {node.replaceChildren(element("p","报告读取失败："+error.message,"error-text"));}
+}
+async function openAdvisory(lane) {
+  if (!connected) return notice("先连接本地控制台。");
+  const prefix=lane === "product" ? "product" : "quality";
+  $(prefix+"Dialog").showModal();await loadAdvisory(lane);
+}
+async function startAdvisory(lane) {
+  if (!connected) return notice("先连接本地控制台。");
+  if (!confirm("即将启动一次只读模型分析，可能产生费用；失败不会自动重试。继续？")) return;
+  try {await api("/api/advisory-run",{method:"POST",body:{lane}});await refresh();}
+  catch(error){$(lane+"RunState").textContent="分析启动失败："+error.message; }
+}
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   $("themeToggle").textContent = theme === "dark" ? "浅色" : "深色";
@@ -474,6 +511,12 @@ function setProjectPhase(value) {
   save(preferenceStorage,PHASE_KEY,selected);
 }
 $("phaseSelect").addEventListener("change",()=>setProjectPhase($("phaseSelect").value));
+for (const lane of ["product","quality"]) {
+  const cap=lane[0].toUpperCase()+lane.slice(1);
+  $("open"+cap).addEventListener("click",()=>void openAdvisory(lane));
+  $("close"+cap).addEventListener("click",()=>$(lane+"Dialog").close());
+  $("run"+cap).addEventListener("click",()=>void startAdvisory(lane));
+}
 $("themeToggle").addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
 $("openIntake").addEventListener("click", () => { if (!connected) return notice("先连接本地控制台。"); $("intakeDialog").showModal(); });
 $("closeIntake").addEventListener("click", () => $("intakeDialog").close());

@@ -8,6 +8,7 @@ import { ROOT } from "./config.mjs";
 import { readCheckpoint } from "./checkpoint.mjs";
 import { localProgress } from "./status.mjs";
 import { safeActivity } from "./dashboard-activity.mjs";
+import { AdvisoryManager, readLatestReport } from "./dashboard-advisory.mjs";
 import { readLaneStatus } from "./dashboard-lanes.mjs";
 import { IntakeManager } from "./dashboard-intake.mjs";
 import { mergeTaskPr } from "./dashboard-merge.mjs";
@@ -57,7 +58,7 @@ async function liveExternalLocks(root) {
 
 /** Owns only jobs explicitly launched from this web process. It cannot seize external Pi processes. */
 export class DashboardCoordinator extends EventEmitter {
-  constructor({ root = ROOT, spawn = fork, githubStatus = readGithubStatus, mergePr = mergeTaskPr, intake = null } = {}) {
+  constructor({ root = ROOT, spawn = fork, githubStatus = readGithubStatus, mergePr = mergeTaskPr, intake = null, advisory = null } = {}) {
     super();
     this.root = root;
     this.spawn = spawn;
@@ -72,6 +73,7 @@ export class DashboardCoordinator extends EventEmitter {
     this.githubStatus = githubStatus;
     this.mergePr = mergePr;
     this.autoMergeEnabled = false;
+    this.advisory = advisory ?? new AdvisoryManager({root,onChange:()=>{this.lanesNext=0;this.emit("dashboard:event",{type:"status",data:{}});}});
     this.intake = intake ?? new IntakeManager({root, onChange:()=>this.emit("dashboard:event", {type:"status",data:{}})});
     this.github = {status:"loading", updatedAt:null, tasks:{}};
     this.githubNext = 0;
@@ -135,6 +137,7 @@ export class DashboardCoordinator extends EventEmitter {
       autoMergeEnabled: this.autoMergeEnabled,
       intake: this.intake.publicState(),
       lanes: this.lanes,
+      advisory: this.advisory.state(),
       isLive: false,
       tasks: GROUPS.flatMap(status => progress[status].map(item => ({
         id: item.id, title: cleanLine(item.title ?? item.name).slice(0, 160),
@@ -247,6 +250,7 @@ export class DashboardCoordinator extends EventEmitter {
     return { accepted: true, stopping: true };
   }
   shutdown() {
+    this.advisory.shutdown();
     this.intake.shutdown();
     if (this.active && !this.active.stopping) {
       try { this.stop(); } catch { this.push("Stop message failed; inspect child process before exit"); }
@@ -352,16 +356,24 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
       }
       return;
     }
+    if (request.method === "GET" && ["/api/advisory-report?lane=product", "/api/advisory-report?lane=quality"].includes(request.url)) {
+      try { return reply(200, {report:await readLatestReport(root, request.url.endsWith("product") ? "product" : "quality")}); }
+      catch { return reply(503, {error:"report-unavailable"}); }
+    }
     if (request.method === "GET" && request.url === "/api/status") {
       try { return reply(200, await coordinator.snapshot()); }
       catch { return reply(503, { error: "status-unavailable" }); }
     }
-    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge", "/api/intake-assess", "/api/intake-submit", "/api/intake-clear"].includes(request.url)) {
+    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge", "/api/intake-assess", "/api/intake-submit", "/api/intake-clear", "/api/advisory-run"].includes(request.url)) {
       if (request.headers.origin !== origin || request.headers["content-type"] !== "application/json") {
         return reply(403, { error: "invalid-request-origin" });
       }
       try {
         const body = await readBody(request);
+        if (request.url === "/api/advisory-run") {
+          if (!body || Object.keys(body).join(",") !== "lane" || typeof body.lane !== "string") return reply(400,{error:"invalid-body"});
+          return reply(202, coordinator.advisory.start(body.lane));
+        }
         if (request.url === "/api/intake-assess") {
           if (!body || Object.keys(body).join(",") !== "requirement") return reply(400,{error:"invalid-body"});
           return reply(202, await coordinator.intake.start(body.requirement));
