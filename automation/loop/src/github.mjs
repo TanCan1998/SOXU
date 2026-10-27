@@ -1,4 +1,5 @@
 import { gh, git, run } from "./process.mjs";
+import { hasRequiredChecks } from "./branch-protection.mjs";
 import { writeFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,8 +56,7 @@ export async function branchProtectionEnabled() {
   if (result.code !== 0) return false;
   try {
     const v = JSON.parse(result.stdout);
-    return (v.required_status_checks?.contexts ?? []).includes("quality") ||
-      (v.required_status_checks?.checks ?? []).some(x => x.context === "quality");
+    return hasRequiredChecks(v);
   } catch { return false; }
 }
 export async function autoMerge(prUrl) { await gh(["pr", "merge", prUrl, "--auto", "--squash"], ROOT); }
