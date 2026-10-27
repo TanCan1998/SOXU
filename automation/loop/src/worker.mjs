@@ -9,7 +9,8 @@ import { labelIssue, commentIssue, createPr, branchProtectionEnabled, autoMerge 
 import { readCheckpoint, writeCheckpoint } from "./checkpoint.mjs";
 import { nextPhaseForTree, assertRecoveredCommit } from "./review-invariants.mjs";
 import { loadRoleModels, modelArgs } from "./agent-models.mjs";
-import { classifyFailure, isRecoverable, safeFailureMessage } from "./errors.mjs";
+import { classifyFailure, isRecoverable, safeFailureMessage, LoopFailure } from "./errors.mjs";
+import { duplicatePrs } from "./duplicate-pr.mjs";
 
 const WORKTREES = resolve(ROOT, "../soxu-worktrees");
 const LOCKS = resolve(ROOT, ".soxu", "locks");
@@ -151,6 +152,21 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
           await run("pnpm", ["install", "--no-frozen-lockfile", "--ignore-scripts"], { cwd: wt.directory, timeoutMs: policy.timeouts.installMinutes * 60000, signal });
           await checkpoint("checks"); break;
         case "develop": {
+          if (!local) {
+            // Recheck before every paid Developer call, including resume/repair.
+            let prs;
+            try {
+              const result = await run("gh", ["pr", "list", "--state", "open", "--base", "main", "--limit", "1000", "--json", "number,state,body,url,headRefName,baseRefName"], {cwd:ROOT, timeoutMs:policy.timeouts.networkSeconds * 1000, signal});
+              prs = JSON.parse(result.stdout);
+              if (!Array.isArray(prs) || prs.length >= 1000) throw new Error("PR results incomplete");
+            } catch (error) {
+              throw new LoopFailure("network", "Cannot verify open PRs before model call; task paused. Check GitHub access and retry explicitly.", error);
+            }
+            const duplicates = duplicatePrs(issue.number, prs);
+            if (duplicates.length) {
+              throw new LoopFailure("duplicate", `Existing open PR(s) explicitly reference Issue #${issue.number}: ${duplicates.map(pr => `#${pr.number}`).join(", ")}. Inspect before resuming.`);
+            }
+          }
           reportTaskModel(issue.number,"developer",roleModels.developer);
           console.log(`Pi Developer model: ${roleModels.developer.provider ?? "Pi default"}/${roleModels.developer.model ?? "inherited"}`);
           const developerActivity = createPiActivityReporter(issue.number, "developer");
