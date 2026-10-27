@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildGithubStatus } from "../src/dashboard-github.mjs";
+import { buildGithubStatus, enrichActiveChecks } from "../src/dashboard-github.mjs";
 
 test("PR checks and unresolved dependencies reflect GitHub evidence", () => {
   const catalog=[{id:"TASK-001",dependencies:[]},{id:"TASK-002",dependencies:["TASK-001"]}];
@@ -35,6 +35,17 @@ test("roadmap counts all classified issues rather than a fixed backlog",()=>{
 test("active CI jobs expose bounded names and validated start times", () => {
   const c=[{id:"TASK-001", dependencies:[]}], i=[{number:11,title:"[TASK-001] One",state:"OPEN"}];
   const p=[{number:21,state:"OPEN",baseRefName:"main",body:"Closes #11",statusCheckRollup:[{name:"Rust / Tauri",status:"IN_PROGRESS",startedAt:"2026-10-27T10:00:00Z"}]}];
-  assert.deepEqual(buildGithubStatus(c,i,p)["TASK-001"].pr.activeChecks,[{name:"Rust / Tauri",startedAt:"2026-10-27T10:00:00Z"}]);
+  assert.deepEqual(buildGithubStatus(c,i,p)["TASK-001"].pr.activeChecks,[{name:"Rust / Tauri",jobId:null,startedAt:"2026-10-27T10:00:00Z"}]);
   p[0].statusCheckRollup[0].startedAt="bad"; assert.equal(buildGithubStatus(c,i,p)["TASK-001"].pr.activeChecks[0].startedAt,null);
+});
+
+test("running step status is bounded and unavailable jobs do not fail the snapshot", async () => {
+ const a={name:"CI",jobId:123}, b={name:"other",jobId:456};
+ const snapshot={one:{pr:{activeChecks:[a,b]}}};
+ await enrichActiveChecks(snapshot,"/repo",async (_bin,args)=>{
+   if (args[1].endsWith("/456")) throw new Error("no permission");
+   return {stdout:JSON.stringify({id:123,steps:[{name:"Install",status:"in_progress",started_at:"2026-10-27T10:00:00Z"}]})};
+ });
+ assert.equal(a.step.name,"Install"); assert.equal(a.stepObservedAt,"2026-10-27T10:00:00Z");
+ assert.equal(b.stepStatus,"unavailable");
 });
