@@ -8,6 +8,7 @@
     "dev": "vite --port 1420 --strictPort",
     "build": "vue-tsc --noEmit && vite build",
     "check": "vue-tsc --noEmit",
+    "test": "node --test tests",
     "tauri": "tauri"
   },
   "dependencies": {
