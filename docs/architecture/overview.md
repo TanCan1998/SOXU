@@ -14,6 +14,7 @@ Pi native settings/auth/session files remain Pi-owned.
 - `SessionId`：跨重启稳定；`RuntimeId`：单次 Pi 进程；`RuntimeGeneration`：递增计数，防止过期事件污染。
 - `PaneId`：UI 显示区域，多个 Pane 可观察不同 Session，Pane 销毁不等于停止 Agent。
 - 同一 Pi JSONL 仅允许一个可写的运行时所有者，其他视图只读。
+- 完整身份派生规则、错误码与恢复路径见 [会话目录与 JSONL 索引契约](session-catalog.md)。
 
 ## 约束
 - 有界缓存、后端分页、前端虚拟列表；长工具输出和图片走按需资源接口。
