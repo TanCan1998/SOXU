@@ -11,12 +11,12 @@ test('Chinese and English README are present with reciprocal navigation and matc
   const en=await load('README.en.md');
   assert.match(zh, /\[English\]\(README\.en\.md\)/);
   assert.match(en, /\[简体中文\]\(README\.md\)/);
-  for(const command of ['pnpm agent:models','pnpm agent:status','pnpm agent:doctor','pnpm agent:once','pnpm agent:loop','pnpm agent:resume','pnpm tauri:dev']) {
+  for(const command of ['pnpm agent:models','pnpm agent:status','pnpm agent:doctor','pnpm agent:once','pnpm agent:loop','pnpm agent:resume','pnpm agent:dashboard','pnpm tauri:dev']) {
     assert.ok(zh.includes(command), `Chinese README missing ${command}`);
     assert.ok(en.includes(command), `English README missing ${command}`);
   }
-  assert.match(zh, /尚未实现/);
-  assert.match(en, /planned but not implemented/);
+  assert.match(zh, /agent:logs.*尚未实现/);
+  assert.match(en, /agent:logs.*not implemented/);
   assert.match(zh, /magpie/);
   assert.match(en, /magpie/);
 });

@@ -64,6 +64,15 @@ for (const name of ["SIGINT", "SIGTERM"]) process.on(name, () => {
   controller.abort();
 });
 
+// Dashboard-owned jobs accept only an authenticated parent IPC stop request.
+// On Windows this avoids forcefully killing Node before it can preserve checkpoints.
+if (typeof process.send === "function") process.on("message", message => {
+  if (message?.type === "soxu:interrupt" && !controller.signal.aborted) {
+    console.error("Dashboard stop requested; aborting running checks and Pi subprocesses...");
+    controller.abort();
+  }
+});
+
 async function verifyLockfiles() {
   const missing = [];
   for (const name of ["pnpm-lock.yaml", "Cargo.lock"]) {
