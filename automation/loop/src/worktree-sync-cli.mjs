@@ -1,4 +1,3 @@
-
 #!/usr/bin/env node
 import { inspectWorktrees } from "./worktree-sync.mjs";
 
