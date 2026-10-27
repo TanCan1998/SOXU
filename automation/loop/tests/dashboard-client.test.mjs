@@ -21,17 +21,23 @@ function response(status = 200) {
   };
 }
 function node() {
-  const listeners = new Map();
-  return {
-    value: "", textContent: "", disabled: false, checked: false, dataset: {},
+  const listeners = new Map(), children = [];
+  const result = {
+    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "",
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
-    classList: { add() {}, remove() {}, contains() { return false; } },
+    classList: { add() {}, remove() {}, contains(value) { return result.className.split(" ").includes(value); } },
     addEventListener(type, fn) { listeners.set(type, fn); },
     dispatch(type, event = {}) { listeners.get(type)?.(event); },
-    replaceChildren() {}, append() {},
+    get children() { return children; },
+    get lastElementChild() { return children.at(-1); },
+    get firstElementChild() { return children[0]; },
+    replaceChildren(...items) { children.splice(0,children.length,...items); for(const x of items) x.parent = result; },
+    append(...items) { children.push(...items); for(const x of items) x.parent = result; },
+    remove() { if (result.parent) { const i = result.parent.children.indexOf(result); if (i >= 0) result.parent.children.splice(i,1); } },
   };
+  return result;
 }
-function page({ storage = new Map(), handler = () => response(), hidden = false } = {}) {
+function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map() } = {}) {
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
@@ -60,7 +66,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false 
     removeItem(key) { storage.delete(key); },
   };
   runInNewContext(APP, {
-    document, sessionStorage, localStorage: { getItem() { return null; }, setItem() {} },
+    document, sessionStorage, localStorage: { getItem(key) { return preferences.get(key) ?? null; }, setItem(key, value) { preferences.set(key, String(value)); } },
     setInterval() {}, setTimeout() { return 1; }, clearTimeout() {},
     AbortSignal: { timeout() { return undefined; } },
     fetch: async (path, options) => {
@@ -156,4 +162,34 @@ test("an earlier response cannot authenticate a newly edited token", async () =>
   await tick();
   assert.equal(storage.has(TOKEN_STORAGE_KEY), false);
   assert.notEqual(view.elements.connection.textContent, "本机已连接");
+});
+
+test("log settings show only latest 50 / 20 / 100 / 200 rows and remember preference", async () => {
+  const preferences = new Map();
+  const entries = Array.from({length:240},(_,i)=>({
+    seq:i+1, time:"2026-10-27T00:00:00.000Z", message:"line "+i, stream:i%2?"stdout":"stderr"
+  }));
+  const view = page({preferences, handler: () => ({
+    ok:true, status:200, json:async()=>({...STATUS,log:entries,instanceId:"test-server"})
+  })});
+  view.elements.token.value = TOKEN;
+  view.elements.connect.dispatch("click");
+  await tick();
+  assert.equal(view.elements.logs.children.length,50);
+  for(const expected of [20,100,200]){
+    view.elements.logLimit.value = String(expected);
+    view.elements.logLimit.dispatch("change");
+    assert.equal(view.elements.logs.children.length,expected);
+    assert.equal(preferences.get("soxu.dashboard.logLimit.v1"),String(expected));
+  }
+  view.elements.logFilter.value = "stderr";
+  view.elements.logFilter.dispatch("change");
+  assert.equal(view.elements.logs.children.length,120);
+  assert.equal(preferences.get("soxu.dashboard.logFilter.v1"),"stderr");
+});
+
+test("log limit defaults to 50 after invalid local preference", async () => {
+  const preferences=new Map([["soxu.dashboard.logLimit.v1","99999"]]);
+  const view=page({preferences});
+  assert.equal(view.elements.logLimit.value,"50");
 });
