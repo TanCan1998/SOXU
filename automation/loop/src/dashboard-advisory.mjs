@@ -19,14 +19,14 @@ export async function readLatestReport(root, lane) {
   return {...result,createdAt:typeof input.createdAt==="string" && Number.isFinite(Date.parse(input.createdAt)) ? input.createdAt : null, origin:"model-proposal-unverified"};
 }
 export class AdvisoryManager {
-  constructor({root,run=runAdvisory,onChange=()=>{}}) {this.root=root;this.run=run;this.onChange=onChange;this.active=null;this.last=null;}
-  state() {return {active:this.active ? {lane:this.active.lane,startedAt:this.active.startedAt} : null,last:this.last};}
+  constructor({root,run=runAdvisory,onChange=()=>{}}) {this.root=root;this.run=run;this.onChange=onChange;this.active=null;this.last=null;this.counters={product:0,quality:0};}
+  state() {return {active:this.active ? {lane:this.active.lane,startedAt:this.active.startedAt,model:this.active.model ?? null} : null,last:this.last};}
   start(lane) {
     if (!VALID.has(lane)) throw invalid("invalid-lane");
     if (this.active) throw invalid("advisory-busy",409);
     const job={lane,startedAt:new Date().toISOString(),controller:new AbortController()};
     this.active=job;this.onChange();
-    Promise.resolve().then(()=>this.run(lane,{root:this.root,signal:job.controller.signal})).then(()=>{
+    Promise.resolve().then(()=>this.run(lane,{root:this.root,signal:job.controller.signal,modelIndex:this.counters[lane]++,onModel:model=>{job.model=model;this.onChange();}})).then(()=>{
       this.last={lane,status:"completed",finishedAt:new Date().toISOString(),reason:null};
     }).catch(error=>{
       const kind=classifyFailure(error).kind;

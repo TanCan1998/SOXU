@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { readModelSettings, selectModel } from './model-settings.mjs';
 import { ROOT } from './config.mjs';
 
 const VALID_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/+-]*$/;
@@ -35,10 +36,19 @@ export function resolveRoleModels(configuration, env = process.env) {
   return result;
 }
 
-export async function loadRoleModels(env = process.env) {
+export async function loadRoleModels(env = process.env, {index=0, root=ROOT} = {}) {
   const path = resolve(ROOT, 'automation/agent-models.json');
   const config = JSON.parse(await readFile(path, 'utf8'));
-  return resolveRoleModels(config, env);
+  const baseline=resolveRoleModels(config, env);
+  const settings=await readModelSettings(root);
+  const result={};
+  for (const role of ["developer","reviewer","product","quality","intake"]) {
+    const baseRole=["developer","product","intake"].includes(role) ? "developer" : "reviewer";
+    const prefix=`SOXU_${baseRole.toUpperCase()}_`;
+    const overridden=role===baseRole && (env[`${prefix}PROVIDER`] || env[`${prefix}MODEL`]);
+    result[role]=overridden ? baseline[baseRole] : selectModel(settings,role,index,baseline[baseRole]);
+  }
+  return result;
 }
 
 export function modelArgs(selection = {}) {

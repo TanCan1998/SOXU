@@ -174,3 +174,14 @@ test("advisory endpoints require authentication and explicit one-shot launch",as
     assert.deepEqual(calls,["product"]);
   }finally{await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
 });
+
+test("current task model telemetry is bounded and validates untrusted identifiers",async()=>{
+  const root=await fixture();const coordinator=new DashboardCoordinator({root});
+  try {
+    coordinator.active={};
+    coordinator.receiveTelemetry({type:"soxu:model",data:{taskId:1,role:"developer",provider:"magpie",model:"auto/deepseek-v4.1-flash"}});
+    coordinator.receiveTelemetry({type:"soxu:model",data:{taskId:2,role:"developer",provider:"bad & shell",model:"x"}});
+    const snapshot=await coordinator.snapshot();
+    assert.equal(snapshot.taskModels.length,1);assert.equal(snapshot.taskModels[0].model,"auto/deepseek-v4.1-flash");
+  } finally {coordinator.active=null;await rm(root,{recursive:true,force:true});}
+});

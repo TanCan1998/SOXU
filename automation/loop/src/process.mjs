@@ -4,7 +4,7 @@ import { classifyFailure, LoopFailure } from "./errors.mjs";
 // On Windows only invoke trusted static .cmd commands through cmd.exe.
 function normalize(bin, args) {
   if (process.platform !== "win32") return [bin, args];
-  if (bin === "pi" && JSON.stringify(args) === JSON.stringify(["--help"])) return ["cmd.exe", ["/d", "/s", "/c", "pi --help"]];
+  if (bin === "pi" && ["--help", "--list-models"].includes(args[0]) && args.length === 1) return ["cmd.exe", ["/d", "/s", "/c", `pi ${args[0]}`]];
   if (bin !== "pnpm") return [bin, args];
   const key = JSON.stringify(args);
   const commands = new Map([

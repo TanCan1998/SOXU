@@ -3,6 +3,7 @@ const tokenInput = $("token");
 const TOKEN_STORAGE_KEY = "soxu.dashboard.sessionToken.v1";
 const LOG_LIMIT_KEY = "soxu.dashboard.logLimit.v1";
 const LOG_FILTER_KEY = "soxu.dashboard.logFilter.v1";
+const PAGE_KEY = "soxu.dashboard.page.v1";
 const PHASE_KEY = "soxu.dashboard.projectPhase.v1";
 const THEME_KEY = "soxu.dashboard.theme.v1";
 const FOLLOW_KEY = "soxu.dashboard.followLogs.v1";
@@ -20,6 +21,7 @@ let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", rendered
 let agents = new Map(), lastAgentKey = "", streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
 let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null, lastIntakeKey = "", lastQueueKey = "";
 let advisoryState = null, loadedReportKeys = {product:"",quality:""};
+let modelSettings = null, modelDraft = null, modelCatalog = [], actualModels = new Map();
 
 function stored(storage, key) { try { return storage.getItem(key); } catch { return null; } }
 function save(storage, key, value) { try { storage.setItem(key, String(value)); } catch {} }
@@ -63,7 +65,7 @@ async function api(path, options = {}, token = tokenInput.value.trim()) {
     method: options.method || "GET",
     headers: { "X-SOXU-Control-Token": token, ...(options.method ? { "Content-Type": "application/json" } : {}) },
     ...(options.method ? { body: JSON.stringify(options.body ?? {}) } : {}),
-    cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(path === "/api/intake-submit" ? 55000 : 9000)
+    cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(path === "/api/intake-submit" ? 55000 : path === "/api/model-catalog" ? 35000 : 9000)
   });
   const data = await response.json();
   if (!response.ok) {
@@ -80,6 +82,7 @@ function resetInstance(next) {
   latestSequence = 0;
   logs = [];
   agents.clear();
+  actualModels.clear();
   lastAgentKey = "";
   lastTaskKey = "";
   renderedLogKey = "";
@@ -188,7 +191,7 @@ function renderTasks(data) {
 }
 function renderAgents() {
   const entries = [...agents.values()].sort((a,b) => a.taskId - b.taskId || a.role.localeCompare(b.role));
-  const key = JSON.stringify(entries);
+  const key = JSON.stringify([entries,[...actualModels.values()]]);
   if (key === lastAgentKey) return;
   lastAgentKey = key;
   const node = $("agentCards");
@@ -203,6 +206,8 @@ function renderAgents() {
     elapsed.dataset.startedAt = activity.startedAt;
     elapsed.dataset.activitySince = activity.activitySince;
     item.append(elapsed);
+    const selected=actualModels.get(activity.taskId+":"+activity.role);
+    if (selected) item.append(element("span", "模型："+(selected.provider && selected.model ? selected.provider+" / "+selected.model : "Pi 默认（具体模型未知）"),"agent-model"));
     node.append(item);
   }
   if (!entries.length) node.append(element("div", "暂无 Dashboard 启动的 Pi 会话活动", "empty"));
@@ -275,7 +280,7 @@ function render(data) {
     const last=advisoryState?.last?.lane === lane ? advisoryState.last : null;
     $(prefix+"Lane").textContent=current ? "正在分析" : reportLabel(data.lanes?.[lane]);
     $("run"+prefix[0].toUpperCase()+prefix.slice(1)).disabled=Boolean(advisoryState?.active);
-    $(prefix+"RunState").textContent=current ? "正在分析；可关闭弹窗，任务会继续。" : last?.status === "failed" ? "上次分析失败（"+last.reason+"）；未自动重试。" : last?.status === "completed" ? "上次分析完成，结果仍需人工核实。" : "手动运行一次只读分析，结果需人工核实。";
+    $(prefix+"RunState").textContent=current ? "正在分析"+(advisoryState.active.model ? " · "+(advisoryState.active.model.provider ? advisoryState.active.model.provider+" / "+advisoryState.active.model.model : "Pi 默认（具体模型未知）") : "")+"；可关闭弹窗，任务会继续。" : last?.status === "failed" ? "上次分析失败（"+last.reason+"）；未自动重试。" : last?.status === "completed" ? "上次分析完成，结果仍需人工核实。" : "手动运行一次只读分析，结果需人工核实。";
     const reportKey=last?.status === "completed" ? last.finishedAt : "";
     if (reportKey && $(prefix+"Dialog").open && loadedReportKeys[lane] !== reportKey) {loadedReportKeys[lane]=reportKey;void loadAdvisory(lane);}
   }
@@ -298,6 +303,9 @@ function render(data) {
   }
   renderIntake(data.intake);
   renderTasks(data);
+  if (Array.isArray(data.taskModels)) actualModels = new Map(data.taskModels.map(m=>[m.taskId+":"+m.role,m]));
+  if (data.modelInfo?.status === "ok") {modelSettings=data.modelInfo.settings;renderModelSummary(data.modelInfo);}
+  else $("modelSummary").textContent="模型配置不可用，请检查本地配置。";
   if (Array.isArray(data.agents)) {
     agents = new Map(data.agents.map(a => [a.taskId + ":" + a.role, a]));
     renderAgents();
@@ -465,7 +473,7 @@ function renderIntake(intake) {
   $("submitIntake").disabled = state !== "review";
   $("clearIntake").hidden = state !== "unknown";
   if (!intake) { $("intakeSummary").textContent = "尚未提交本次需求"; return; }
-  $("intakeSummary").textContent = ({assessing:"Agent 正在评估",review:"评估完成，等待确认",submitting:"正在提交需求",submitted:"需求已提交",failed:"评估失败",unknown:"提交结果待核实"})[state] || "状态未知";
+  $("intakeSummary").textContent = (intake.model?.provider ? "模型 "+intake.model.provider+" / "+intake.model.model+" · " : "") + ({assessing:"Agent 正在评估",review:"评估完成，等待确认",submitting:"正在提交需求",submitted:"需求已提交",failed:"评估失败",unknown:"提交结果待核实"})[state] || "状态未知";
   if (intake.assessment) for (const [key,label] of [["title","建议标题"],["feasibility","可行性"],["plan","实施安排"],["dependencies","前置依赖"],["acceptance","验收标准"],["unknowns","未知与待确认"]]) {
     const block=element("div",undefined,"assessment-block"); block.append(element("strong",label),element("p",intake.assessment[key]));node.append(block);
   }
@@ -502,6 +510,90 @@ async function execute(command) {
     await refresh();
   } catch (error) { notice("操作失败：" + error.message); }
 }
+
+const pageNames=["Overview","Execution","Monitor","Requirements","Lanes","Models"];
+function showPage(name) {
+  if (!pageNames.includes(name)) name="Overview";
+  for (const page of pageNames) {
+    $("page"+page).hidden=page!==name;
+    $("nav"+page).setAttribute("aria-current",page===name ? "page" : "false");
+  }
+  save(preferenceStorage,PAGE_KEY,name);
+}
+for (const page of pageNames) $("nav"+page).addEventListener("click",()=>showPage(page));
+function renderModelSummary(info) {
+  const container=$("modelSummary"); container.replaceChildren();
+  const names={developer:"Developer",reviewer:"Reviewer",product:"Product",quality:"Quality",intake:"需求评估"};
+  for (const [role,label] of Object.entries(names)) {
+    const chosen=info.selected?.[role], pool=info.settings.roles[role] ?? info.settings.global;
+    const text=info.envOverrides?.[role] ? "环境变量覆盖 · "+(chosen?.provider ?? "默认")+" / "+(chosen?.model ?? "未知") : pool?.length > 1 ? `轮换 ${pool.length} 个 · 示例 ${chosen?.provider ?? "默认"} / ${chosen?.model ?? "未知"}` : chosen?.provider ? chosen.provider+" / "+chosen.model : "Pi 默认（具体模型未知）";
+    container.append(element("div",label+"："+text,"model-summary-row"));
+  }
+}
+function modelKey(item) {return item.provider+"\0"+item.model;}
+function getScopePool() {
+  const scope=$("modelScope").value;
+  return scope === "global" ? modelDraft.global : modelDraft.roles[scope];
+}
+function renderModelChoices() {
+  if (!modelDraft) return;
+  const scope=$("modelScope").value, inherit=scope!=="global" && modelDraft.roles[scope]===null;
+  $("modelInherit").disabled=scope==="global";$("modelInherit").checked=inherit;
+  const selected=getScopePool() || [], query=$("modelSearch").value.trim().toLowerCase();
+  const favorites=new Set(modelDraft.favorites.map(modelKey));
+  const items=new Map(modelCatalog.map(x=>[modelKey(x),{...x,available:true}]));
+  for (const x of [...modelDraft.global,...Object.values(modelDraft.roles).flatMap(x=>x??[]),...modelDraft.favorites]) if (!items.has(modelKey(x))) items.set(modelKey(x),{...x,available:false});
+  const groups=new Map();
+  for (const item of items.values()) {
+    if (query && !(item.provider+" "+item.model).toLowerCase().includes(query)) continue;
+    if (!groups.has(item.provider)) groups.set(item.provider,[]);
+    groups.get(item.provider).push(item);
+  }
+  const container=$("modelGroups");container.replaceChildren();
+  for (const [provider,models] of [...groups].sort(([a,aa],[b,bb])=>Number(bb.some(x=>favorites.has(modelKey(x))))-Number(aa.some(x=>favorites.has(modelKey(x)))) || a.localeCompare(b))) {
+    const group=element("details",undefined,"model-group");group.open=Boolean(query) || models.some(x=>favorites.has(modelKey(x)));
+    group.append(element("summary",provider+" · "+models.length));
+    models.sort((a,b)=>Number(favorites.has(modelKey(b)))-Number(favorites.has(modelKey(a))) || a.model.localeCompare(b.model));
+    for (const item of models) {
+      const row=element("div",undefined,"model-option"), label=element("label"), input=element("input");
+      input.type="checkbox";input.checked=selected.some(x=>modelKey(x)===modelKey(item));input.disabled=inherit || (!item.available && !input.checked);
+      input.addEventListener("change",()=>{
+        const current=getScopePool() || [];const pair={provider:item.provider,model:item.model};
+        const next=input.checked ? [...current,pair] : current.filter(x=>modelKey(x)!==modelKey(item));
+        if(scope==="global")modelDraft.global=next;else modelDraft.roles[scope]=next;
+      });
+      label.append(input,document.createTextNode(" "+item.model+(item.available ? "" : "（未在本次列表中）")));
+      const star=element("button",favorites.has(modelKey(item)) ? "★" : "☆","model-star");star.setAttribute("aria-label",favorites.has(modelKey(item)) ? "取消置顶 "+item.model : "置顶 "+item.model);
+      star.addEventListener("click",()=>{const pair={provider:item.provider,model:item.model};modelDraft.favorites=favorites.has(modelKey(item)) ? modelDraft.favorites.filter(x=>modelKey(x)!==modelKey(item)) : [...modelDraft.favorites,pair];renderModelChoices();});
+      row.append(label,star);group.append(row);
+    }
+    container.append(group);
+  }
+  if (!groups.size) container.append(element("p","没有匹配模型","hint"));
+}
+async function refreshModelCatalog() {
+  $("modelMessage").textContent="正在读取本机 Pi 模型列表…";
+  $("reloadModels").disabled=true;
+  try {const result=await api("/api/model-catalog");modelCatalog=result.models;$("modelMessage").textContent=`发现 ${modelCatalog.length} 个模型；已配置但未列出的模型需自行核实可用性。`+(result.warning ? " Pi 还报告了警告，请在终端核查。" : "");renderModelChoices();}
+  catch(error){modelCatalog=[];$("modelMessage").textContent="读取失败：请检查 Pi 登录与网络；已保存配置不会改变。";renderModelChoices();}
+  finally {$("reloadModels").disabled=false;}
+}
+$("openModels").addEventListener("click",async()=>{
+  if (!connected || !modelSettings) return notice("先连接控制台并检查模型配置。");
+  modelDraft=JSON.parse(JSON.stringify(modelSettings));$("modelScope").value="global";$("modelSearch").value="";$("modelDialog").showModal();renderModelChoices();await refreshModelCatalog();
+});
+$("closeModels").addEventListener("click",()=>$("modelDialog").close());
+$("reloadModels").addEventListener("click",()=>void refreshModelCatalog());
+$("modelScope").addEventListener("change",renderModelChoices);
+$("modelSearch").addEventListener("input",renderModelChoices);
+$("modelInherit").addEventListener("change",()=>{const scope=$("modelScope").value;if(scope==="global")return;modelDraft.roles[scope]=$("modelInherit").checked ? null : [];renderModelChoices();});
+$("saveModels").addEventListener("click",async()=>{
+  if (!modelDraft) return;
+  if (Object.values(modelDraft.roles).some(x=>Array.isArray(x) && x.length===0)) {$("modelMessage").textContent="角色自定义配置至少选一个模型，或选择继承。";return;}
+  if (!confirm("保存后新任务将使用所选模型，可能改变模型费用。已有任务继续使用固定模型。确定？"))return;
+  try {const result=await api("/api/model-settings",{method:"POST",body:modelDraft});modelSettings=result.settings;$("modelDialog").close();notice("模型配置已保存，仅影响新任务。");await refresh();}
+  catch(error){$("modelMessage").textContent="保存失败："+error.message;}
+});
 
 function setProjectPhase(value) {
   const names={unknown:"项目当前阶段待确认",M0:"M0 · 工程治理",M1:"M1 · 产品原型",M2:"M2 · 多 Agent",M3:"M3 · 开发工具",M4:"M4 · 发布"};
@@ -540,6 +632,7 @@ $("submitIntake").addEventListener("click", async () => {
   catch(error){$("intakeResult").textContent=error.message === "potential-secret" ? "检测到疑似密钥，未提交。请删除敏感内容后重新评估。" : "提交结果可能不确定，请先检查 GitHub，避免重复提交。";}
 });
 (function initializePreferences() {
+  showPage(stored(preferenceStorage,PAGE_KEY) || "Overview");
   setProjectPhase(stored(preferenceStorage,PHASE_KEY) || "unknown");
   const theme = stored(preferenceStorage,THEME_KEY);
   setTheme(theme === "light" || theme === "dark" ? theme : "dark");

@@ -42,7 +42,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
-    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "phaseSelect", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "submitIntake", "clearIntake",
+    "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "phaseSelect", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "submitIntake", "clearIntake",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -284,4 +284,26 @@ test("product and quality open separate report dialogs and run only on explicit 
   app.elements.closeProduct.dispatch("click");app.elements.openQuality.dispatch("click");await tick();
   assert.equal(app.elements.qualityDialog.open,true);
   assert.ok(app.requests.some(x=>x.path==="/api/advisory-report?lane=quality"));
+});
+
+test("navigation switches page without a network request or reload",async()=>{
+  const preferences=new Map();const app=page({preferences});
+  app.elements.navModels.dispatch("click");
+  assert.equal(app.elements.pageModels.hidden,false);assert.equal(app.elements.pageOverview.hidden,true);
+  assert.equal(app.requests.length,0);
+  const again=page({preferences});assert.equal(again.elements.pageModels.hidden,false);
+});
+
+test("model picker groups providers, pins and saves selected global model",async()=>{
+  const settings={schemaVersion:1,revision:0,global:[],roles:{developer:null,reviewer:null,product:null,quality:null,intake:null},favorites:[]};
+  const snapshot={...STATUS,modelInfo:{status:"ok",settings,selected:{}}};
+  const app=page({handler:(path,options)=>({ok:true,status:200,json:async()=>path==="/api/model-catalog"?{models:[{provider:"magpie",model:"a"},{provider:"other",model:"b"}]}:path==="/api/model-settings"?{settings:JSON.parse(options.body)}:snapshot})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  app.elements.openModels.dispatch("click");await tick();
+  assert.equal(app.elements.modelDialog.open,true);assert.equal(app.elements.modelGroups.children.length,2);
+  let group=app.elements.modelGroups.children[0],row=group.children[1],input=row.children[0].children[0];
+  input.checked=true;input.dispatch("change");row.children[1].dispatch("click");
+  app.elements.saveModels.dispatch("click");await tick();
+  const body=JSON.parse(app.requests.find(x=>x.path==="/api/model-settings").options.body);
+  assert.deepEqual(body.global,[{provider:"magpie",model:"a"}]);assert.deepEqual(body.favorites,[{provider:"magpie",model:"a"}]);
 });
