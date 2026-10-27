@@ -114,11 +114,17 @@ export class DashboardCoordinator extends EventEmitter {
       attach("stdout", child.stdout);
       attach("stderr", child.stderr);
       child.once("error", e => this.push(`Runner spawn failed: ${e.code ?? "unknown"}`, "system"));
-      child.once("close", (code, signal) => {
+      // Prefer actual runner exit; inherited descendants may delay close on Windows.
+      let finalized = false;
+      const finish = (code, signal) => {
+        if (finalized) return;
+        finalized = true;
         if (this.active === job) this.active = null;
         this.lastRun = { command, finishedAt: new Date().toISOString(), exitCode: Number.isInteger(code) ? code : null, signal: signal ?? null };
         this.push(`Finished ${command}; exit=${code ?? "signal"}`, "system");
-      });
+      };
+      child.once("exit", finish);
+      child.once("close", finish);
       return { accepted: true, command };
     } finally {
       this.reserved = false;
