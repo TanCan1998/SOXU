@@ -4,7 +4,7 @@
 
 > 面向 Pi Agent 的轻量跨平台桌面工作台：多项目、多会话、多 Agent，强调低资源占用和可靠恢复。
 
-**项目状态：准备启动 / 工程原型阶段。** 当前仓库包含早期 Tauri + Vue 工程骨架和可运行的 Node.js Agent 开发调度器；SOXU 最终桌面产品**尚未完成**。历史 ZIP 包版本（如 v1.3）代表原型工程迭代，并非正式 SOXU 软件发行版本。
+**项目状态：开发中，尚未发布。** 当前仓库包含 Tauri + Vue 桌面工程、Pi RPC supervisor 和项目与会话目录代码，以及 Node.js Agent 开发调度器；SOXU 最终桌面产品**尚未完成**。历史 ZIP 包版本（如 v1.3）代表原型工程迭代，并非正式 SOXU 软件发行版本。
 
 ## 本地 Web Agent 控制台
 
@@ -13,7 +13,7 @@
 首次验证成功后，页面在当前标签页的 `sessionStorage` 中暂存令牌；刷新自动重连，控制台重启导致令牌失效时需重新输入。
 监控通过经过认证的 SSE 通道实时接收日志和 Developer/Reviewer 活动信息，并以 15 秒 HTTP 校准兜底。日志默认显示最新 50 条，可切换 20/50/100/200 条以及过滤来源和自动滚动；实时活动只展示状态、工具名称和耗时，不包含提示词、模型回复和工具参数。不依赖 PiDeck、不接管其他终端的 Pi 进程。完整说明见 [Dashboard 操作手册](docs/development/dashboard.md)。
 
-控制台提供 V3 深浅主题和项目路线图（依据任务归属与 GitHub 状态自动更新，不代表阶段验收）；需求可先经只读 Agent 评估，确认后创建 GitHub Issue，是否进入可执行队列由用户核对依赖后决定。Product 与 Quality 可在各自弹窗中手动启动一次只读分析并查看最近的待核实报告。页面可切换总览、执行、监控、需求、三轨与模型配置；模型配置仅保存在本地，已有任务继续使用检查点固定的选择。
+控制台支持查看任务关联的 PR 与检查状态，并可由用户显式触发合并；控制台提供 V3 深浅主题和项目路线图（依据任务归属与 GitHub 状态自动更新，不代表阶段验收）；需求可先经只读 Agent 评估，确认后创建 GitHub Issue，是否进入可执行队列由用户核对依赖后决定。Product 与 Quality 可在各自弹窗中手动启动一次只读分析并查看最近的待核实报告。页面可切换总览、执行、监控、需求、三轨与模型配置；模型配置仅保存在本地，已有任务继续使用检查点固定的选择。
 
 ## 产品目标
 
@@ -37,7 +37,7 @@ SOXU 是使用 Rust + Tauri + Vue + TypeScript + Vite 从零开发的 Pi Agent �
 
 - Windows PowerShell；Git、GitHub CLI (`gh`)、Pi CLI、Rust/Cargo 与 Tauri 的平台依赖。
 - **Node.js >=24**（开发机已使用 Node 26）。
-- 已审批基线：**pnpm 12.15.0、Rust 1.99.1 / Edition 2024、Tauri 2、Vue 3.5.44、Vite 8.3.5、TypeScript 6.0.3、Pinia 4、Vue Router 5**；具体版本见 [工具链清单](docs/development/approved-toolchain.md)。**锁文件尚待在可联网、具备 pnpm 12 / Rust 的环境生成**。
+- 已审批基线：**pnpm 12.15.0、Rust 1.99.1 / Edition 2024、Tauri 2、Vue 3.5.44、Vite 8.3.5、TypeScript 6.0.3、Pinia 4、Vue Router 5**；具体版本见 [工具链清单](docs/development/approved-toolchain.md)。仓库已提交 `pnpm-lock.yaml` 和 `Cargo.lock`；安装和构建仍需在目标环境验证。
 - Pi API 的账户/额度由使用者配置；默认不自动切换到收费服务商。
 
 ```powershell
@@ -45,8 +45,8 @@ cd D:\Projects\SOXU       # 示例：替换为本机实际仓库目录
 node --version
 pnpm --version
 pi --version
-pnpm install                # 首次执行需下载依赖，完成后生成 pnpm-lock.yaml
-cargo generate-lockfile       # 首次执行生成 Cargo.lock
+pnpm install --frozen-lockfile # 按已提交的锁文件安装依赖
+node scripts/setup-git-hooks.mjs # 安装提交钩子
 pnpm agent:models           # 查看模型路由，不发起付费请求
 pnpm agent:doctor           # 工具链、Git、恢复状态检查
 ```
@@ -84,7 +84,7 @@ pnpm tauri:dev
 
 新版任务调度会读取 `priority` 和 `dependencies`：TASK-001/002 首批可运行，其余任务等待前置 PR 已合并且 Issue 已关闭。旧 v1.5 已创建的 TASK-006 可能带有 `agent:blocked` 标签，核对不是实际阻塞后才能手工修改为 `agent:waiting`；绝不自动解除人工封锁。**缺少 pnpm/Cargo 锁文件时真实 Agent 执行被阻止，`--dry-run` 可以正常预览。** 详见 [任务说明](tasks/README.md)。
 
-`agent:status` 仅统计本地 backlog 和检查点；`agent:dashboard` 已实现本地任务看板、有限日志和显式调度控制，不查询远端 GitHub 最新状态。单独的 `agent:logs` 命令尚未实现。
+`agent:status` 统计本地 backlog 和检查点；`agent:dashboard` 还可展示 GitHub 任务、PR 和检查状态，并提供显式合并操作，远端状态依赖 GitHub 连接及权限。单独的 `agent:logs` 命令尚未实现。
 
 ## 如何指定 Agent 模型
 
@@ -117,7 +117,7 @@ pnpm agent:quality              # 显式触发一次付费模型分析
 
 ## 自主权限及质量门禁
 
-每个 Issue 拥有隔离 Worktree；开发角色不能主动 push/merge/tag/release，不得修改安全规则、模型治理配置或私密资料。Runner 对测试/审查后的 Git tree 做一致性校验，PR 要通过 CI 才允许自动合并。额度、网络、超时发生时优先暂停，避免无限重试与浪费。
+每个 Issue 拥有隔离 Worktree；开发角色不能主动 push/merge/tag/release，不得修改安全规则、模型治理配置或私密资料。Runner 对测试/审查后的 Git tree 做一致性校验，PR 合并受检查与分支保护约束；当前策略关闭自动合并和自动发布，控制台可由用户显式触发合并。额度、网络、超时发生时优先暂停，避免无限重试与浪费。
 
 详细规范：[`AGENTS.md`](AGENTS.md) · [开发指南](docs/development/agent-loop.md) · [代码规范](agents/policies/coding-standards.md) · [测试与完成定义](agents/policies/testing.md) · [安全规则](agents/policies/security.md)。
 
@@ -129,7 +129,7 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 
 ## 依赖锁文件与 CI 门禁
 
-当前提交已固定一级依赖的具体版本，Node.js 最低 `>=24`，开发机可以使用 Node 26。当前执行环境无法访问 npm/Cargo Registry，也没有 Rust，因此 **`pnpm-lock.yaml` 与 `Cargo.lock` 尚未生成**。首次在已配置好的 Windows 机器完成依赖解析后，需要提交这两份锁文件，再执行 `pnpm install --frozen-lockfile`；CI 使用冻结锁文件模式，缺少锁文件时会明确失败，不会无声更新依赖。参见 [锁定与验证步骤](docs/development/approved-toolchain.md)。
+仓库已提交 `pnpm-lock.yaml` 与 `Cargo.lock`。使用 `pnpm install --frozen-lockfile` 按锁文件安装，Rust 检查可使用 Cargo 的 `--locked` 参数。依赖版本变更应同时更新相应锁文件；锁文件存在不等于目标平台构建或验收已通过。工具链版本见 [工具链清单](docs/development/approved-toolchain.md)；其中有关锁文件尚未生成的历史说明已过时。
 
 ## 目录与文档导航
 
@@ -146,7 +146,7 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 
 ## 已确认与仍待授权事项
 
-所有者已确认主要依赖版本、参考 ChatGPT 的 UI/UX 方向，以及 Developer/Reviewer 使用的 Magpie 模型。**尚未授权无限额付费调用**；服务认证、费用预算、实际系统构建、签名及公开发布仍需另外核验/批准。当前一级依赖已在 manifest 固定，但锁文件还未生成，不得把它描述为已完整验收。
+所有者已确认主要依赖版本、参考 ChatGPT 的 UI/UX 方向，以及 Developer/Reviewer 使用的 Magpie 模型。**尚未授权无限额付费调用**；服务认证、费用预算、实际系统构建、签名及公开发布仍需另外核验/批准。锁文件已提交，但不能据此宣称完整验收。
 
 本项目采用仓库 `LICENSE` 所列许可证；第三方依赖与参考项目的版权需分别遵守。
 
