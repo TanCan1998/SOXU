@@ -11,6 +11,18 @@ import { writeCheckpoint } from "../src/checkpoint.mjs";
 
 const TOKEN = "a".repeat(48);
 const githubStatus = async () => ({});
+test("queue associates local progress by GitHub issue number rather than task id", async()=>{
+  const root=await mkdtemp(join(tmpdir(),"soxu-dashboard-queue-"));
+  await mkdir(join(root,"tasks","backlog"),{recursive:true});
+  await writeCheckpoint({issue:{number:87},local:false,status:"paused",phase:"createPr"},join(root,".soxu","checkpoints"));
+  const coordinator=new DashboardCoordinator({root,githubStatus});
+  try {
+    coordinator.github={status:"ok",updatedAt:null,tasks:{__queue:[{number:87,title:"[M1] [TASK-001] 功能"}]}};
+    coordinator.githubNext=Date.now()+60000;
+    const snapshot=await coordinator.snapshot();
+    assert.deepEqual(snapshot.github.tasks.__queue[0].checkpoint,{status:"paused",phase:"createPr"});
+  } finally {await cleanup(root,coordinator);}
+});
 async function cleanup(root, coordinator) {
   coordinator.shutdown();
   await Promise.allSettled([coordinator.intake.initialized, coordinator.githubPending, coordinator.lanesPending].filter(Boolean));

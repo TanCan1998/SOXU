@@ -87,5 +87,5 @@ export function planTaskQueue(tasks, completedIds, unavailableIds = new Set()) {
 }
 
 export function taskIdFromIssueTitle(title) {
-  return /^\[(TASK-\d{3,})\](?:\s|$)/.exec(String(title))?.[1] ?? null;
+  return /^(?:\[(?:M[0-4]|未归类)\]\s+)?\[(TASK-\d{3,})\](?:\s|$)/.exec(String(title))?.[1] ?? null;
 }

@@ -70,7 +70,7 @@ export async function submitRequirement(root, draft, execute=run) {
     const body=["## 用户需求",draft.requirement,"", "## Agent 评估（未经验证）", `### 可行性\n${draft.assessment.feasibility}`,`### 建议安排\n${draft.assessment.plan}`,`### 依赖与前置条件\n${draft.assessment.dependencies}`,`### 验收标准\n${draft.assessment.acceptance}`,`### 未知与待确认\n${draft.assessment.unknowns}`, ...(draft.answers ? ["### 用户确认", ...draft.answers.map((a,i)=>`- ${draft.confirmationQuestions?.[i]?.text ?? String(draft.assessment.unknowns).split(/\n+/).filter(Boolean)[i] ?? `问题 ${i+1}`}：${[...a.selected,a.custom].filter(Boolean).join("；")}`)] : []),"",`<!-- soxu-intake:${draft.id} -->`].join("\n\n");
     const path=join(folder,"issue.md"); await writeFile(path,body,{mode:0o600});
     // New unclassified requests are deliberately blocked until dependencies are reviewed.
-    const result=await execute("gh",["issue","create","--title",draft.milestone ? `[${draft.milestone}] ${draft.assessment.title}` : draft.assessment.title,"--body-file",path,"--label",draft.ready ? "agent:ready" : "agent:blocked"],{cwd:root,timeoutMs:45000});
+    const result=await execute("gh",["issue","create","--title",`[${draft.milestone ?? "未归类"}] [REQ-${draft.id}] ${draft.assessment.title}`,"--body-file",path,"--label",draft.ready ? "agent:ready" : "agent:blocked"],{cwd:root,timeoutMs:45000});
     const url=result.stdout.trim();
     if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(url)) throw fail("submit-result-unknown",503);
     return url;

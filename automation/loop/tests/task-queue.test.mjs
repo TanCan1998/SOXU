@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp, mkdir, rm, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {parseTaskDocument, loadTaskCatalog, validateTaskCatalog, planTaskQueue} from '../src/task-catalog.mjs';
+import {parseTaskDocument, loadTaskCatalog, validateTaskCatalog, planTaskQueue, taskIdFromIssueTitle} from '../src/task-catalog.mjs';
 import {planGithubQueue, mergedIssueNumbers, waitingLabelDowngrades} from '../src/github-queue.mjs';
 import {localTasks} from '../src/local-queue.mjs';
 import {writeCheckpoint} from '../src/checkpoint.mjs';
@@ -31,6 +31,15 @@ test('frontmatter rejects duplicate dependencies, unknown refs, cycles and incon
 });
 
 const issue = (number,id,state='OPEN',label='agent:ready') => ({number,title:`[${id}] Title`,state,labels:[{name:label}]});
+test('milestone-prefixed task titles retain dependency scheduling and legacy compatibility',()=>{
+  const catalog=[doc('TASK-001','P0',[]),doc('TASK-002','P1',['TASK-001'])];
+  const items=[{...issue(87,'TASK-001'),title:'[M1] [TASK-001] 实现基础功能'}, {...issue(42,'TASK-002'),title:'[M1] [TASK-002] 后续功能'}];
+  assert.equal(taskIdFromIssueTitle(items[0].title),'TASK-001');
+  assert.equal(taskIdFromIssueTitle('[TASK-001] Legacy'),'TASK-001');
+  assert.deepEqual(planGithubQueue(items,catalog).map(x=>x.number),[87]);
+  items[0].state='CLOSED';
+  assert.deepEqual(planGithubQueue(items,catalog,new Set([87])).map(x=>x.number),[42]);
+});
 test('GitHub dependency checks use TASK ids, not different Issue numbers', () => {
   const catalog=[doc('TASK-001','P0',[]),doc('TASK-002','P1',['TASK-001']),doc('TASK-003','P2',['TASK-002'])];
   const first=[issue(87,'TASK-001'),issue(42,'TASK-002'),issue(5,'TASK-003')];
