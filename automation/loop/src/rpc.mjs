@@ -49,8 +49,12 @@ function stopTree(child, hard = false) {
   }
 }
 
-export function piArgv(modelSelection, readOnly = false) {
-  return ["--mode", "rpc", ...(readOnly ? ["--no-tools", "--no-extensions", "--no-mcp", "--no-session"] : []), ...modelArgs(modelSelection)];
+export function piArgv(modelSelection, readOnly = false, intakeReadTools = false) {
+  if (intakeReadTools && !readOnly) throw new Error("Intake tools require the read-only profile");
+  const profile = intakeReadTools
+    ? ["--tools", "read,grep,find,ls", "--no-extensions", "--no-mcp", "--no-session", "--no-skills", "--no-prompt-templates", "--no-context-files"]
+    : readOnly ? ["--no-tools", "--no-extensions", "--no-mcp", "--no-session"] : [];
+  return ["--mode", "rpc", ...profile, ...modelArgs(modelSelection)];
 }
 
 export function resolvePiTimeouts({ timeoutMs, timeouts = {} } = {}) {
@@ -67,12 +71,12 @@ export function resolvePiTimeouts({ timeoutMs, timeouts = {} } = {}) {
  * the idle window but never the hard deadline. Quota/network errors are returned
  * to the coordinator; this function never automatically replays a paid prompt.
  */
-export async function runPi({ cwd, prompt, timeoutMs, timeouts, onEvent = () => {}, signal, modelSelection, readOnly = false } = {}) {
+export async function runPi({ cwd, prompt, timeoutMs, timeouts, onEvent = () => {}, signal, modelSelection, readOnly = false, intakeReadTools = false } = {}) {
   const budgets = resolvePiTimeouts({ timeoutMs, timeouts });
   const binary = process.env.SOXU_PI_BIN || "pi";
   const win = process.platform === "win32";
   if (win && !/^[a-zA-Z0-9_-]+$/.test(binary)) throw new Error("SOXU_PI_BIN on Windows must be a safe executable name");
-  const argv = piArgv(modelSelection, readOnly);
+  const argv = piArgv(modelSelection, readOnly, intakeReadTools);
   // Windows .cmd resolution requires cmd.exe; identifiers are strictly validated above.
   const child = spawn(win ? "cmd.exe" : binary, win ? ["/d", "/s", "/c", `${binary} ${argv.join(" ")}`] : argv, {
     cwd, env: safeEnvironment(), windowsHide: true, detached: !win, stdio: ["pipe", "pipe", "pipe"]

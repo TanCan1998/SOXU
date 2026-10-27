@@ -40,6 +40,14 @@ test('read-only Pi profile disables ALL tools and session persistence',()=>{
   assert.ok(!piArgv({},false).includes('--no-tools'));
 });
 
+test('intake read-only profile enables only built-in inspection tools',()=>{
+  const args=piArgv({},true,true);
+  assert.equal(args[args.indexOf('--tools')+1],'read,grep,find,ls');
+  for(const flag of ['--no-extensions','--no-mcp','--no-session','--no-skills','--no-prompt-templates','--no-context-files']) assert.ok(args.includes(flag),flag);
+  assert.ok(!args.includes('--no-tools'));
+  assert.throws(()=>piArgv({},false,true),/read-only/);
+});
+
 test('advisory dry-run is offline, does not call model or create reports',async()=>{
   const root=await mkdtemp(join(tmpdir(),'soxu-advisory-'));
   try{
