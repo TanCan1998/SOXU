@@ -60,7 +60,9 @@ export async function collectEvidence(lane, {root=ROOT, github=false}={}) {
   if(github) {
     if(lane==='product') {
       sections.push({source:'gh issue list',content:await optionalCommand('gh',['issue','list','--state','all','--limit','80','--json','number,title,state,labels,body'],root),truncated:false});
-      sections.push({source:'gh pr list',content:await optionalCommand('gh',['pr','list','--state','open','--limit','50','--json','number,title,headRefName,baseRefName'],root),truncated:false});
+      sections.push({source:'gh pr list --state all (最多100条)',content:await optionalCommand('gh',['pr','list','--state','all','--limit','100','--json','number,title,state,mergedAt,mergeCommit,body,headRefName,baseRefName'],root),truncated:true});
+      sections.push({source:'git log -30 (当前工作树)',content:await optionalCommand('git',['log','-30','--format=%h %aI %s'],root),truncated:true});
+      sections.push({source:'gh run list (最多30条)',content:await optionalCommand('gh',['run','list','--limit','30','--json','databaseId,workflowName,conclusion,status,headSha,createdAt'],root),truncated:true});
     } else {
       sections.push({source:'gh run list',content:await optionalCommand('gh',['run','list','--limit','30','--json','databaseId,workflowName,conclusion,status,headSha,createdAt'],root),truncated:false});
       sections.push({source:'gh pr list',content:await optionalCommand('gh',['pr','list','--state','merged','--limit','30','--json','number,title,mergedAt,mergeCommit'],root),truncated:false});
@@ -102,7 +104,7 @@ export function advisoryPrompt(lane, sections) {
     'Your output is an unverified proposal for human review; no commits, issues, merges, release, remote write or runtime claims.',
     task,
     'Return a single final line: SOXU_ADVISORY_RESULT:{"lane":"'+lane+'","summary":"...","findings":[{"title":"...","evidence":["exact source + detail"],"recommendation":"...","confidence":"low|medium|high"}],"unknowns":["unverified assumptions"]}',
-    'Do not fabricate evidence or claim a check ran. A missing source must be recorded in unknowns. Use Chinese for natural language. Maximum 10 findings.',
+    'Do not fabricate evidence or claim a check ran. A missing, unavailable, truncated, or time-limited source must be recorded in unknowns; never infer that absent PRs, checks, or tests do not exist. This is a snapshot, not live evidence. Use Chinese for natural language. Maximum 10 findings.',
     '===== UNTRUSTED SNAPSHOT BEGIN =====',
     ...sections.map(({source,content,truncated})=>`SOURCE: ${source}${truncated?' (TRUNCATED)':''}\n${content}`),
     '===== UNTRUSTED SNAPSHOT END ====='
