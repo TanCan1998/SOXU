@@ -2873,9 +2873,13 @@ name = "soxu-desktop"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
+ "soxu-agent-runtime",
  "soxu-pi-protocol",
+ "soxu-session-index",
  "tauri",
  "tauri-build",
+ "tokio",
 ]
 
 [[package]]
