@@ -144,7 +144,7 @@ test("merge and session setting endpoints require authentication and validate ta
 
 test("intake endpoints require authentication and explicit approval", async()=>{
   const root=await fixture(), calls=[];
-  const intake={publicState:()=>null,start:r=>{calls.push(["assess",r]);return {id:"x",status:"assessing"};},confirm:async(id,ready)=>{calls.push(["submit",id,ready]);return {id,status:"submitted"};},shutdown(){}};
+  const intake={publicState:()=>null,start:r=>{calls.push(["assess",r]);return {id:"x",status:"assessing"};},confirm:async(id,ready,milestone)=>{calls.push(["submit",id,ready,milestone]);return {id,status:"submitted"};},shutdown(){}};
   const coordinator=new DashboardCoordinator({root,intake});
   const {server}=createDashboardServer({root,token:TOKEN,coordinator});
   try{
@@ -154,7 +154,34 @@ test("intake endpoints require authentication and explicit approval", async()=>{
     assert.equal((await post("/api/intake-assess",{requirement:"a test requirement"},null)).status,401);
     assert.equal((await post("/api/intake-assess",{requirement:"a test requirement"})).status,202);
     assert.equal((await post("/api/intake-submit",{id:"x"})).status,400);
-    assert.equal((await post("/api/intake-submit",{id:"x",ready:false})).status,200);
-    assert.deepEqual(calls,[["assess","a test requirement"],["submit","x",false]]);
+    assert.equal((await post("/api/intake-submit",{id:"x",ready:false,milestone:null})).status,200);
+    assert.deepEqual(calls,[["assess","a test requirement"],["submit","x",false,null]]);
   }finally{await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+});
+
+test("advisory endpoints require authentication and explicit one-shot launch",async()=>{
+  const root=await fixture(),calls=[];
+  const advisory={state:()=>({active:null,last:null}),start:lane=>{calls.push(lane);return {active:{lane}};},shutdown(){}};
+  const coordinator=new DashboardCoordinator({root,advisory});
+  const {server}=createDashboardServer({root,token:TOKEN,coordinator});
+  try {
+    await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
+    const port=server.address().port,origin=`http://127.0.0.1:${port}`;
+    assert.equal((await call(port,{path:"/api/advisory-report?lane=product",token:null})).status,401);
+    assert.equal((await call(port,{path:"/api/advisory-report?lane=product"})).body.report,null);
+    assert.equal((await call(port,{path:"/api/advisory-run",method:"POST",origin,body:{lane:"product",extra:true}})).status,400);
+    assert.equal((await call(port,{path:"/api/advisory-run",method:"POST",origin,body:{lane:"product"}})).status,202);
+    assert.deepEqual(calls,["product"]);
+  }finally{await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+});
+
+test("current task model telemetry is bounded and validates untrusted identifiers",async()=>{
+  const root=await fixture();const coordinator=new DashboardCoordinator({root});
+  try {
+    coordinator.active={};
+    coordinator.receiveTelemetry({type:"soxu:model",data:{taskId:1,role:"developer",provider:"magpie",model:"auto/deepseek-v4.1-flash"}});
+    coordinator.receiveTelemetry({type:"soxu:model",data:{taskId:2,role:"developer",provider:"bad & shell",model:"x"}});
+    const snapshot=await coordinator.snapshot();
+    assert.equal(snapshot.taskModels.length,1);assert.equal(snapshot.taskModels[0].model,"auto/deepseek-v4.1-flash");
+  } finally {coordinator.active=null;await rm(root,{recursive:true,force:true});}
 });

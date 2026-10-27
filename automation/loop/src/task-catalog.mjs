@@ -16,7 +16,7 @@ export function parseTaskDocument(filename, body) {
   for (const line of match[1].split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
-    const kv = trimmed.match(/^(id|priority|dependencies):\s*(.*?)\s*$/);
+    const kv = trimmed.match(/^(id|priority|dependencies|milestone):\s*(.*?)\s*$/);
     if (!kv) throw new Error(`Unknown metadata in ${id}: ${trimmed}`);
     if (meta.has(kv[1])) throw new Error(`Duplicate ${kv[1]} in ${id}`);
     meta.set(kv[1], kv[2]);
@@ -30,9 +30,11 @@ export function parseTaskDocument(filename, body) {
   if (dependencies.some(x => !ID.test(x)) || new Set(dependencies).size !== dependencies.length || dependencies.includes(id)) {
     throw new Error(`Invalid or duplicate dependencies in ${id}`);
   }
+  const milestone=meta.get("milestone") ?? null;
+  if (milestone !== null && !/^M[0-4]$/.test(milestone)) throw new Error(`Invalid milestone in ${id}`);
   const title = body.match(/^#\s+(.+)$/m)?.[1];
   if (!title) throw new Error(`Missing task title: ${id}`);
-  return { id, number: Number(id.slice(5)), title, body, priority, dependencies };
+  return { id, number: Number(id.slice(5)), title, body, priority, dependencies, milestone };
 }
 
 export function validateTaskCatalog(tasks) {

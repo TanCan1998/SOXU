@@ -26,6 +26,7 @@ function node() {
     value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "", style: {}, replacements:0, setAttribute() {},
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
     classList: { add() {}, remove() {}, contains(value) { return result.className.split(" ").includes(value); } },
+    showModal() {result.open=true;}, close() {result.open=false;},
     addEventListener(type, fn) { listeners.set(type, fn); },
     dispatch(type, event = {}) { listeners.get(type)?.(event); },
     get children() { return children; },
@@ -39,9 +40,9 @@ function node() {
 }
 function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map(), streamSupport = false } = {}) {
   const ids = [
-    "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
+    "token", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
-    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "phaseSelect", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "submitIntake", "clearIntake",
+    "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -234,17 +235,17 @@ test("theme preference survives reload", async()=>{
   assert.equal(reloaded.document.documentElement.dataset.theme,"light");
 });
 
-test("project phase reflects merged milestones and reports unknown when incomplete",async()=>{
-  const tasks=Object.fromEntries(Array.from({length:6},(_,i)=>[`TASK-00${i+1}`,{issue:i+1,issueState:i<2?"CLOSED":"OPEN",pr:i<2?{state:"merged"}:null}]));
-  const snapshot={...STATUS,github:{status:"ok",updatedAt:"2026-10-27T00:00:00Z",tasks}};
+test("project milestones derive dynamic task counts and live evidence",async()=>{
+  const stages=[{id:"M0",total:0,merged:0,paused:0,unknown:0,issues:[]},{id:"M1",total:3,merged:2,paused:0,unknown:0,issues:[1,2,3]},{id:"M2",total:1,merged:0,paused:1,unknown:0,issues:[4]}];
+  const snapshot={...STATUS,runner:{command:"once",startedAt:"2026-10-27T00:00:00Z"},taskPhases:[{taskId:3,status:"running"}],github:{status:"ok",updatedAt:"2026-10-27T00:00:00Z",tasks:{__roadmap:{stages,unclassified:2,limited:false}}}};
   const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
   app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
-  assert.equal(app.elements.projectPhaseTitle.textContent,"项目当前阶段待确认");
-  app.elements.phaseSelect.value="M1"; app.elements.phaseSelect.dispatch("change");
-  assert.equal(app.elements.projectPhaseTitle.textContent,"M1 · 产品原型");
-  assert.equal(app.elements.projectPhaseCount.textContent,"2 / 6 已合并");
+  assert.equal(app.elements.projectPhaseTitle.textContent,"1 个里程碑正在推进");
+  assert.equal(app.elements.projectPhaseCount.textContent,"2 / 4 项已合入");
+  assert.equal(app.elements.roadmapCards.children[1].dataset.status,"running");
+  assert.equal(app.elements.roadmapCards.children[2].dataset.status,"paused");
   snapshot.github={status:"unavailable"};app.elements.refresh.dispatch("click");await tick();
-  assert.equal(app.elements.projectPhaseTitle.textContent,"M1 · 产品原型");
+  assert.equal(app.elements.projectPhaseTitle.textContent,"项目里程碑状态待核实");
   assert.equal(app.elements.projectPhaseCount.textContent,"—");
 });
 
@@ -269,4 +270,53 @@ test("unchanged agent snapshots do not rebuild DOM on every status poll",async()
   assert.equal(app.elements.agentCards.replacements,1);
   for(let i=0;i<100;i++){app.elements.refresh.dispatch("click");await tick();}
   assert.equal(app.elements.agentCards.replacements,1);
+});
+
+test("product and quality open separate report dialogs and run only on explicit click",async()=>{
+  const report={lane:"product",summary:"建议",findings:[],unknowns:[],createdAt:"2026-10-27T00:00:00Z"};
+  const app=page({handler:path=>({ok:true,status:200,json:async()=>path.includes("advisory-report")?{report}:STATUS})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  app.elements.openProduct.dispatch("click");await tick();
+  assert.equal(app.elements.productDialog.open,true,app.elements.notice.textContent);
+  assert.equal(app.requests.some(x=>x.path==="/api/advisory-run"),false);
+  app.elements.runProduct.dispatch("click");await tick();
+  assert.deepEqual(JSON.parse(app.requests.find(x=>x.path==="/api/advisory-run").options.body),{lane:"product"});
+  app.elements.closeProduct.dispatch("click");app.elements.openQuality.dispatch("click");await tick();
+  assert.equal(app.elements.qualityDialog.open,true);
+  assert.ok(app.requests.some(x=>x.path==="/api/advisory-report?lane=quality"));
+});
+
+test("navigation switches page without a network request or reload",async()=>{
+  const preferences=new Map();const app=page({preferences});
+  app.elements.navModels.dispatch("click");
+  assert.equal(app.elements.pageModels.hidden,false);assert.equal(app.elements.pageOverview.hidden,true);
+  assert.equal(app.requests.length,0);
+  const again=page({preferences});assert.equal(again.elements.pageModels.hidden,false);
+});
+
+test("model picker groups providers, pins and saves selected global model",async()=>{
+  const settings={schemaVersion:1,revision:0,global:[],roles:{developer:null,reviewer:null,product:null,quality:null,intake:null},favorites:[]};
+  const snapshot={...STATUS,modelInfo:{status:"ok",settings,selected:{}}};
+  const app=page({handler:(path,options)=>({ok:true,status:200,json:async()=>path==="/api/model-catalog"?{models:[{provider:"magpie",model:"a"},{provider:"other",model:"b"}]}:path==="/api/model-settings"?{settings:JSON.parse(options.body)}:snapshot})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  app.elements.openModels.dispatch("click");await tick();
+  assert.equal(app.elements.modelDialog.open,true);assert.equal(app.elements.modelGroups.children.length,2);
+  let group=app.elements.modelGroups.children[0],row=group.children[1],input=row.children[0].children[0];
+  input.checked=true;input.dispatch("change");row.children[1].dispatch("click");
+  app.elements.saveModels.dispatch("click");await tick();
+  const body=JSON.parse(app.requests.find(x=>x.path==="/api/model-settings").options.body);
+  assert.deepEqual(body.global,[{provider:"magpie",model:"a"}]);assert.deepEqual(body.favorites,[{provider:"magpie",model:"a"}]);
+});
+
+test("large model catalog limits rendered rows and keeps search available",async()=>{
+  const settings={schemaVersion:1,revision:0,global:[],roles:{developer:null,reviewer:null,product:null,quality:null,intake:null},favorites:[]};
+  const snapshot={...STATUS,modelInfo:{status:"ok",settings,selected:{}}};
+  const models=Array.from({length:400},(_,i)=>({provider:"p",model:"model-"+String(i).padStart(3,"0")}));
+  const app=page({handler:path=>({ok:true,status:200,json:async()=>path==="/api/model-catalog"?{models}:snapshot})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  app.elements.openModels.dispatch("click");await tick();
+  assert.equal(app.elements.modelGroups.children[0].children.length,301);
+  assert.match(app.elements.modelGroups.children[1].textContent,/前 300/);
+  app.elements.modelSearch.value="model-399";app.elements.modelSearch.dispatch("input");
+  assert.equal(app.elements.modelGroups.children[0].children.length,2);
 });

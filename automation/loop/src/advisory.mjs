@@ -6,7 +6,6 @@ import { gh, git } from './process.mjs';
 import { loadRoleModels } from './agent-models.mjs';
 
 export const LANES = Object.freeze(['product', 'quality']);
-const MODELS = {product:'developer',quality:'reviewer'};
 const PATHS = Object.freeze({
   product: [
     ['docs/product/prd.md', 9000],
@@ -110,11 +109,12 @@ export function advisoryPrompt(lane, sections) {
   ].join('\n\n');
 }
 
-export async function runAdvisory(lane,{root=ROOT,signal,github=true,dryRun=false}={}) {
+export async function runAdvisory(lane,{root=ROOT,signal,github=true,dryRun=false,modelIndex=0,onModel=()=>{}}={}) {
   const sections=await collectEvidence(lane,{root,github:github && !dryRun});
   if(dryRun) return {dryRun:true,lane,sources:sections.map(({source,content,truncated})=>({source,chars:content.length,truncated})),remoteQueried:false,modelCalled:false};
-  const models=await loadRoleModels();
-  const response=await runPi({cwd:root,modelSelection:models[MODELS[lane]],readOnly:true,
+  const models=await loadRoleModels(process.env,{index:modelIndex,root});
+  onModel(models[lane]);
+  const response=await runPi({cwd:root,modelSelection:models[lane],readOnly:true,
     timeouts:{piStartupSeconds:90,piIdleSeconds:240,piHardMinutes:15,shutdownGraceSeconds:5},
     prompt:advisoryPrompt(lane,sections),signal});
   const result=parseAdvisory(response.text,lane);

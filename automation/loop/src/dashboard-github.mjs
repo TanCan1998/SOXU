@@ -39,6 +39,25 @@ export function buildGithubStatus(catalog, issues, prs) {
       missing: task.dependencies.filter(id => !completed.has(id)),
       pr: pr ? {number: pr.number, title: String(pr.title ?? "").slice(0,200), url: safePrUrl(pr.url, pr.number), state: pr.mergedAt ? "merged" : pr.state === "OPEN" ? "open" : "closed", ci} : null };
   }
+  // Progress is derived from all explicitly classified Issues, never from a fixed task count.
+  const stages=Object.fromEntries(["M0","M1","M2","M3","M4"].map(id=>[id,{id,total:0,merged:0,running:0,paused:0,unknown:0,issues:[]}]));
+  const catalogById=new Map(catalog.map(t=>[t.id,t]));
+  let unclassified=0;
+  for (const issue of issues) {
+    const id=taskIdFromIssueTitle(issue.title);
+    const milestoneTitle=typeof issue.milestone?.title === "string" ? issue.milestone.title : "";
+    const fromGithub=/^(M[0-4])(?:\b|\s|\s*[-:])/i.exec(milestoneTitle)?.[1]?.toUpperCase();
+    const fromTitle=/^\[(M[0-4])\](?:\s|$)/.exec(String(issue.title ?? ""))?.[1];
+    const stage=fromGithub ?? fromTitle ?? catalogById.get(id)?.milestone;
+    // Include classified Issues and unresolved task/Agent items; other Issues are not assumed to be project work.
+    const labels=new Set((issue.labels ?? []).map(l=>l.name));
+    if (!stage || !stages[stage]) {if(id || [...labels].some(n=>n.startsWith("agent:"))) unclassified++;continue;}
+    const target=stages[stage];target.total++;target.issues.push(issue.number);
+    if(issue.state === "CLOSED") {if(merged.has(issue.number))target.merged++;else target.unknown++;}
+    else if(labels.has("agent:paused") || labels.has("agent:blocked"))target.paused++;
+    else if(labels.has("agent:in-progress"))target.running++;
+  }
+  tasks.__roadmap={stages:Object.values(stages),unclassified,limited:issues.length>=1000 || prs.length>=1000};
   tasks.__queue = issues.filter(i => !taskIdFromIssueTitle(i.title) && i.state === "OPEN" &&
     (i.labels ?? []).some(l => ["agent:ready","agent:blocked","agent:waiting","agent:in-progress","agent:paused","agent:pr"].includes(l.name)))
     .slice(0,100).map(i => ({number:i.number,title:String(i.title ?? "").slice(0,160),
@@ -49,7 +68,7 @@ export function buildGithubStatus(catalog, issues, prs) {
 export async function readGithubStatus(root, execute = run) {
   const [catalog, issues, prs] = await Promise.all([
     loadTaskCatalog(root),
-    execute("gh", ["issue", "list", "--state", "all", "--limit", "1000", "--json", "number,title,state,labels,url"], {cwd:root, timeoutMs:15000}),
+    execute("gh", ["issue", "list", "--state", "all", "--limit", "1000", "--json", "number,title,state,labels,url,milestone"], {cwd:root, timeoutMs:15000}),
     execute("gh", ["pr", "list", "--state", "all", "--limit", "1000", "--json", "number,title,url,state,body,baseRefName,mergedAt,statusCheckRollup"], {cwd:root, timeoutMs:15000}),
   ]);
   return buildGithubStatus(catalog, JSON.parse(issues.stdout), JSON.parse(prs.stdout));
