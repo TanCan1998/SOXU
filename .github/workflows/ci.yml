@@ -102,6 +102,7 @@ jobs:
           version: '12.15.0'
           install: false
       - uses: actions/setup-node@v7
+        id: node-cache
         with:
           node-version: '24'
           cache: pnpm
@@ -159,12 +160,14 @@ jobs:
       - name: Report cache and timing guidance
         if: ${{ always() }}
         env:
+          NODE_HIT: ${{ steps.node-cache.outputs.cache-hit }}
           CARGO_HIT: ${{ steps.cargo-cache.outputs.cache-hit }}
           APT_HIT: ${{ steps.apt-cache.outputs.cache-hit }}
           APT_MATCHED_KEY: ${{ steps.apt-cache.outputs.cache-matched-key }}
         run: |
           {
             echo "### Rust / Tauri cache and timings"
+            echo "- pnpm cache hit: ${NODE_HIT:-unavailable}; see restore log for details."
             echo "- Cargo exact cache hit: ${CARGO_HIT:-unavailable}; see restore log for fallback or miss."
             echo "- APT cache hit: ${APT_HIT:-miss or unavailable}; matched key: ${APT_MATCHED_KEY:-none}."
             echo "- Compare restore, APT update/install/save, Cargo test and post-job cache-save durations in the step logs."
@@ -172,9 +175,11 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Generate approved SOXU desktop icons
         run: pnpm icons:generate
-      - run: cargo fmt --all -- --check
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
       # cargo test compiles workspace targets; avoid duplicating that work with cargo check.
-      - run: cargo test --workspace --locked
+      - name: Test Rust workspace
+        run: cargo test --workspace --locked
 
   gate:
     name: SOXU CI Gate
