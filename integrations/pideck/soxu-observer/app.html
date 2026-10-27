@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOXU 只读观测</title><link rel="stylesheet" href="styles.css"></head>
+<body><main><h1>SOXU Agent Loop</h1><p class="muted">只读检查点 · 每 5 秒刷新 · 不会连接或控制 Pi 进程</p>
+<div class="controls"><label for="token">本次启动的临时令牌</label><input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴 SOXU observer 启动终端的令牌">
+<button id="refresh" type="button">连接 / 刷新</button></div>
+<p id="status" role="status">启动 pnpm agent:observe 后，输入终端中的临时令牌。</p>
+<div id="tasks" aria-live="polite"></div></main><script src="app.js" defer></script></body></html>

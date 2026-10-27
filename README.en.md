@@ -6,6 +6,10 @@
 
 **Status: pre-launch / engineering prototype.** This repository contains an early Tauri + Vue desktop skeleton and a Node.js development Agent Loop. **The finished SOXU desktop product does not exist yet.** Historical ZIP labels (such as v1.3) identify bootstrap iterations, not released SOXU application versions.
 
+## Read-only PiDeck task observer (opt-in)
+
+Run `pnpm agent:observe` on demand. Install the `integrations/pideck/soxu-observer` host plugin in PiDeck, consent to loopback port 47321, and enter the ephemeral token from the startup terminal. This only exposes local task checkpoints; it does not attach to Pi RPC. Continue browsing native Pi JSONL chat history in PiDeck. See [integration guide](docs/development/pideck-observer.md).
+
 ## Product goals
 
 SOXU is a new Rust + Tauri + Vue + TypeScript + Vite application. It draws inspiration from PiDeck's workflows without copying its implementation. The MVP aims to:
