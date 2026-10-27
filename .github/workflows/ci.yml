@@ -121,14 +121,15 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/soxu-apt-archives"
           echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+          echo "image=${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
       - name: Restore APT package archives
         id: apt_cache
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/soxu-apt-archives
-          key: apt-ubuntu-24.04-${{ runner.arch }}-${{ env.ImageVersion }}-${{ steps.apt_key.outputs.week }}-v1
+          key: apt-ubuntu-24.04-${{ runner.arch }}-${{ steps.apt_key.outputs.image }}-${{ steps.apt_key.outputs.week }}-v1
           restore-keys: |
-            apt-ubuntu-24.04-${{ runner.arch }}-${{ env.ImageVersion }}-
+            apt-ubuntu-24.04-${{ runner.arch }}-${{ steps.apt_key.outputs.image }}-
       - name: Refresh APT indexes
         run: sudo apt-get update
       - name: Install Linux Tauri prerequisites
@@ -145,7 +146,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/soxu-apt-archives
-          key: apt-ubuntu-24.04-${{ runner.arch }}-${{ env.ImageVersion }}-${{ steps.apt_key.outputs.week }}-v1
+          key: apt-ubuntu-24.04-${{ runner.arch }}-${{ steps.apt_key.outputs.image }}-${{ steps.apt_key.outputs.week }}-v1
       - name: Report cache status
         if: always()
         env:
