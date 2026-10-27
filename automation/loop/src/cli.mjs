@@ -10,7 +10,7 @@ import { recoverFromSentence } from "./recovery.mjs";
 import { interruptibleWait } from "./interruptible-wait.mjs";
 import { loadRoleModels } from "./agent-models.mjs";
 import { localProgress } from "./status.mjs";
-import { inspectWorktrees } from "./worktree-sync.mjs";
+import { prepareWorktreeRecovery } from "./worktree-sync.mjs";
 import { localTasks as getLocalTasks } from "./local-queue.mjs";
 
 const HELP = `SOXU Agent Loop
@@ -121,28 +121,10 @@ async function resume() {
   const tasks = select ? candidates.filter(s => s.issue.number === Number(select.replace("#", ""))) : candidates;
   if (!tasks.length) throw new Error(`No saved task matches ${select}`);
   if (dryRun) { for (const s of tasks) console.log(`would resume #${s.issue.number} at ${s.phase} (${s.reason ?? "interrupted"})`); return; }
-  // Bring clean early-phase worktrees to origin/main before any paid Pi request.
-  // Existing task edits are preserved; stale/unknown branches are skipped.
-  const audits = await inspectWorktrees({
-    sync: true,
-    issueNumbers: tasks.map(s => ({ id: s.issue.number, local: Boolean(s.local) })),
-  });
-  const unsafe = new Set();
-  for (const item of audits) {
-    const safe = item.reason === "synced" || item.reason === "up-to-date" ||
-      item.reason === "no-worktree" ||
-      (item.behind === 0 && item.lock !== "active" && item.lock !== "unsafe");
-    if (!safe) {
-      unsafe.add(String(item.local) + ":" + item.issue);
-      console.error("Worktree #" + item.issue + " needs manual integration with main (" +
-        item.reason + ", behind=" + (item.behind ?? "?") +
-        "); task changes and checkpoint preserved, no paid resume.");
-    } else if (item.reason === "synced") {
-      console.log("Worktree #" + item.issue + " fast-forwarded to origin/main and checkpoint base refreshed.");
-    }
-  }
-  const eligible = tasks.filter(s => !unsafe.has(String(Boolean(s.local)) + ":" + s.issue.number));
-  if (unsafe.size) process.exitCode = 1;
+  // Safely preserve dirty edits and let Developer reconcile any main conflicts.
+  // Never request paid Pi calls for unsafe/missing worktrees.
+  const { eligible, blocked } = await prepareWorktreeRecovery(tasks);
+  if (blocked.length) process.exitCode = 1;
   // Manual resume is intentionally one finite batch, not an endless retry loop.
   for (let i = 0; i < eligible.length; i += p.maxConcurrentAgents) {
     const results = await Promise.all(eligible.slice(i, i + p.maxConcurrentAgents).map(s => processIssue(s.issue, { policy: p, local, resume: true, signal: controller.signal })));

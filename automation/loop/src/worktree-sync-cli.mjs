@@ -17,6 +17,8 @@ else {
     console.log("  " + (item.directory ?? "(no path)"));
   }
   if (!result.length) console.log("No recorded task worktrees.");
+  if (result.some(item => item.reason === "synced-conflicts"))
+    console.log("Conflicts preserved with a stash backup. Run pnpm agent:resume to have Pi Developer resolve them.");
 }
 if (sync && result.some(x => x.reason?.startsWith("sync-failed") || x.reason === "changed-during-sync"))
   process.exitCode = 1;
