@@ -85,6 +85,11 @@ impl RuntimeHandle {
         self.runtime.state.get()
     }
 
+    /// 进程树根 PID；资源监控按它采样整棵树。
+    pub fn pid(&self) -> Option<u32> {
+        self.runtime.pid
+    }
+
     pub fn diagnostics(&self) -> RuntimeDiagnostics {
         self.runtime.snapshot()
     }
