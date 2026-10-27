@@ -53,6 +53,7 @@ function lostAuthorization(token) {
   forgetToken(token);
   tokenInput.value = "";
   connected = false;
+  $("tokenLabel").hidden = false; tokenInput.hidden = false; $("connect").textContent = "连接";
   $("dot").classList.remove("ok");
   $("connection").textContent = "未连接";
   $("globalRun").dataset.status="unknown"; $("globalRun").textContent="未连接";
@@ -264,6 +265,7 @@ function renderProjectPhase(github, data) {
 function render(data) {
   if (typeof data.instanceId === "string") resetInstance(data.instanceId);
   connected = true;
+  $("tokenLabel").hidden = true; tokenInput.hidden = true; $("connect").textContent = "重新连接";
   $("dot").classList.add("ok");
   $("connection").textContent = "本机已连接";
   const tasks = data.tasks || [];
@@ -561,14 +563,15 @@ function renderModelChoices() {
   const groups=new Map();
   for (const item of items.values()) {
     if (query && !(item.provider+" "+item.model).toLowerCase().includes(query)) continue;
-    if (!groups.has(item.provider)) groups.set(item.provider,[]);
-    groups.get(item.provider).push(item);
+    const groupName = favorites.has(modelKey(item)) ? "★ 已收藏" : item.provider;
+    if (!groups.has(groupName)) groups.set(groupName,[]);
+    groups.get(groupName).push(item);
   }
   const container=$("modelGroups");container.replaceChildren();
   let remaining=300;
   for (const [provider,models] of [...groups].sort(([a,aa],[b,bb])=>Number(bb.some(x=>favorites.has(modelKey(x))))-Number(aa.some(x=>favorites.has(modelKey(x)))) || a.localeCompare(b))) {
     if (!remaining) break;
-    const group=element("details",undefined,"model-group");group.open=Boolean(query) || models.some(x=>favorites.has(modelKey(x)));
+    const group=element("details",undefined,"model-group");group.open=Boolean(query) || provider==="★ 已收藏";
     group.append(element("summary",provider+" · "+models.length));
     models.sort((a,b)=>Number(favorites.has(modelKey(b)))-Number(favorites.has(modelKey(a))) || a.model.localeCompare(b.model));
     const visible=models.slice(0,remaining); remaining-=visible.length;
@@ -581,7 +584,7 @@ function renderModelChoices() {
         if (next.length>20) {input.checked=false;$("modelMessage").textContent="每个模型池最多选择 20 个模型。";return;}
         if(scope==="global")modelDraft.global=next;else modelDraft.roles[scope]=next;
       });
-      label.append(input,document.createTextNode(" "+item.model+(item.available ? "" : "（未在本次列表中）")));
+      label.append(input,document.createTextNode(" "+(provider==="★ 已收藏" ? item.provider+" / " : "")+item.model+(item.available ? "" : "（未在本次列表中）")));
       const star=element("button",favorites.has(modelKey(item)) ? "★" : "☆","model-star");star.setAttribute("aria-label",favorites.has(modelKey(item)) ? "取消置顶 "+item.model : "置顶 "+item.model);
       star.addEventListener("click",()=>{const pair={provider:item.provider,model:item.model};modelDraft.favorites=favorites.has(modelKey(item)) ? modelDraft.favorites.filter(x=>modelKey(x)!==modelKey(item)) : [...modelDraft.favorites,pair];renderModelChoices();});
       row.append(label,star);group.append(row);
@@ -673,11 +676,12 @@ $("followLogs").addEventListener("change", () => {
   save(preferenceStorage, FOLLOW_KEY, followLogs);
   if (followLogs) $("logs").scrollTop = $("logs").scrollHeight;
 });
-$("connect").addEventListener("click", () => void refresh());
+$("connect").addEventListener("click", () => { if (connected && tokenInput.hidden) { $("tokenLabel").hidden=false; tokenInput.hidden=false; $("connect").textContent="连接"; return; } void refresh(); });
 tokenInput.addEventListener("keydown", event => { if (event.key === "Enter") void refresh(); });
 tokenInput.addEventListener("input", () => {
   stopStream();
   connected = false;
+  $("tokenLabel").hidden = false; tokenInput.hidden = false; $("connect").textContent = "连接";
   $("dot").classList.remove("ok");
   $("connection").textContent = "尚未连接";
   disableControls();
