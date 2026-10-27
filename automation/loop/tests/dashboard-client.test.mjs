@@ -53,7 +53,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   const document = {
     hidden,
     getElementById(id) { assert.ok(elements[id], `Unexpected element: ${id}`); return elements[id]; },
-    querySelectorAll(selector) { if (selector === ".agent-elapsed") return []; assert.equal(selector, "[data-command]"); return actions; },
+    querySelectorAll(selector) { if (selector === ".agent-elapsed") return []; if (selector === "[data-command], [data-resume-issue]") return [...actions, ...elements.tasks.children.flatMap(card => card.children.filter(child => child.dataset?.resumeIssue))]; assert.equal(selector, "[data-command]"); return actions; },
     createElement() { return node(); },
     createTextNode(value) { return { textContent: value }; },
     addEventListener(type, fn) { listeners.set(type, fn); },
@@ -192,4 +192,17 @@ test("log limit defaults to 50 after invalid local preference", async () => {
   const preferences=new Map([["soxu.dashboard.logLimit.v1","99999"]]);
   const view=page({preferences});
   assert.equal(view.elements.logLimit.value,"50");
+});
+
+test("blocked task button starts only that task and respects busy state", async () => {
+  const snapshot = {...STATUS, tasks:[{id:1,title:"Supervisor",status:"blocked",phase:"checks"}]};
+  const app = page({handler:(path)=> path === "/api/status" ? {ok:true, status:200, json:async()=>snapshot} : {ok:true,status:202,json:async()=>({command:"resume-blocked"})}});
+  app.elements.token.value=TOKEN; app.elements.connect.dispatch("click"); await tick();
+  const button=app.elements.tasks.children[0].children.find(x=>x.dataset.resumeIssue === "1");
+  assert.ok(button); assert.equal(button.disabled,false);
+  button.dispatch("click"); await tick();
+  const request=app.requests.find(x=>x.path === "/api/run");
+  assert.deepEqual(JSON.parse(request.options.body),{command:"resume-blocked",issue:1});
+  snapshot.busy=true; app.elements.refresh.dispatch("click"); await tick();
+  assert.equal(app.elements.tasks.children[0].children.find(x=>x.dataset.resumeIssue === "1").disabled,true);
 });

@@ -9,7 +9,7 @@ const preferenceStorage = typeof localStorage === "undefined" ? { getItem: () =>
 const stateLabels = { running: "进行中", paused: "已暂停", blocked: "已阻塞", pending: "等待", done: "完成" };
 const phaseLabels = {
   worktree:"准备工作树", install:"安装依赖", develop:"开发", checks:"执行检查", review:"代码审查",
-  postConflictInstall:"冲突后安装", finalChecks:"最终检查", commit:"提交", push:"推送",
+  postConflictInstall:"冲突后安装", recoveryInstall:"恢复时安装依赖", finalChecks:"最终检查", commit:"提交", push:"推送",
   createPr:"创建 PR", merge:"等待合并", done:"完成"
 };
 const activityLabels = { waiting:"等待模型", generating:"生成中", tool:"执行工具", completed:"已完成", failed:"失败" };
@@ -39,7 +39,7 @@ function element(tag, value, className) {
   return result;
 }
 function disableControls() {
-  for (const button of document.querySelectorAll("[data-command]")) button.disabled = true;
+  for (const button of document.querySelectorAll("[data-command], [data-resume-issue]")) button.disabled = true;
   $("stop").disabled = true;
 }
 function lostAuthorization(token) {
@@ -135,7 +135,7 @@ function renderLogs(force = false) {
 }
 function renderTasks(data) {
   const tasks = data.tasks || [];
-  const key = JSON.stringify(tasks);
+  const key = JSON.stringify([tasks, data.busy]);
   if (lastTaskKey === key) return;
   lastTaskKey = key;
   const node = $("tasks");
@@ -147,6 +147,13 @@ function renderTasks(data) {
     status.dataset.state = task.status;
     card.append(status, element("div", phaseLabels[task.phase] || task.phase || "尚未开始", "task-stage"),
       element("div", task.updatedAt ? new Date(task.updatedAt).toLocaleTimeString() : "—", "task-time"));
+    if (task.status === "blocked") {
+      const button = element("button", "恢复此任务", "task-resume");
+      button.dataset.resumeIssue = String(task.id);
+      button.disabled = Boolean(data.busy);
+      button.addEventListener("click", () => void resumeBlocked(task.id));
+      card.append(button);
+    }
     node.append(card);
   }
   if (!tasks.length) node.append(element("div", "暂无任务", "empty"));
@@ -309,6 +316,15 @@ async function openStream(token) {
       }, wait);
     }
   }
+}
+async function resumeBlocked(issue) {
+  if (!connected) return notice("先连接本地控制台。");
+  if (!confirm(`恢复任务 #${issue} 前请确认已检查并修复阻塞原因。将重新执行相关门禁，可能调用模型并产生费用。继续？`)) return;
+  try {
+    await api("/api/run", { method:"POST", body:{ command:"resume-blocked", issue } });
+    notice(`已开始恢复任务 #${issue}；可在此查看日志和 Agent 活动。`);
+    await refresh();
+  } catch (error) { notice("恢复失败：" + error.message); }
 }
 async function execute(command) {
   if (!connected) return notice("先连接本地控制台。");

@@ -43,7 +43,7 @@ pnpm agent:worktrees -- --sync  # 只安全更新干净的早期任务
 
 当额度或网络问题解决后，直接在工作目录运行 `pnpm agent:say -- "继续 SOXU"`。它会离线解析指令并优先选择**最后一个暂停**的任务。`--dry-run` 只列出将要恢复的检查点，不调用模型；“恢复所有暂停的任务”必须由用户明确说出才会批量执行。GitHub 与本地模式从检查点自动判断。详见 `.pi/skills/soxu-recover/SKILL.md`。
 
-对于 `blocked`，先人工检查并修复原因，再用 `pnpm agent:resume -- --blocked --issue 123 --dry-run` 预览，去掉 `--dry-run` 执行。同步 main 后会重新执行检查和审查；不会跳过密钥检测。
+对于 `blocked`，先人工检查并修复原因，可在 WebUI 的任务列表中选择“恢复此任务”，也可以用 `pnpm agent:resume -- --blocked --issue 123 --dry-run` 预览，去掉 `--dry-run` 执行。同步 main 后会重新执行检查和审查；不会跳过密钥检测。
 
 ### 恢复、停机、失败
 
