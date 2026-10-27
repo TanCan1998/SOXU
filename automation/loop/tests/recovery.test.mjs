@@ -38,3 +38,14 @@ test("startup, idle and hard deadline budgets are separated", () => {
   assert.equal(resolvePiTimeouts({timeoutMs:1500}).hardMs,1500);
   assert.throws(() => resolvePiTimeouts({timeoutMs:-1}));
 });
+
+test("blocked checkpoints require explicit inclusion and Connection error is recoverable", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "soxu-blocked-"));
+  try {
+    await writeCheckpoint({issue:{number:12}, status:"blocked", phase:"checks"}, dir);
+    assert.equal((await listPaused(dir)).length, 0);
+    assert.equal((await listPaused(dir, {includeBlocked:true}))[0].phase, "checks");
+    assert.equal(classifyFailure(new Error("Pi assistant error: Connection error.")).kind, "network");
+    assert.equal(isRecoverable(new Error("Pi assistant error: Connection error.")), true);
+  } finally { await rm(dir, {recursive:true, force:true}); }
+});

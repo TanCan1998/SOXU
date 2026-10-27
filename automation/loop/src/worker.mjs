@@ -78,14 +78,14 @@ function promptFor(role, instructions, issue, feedback = "", resumed = false) {
 }
 
 /** Resume from the last durable phase rather than creating a duplicate branch or PR. */
-export async function processIssue(issue, { policy, local = false, dryRun = false, resume = false, signal } = {}) {
+export async function processIssue(issue, { policy, local = false, dryRun = false, resume = false, allowBlocked = false, signal } = {}) {
   console.log(`${resume ? "resume" : "task"} #${issue.number}: ${issue.title}`);
   if (dryRun) return { status: "dry-run", issue: issue.number };
   const unlock = await acquire(issue.number, local);
   let state;
   try {
     state = await readCheckpoint(issue.number, undefined, local);
-    if (resume && !["paused", "running"].includes(state?.status)) throw new Error("No recoverable checkpoint for this task");
+    if (resume && !["paused", "running", ...(allowBlocked ? ["blocked"] : [])].includes(state?.status)) throw new Error("No recoverable checkpoint for this task");
     if (!resume && state && state.status !== "done") throw new Error(`Task has existing checkpoint (${state.status}); use pnpm agent:resume instead`);
     if (!state || state.status === "done") state = { issue, local, status: "running", phase: "worktree", attempt: 0, feedback: "", summary: "" };
     if (state.local !== local) throw new Error("Recovery mode mismatch; use --local for local tasks");
@@ -93,7 +93,7 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
     state.status = "running";
     await writeCheckpoint(state);
     reportTaskPhase(issue.number, state.phase);
-    if (!local) await labelIssue(issue.number, "agent:in-progress", resume ? (oldStatus === "paused" ? "agent:paused" : null) : "agent:ready");
+    if (!local) await labelIssue(issue.number, "agent:in-progress", resume ? (oldStatus === "paused" ? "agent:paused" : oldStatus === "blocked" ? "agent:blocked" : null) : "agent:ready");
     const wt = await worktreeFor(issue, local, state);
     state.branch = wt.branch; state.directory = wt.directory;
     state.base ??= await git(["rev-parse", "HEAD"], wt.directory);
@@ -119,6 +119,9 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
           console.log("Installing isolated worktree dependencies (ignore lifecycle scripts)");
           await run("pnpm", ["install", "--no-frozen-lockfile", "--ignore-scripts"], { cwd: wt.directory, timeoutMs: policy.timeouts.installMinutes * 60000, signal });
           await checkpoint("develop"); break;
+        case "recoveryInstall":
+          await run("pnpm", ["install", "--no-frozen-lockfile", "--ignore-scripts"], { cwd: wt.directory, timeoutMs: policy.timeouts.installMinutes * 60000, signal });
+          await checkpoint("checks"); break;
         case "develop": {
           console.log(`Pi Developer model: ${roleModels.developer.provider ?? "Pi default"}/${roleModels.developer.model ?? "inherited"}`);
           const developerActivity = createPiActivityReporter(issue.number, "developer");
@@ -255,7 +258,7 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
     if (!local && failure.kind !== "network") {
       try {
         await labelIssue(issue.number, paused ? "agent:paused" : "agent:blocked", "agent:in-progress");
-        await commentIssue(issue.number, `SOXU ${paused ? "paused (recoverable)" : "blocked"} at phase ${state?.phase ?? "startup"}; worktree kept. Reason: ${failure.kind}.\n\n${safeFailureMessage(failure)}\n\nManual recovery: pnpm agent:resume`);
+        await commentIssue(issue.number, `SOXU ${paused ? "paused (recoverable)" : "blocked"} at phase ${state?.phase ?? "startup"}; worktree kept. Reason: ${failure.kind}.\n\n${safeFailureMessage(failure)}\n\nManual recovery: ${paused ? "pnpm agent:resume" : "pnpm agent:resume -- --blocked"}`);
       } catch (e) { console.error(`Unable to update Issue (local checkpoint is authoritative for recovery): ${safeFailureMessage(e)}`); }
     }
     return { status: paused ? "paused" : "blocked", issue: issue.number, reason: failure.kind };

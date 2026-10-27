@@ -36,6 +36,7 @@ Options:
   --github     Force GitHub mode for natural-language recovery
   --dry-run    Preview eligible tasks/recovery actions without executing them
   --json       JSON output for status
+  --blocked    Explicitly include blocked tasks in resume (inspect and fix cause first)
 
 Examples:
   node automation/loop/src/cli.mjs status
@@ -115,7 +116,8 @@ async function once() {
   return Promise.all(available.slice(0, p.maxConcurrentAgents).map(issue => processIssue(issue, { policy: p, local, signal: controller.signal })));
 }
 async function resume() {
-  const candidates = (await listPaused()).filter(s => local ? s.local : !s.local);
+  const includeBlocked = args.includes("--blocked");
+  const candidates = (await listPaused(undefined, { includeBlocked })).filter(s => local ? s.local : !s.local);
   if (!candidates.length) { console.log("No recoverable task; nothing to replay or bill."); return; }
   const select = args.find(x => /^#?\d+$/.test(x));
   const tasks = select ? candidates.filter(s => s.issue.number === Number(select.replace("#", ""))) : candidates;
@@ -127,9 +129,9 @@ async function resume() {
   if (blocked.length) process.exitCode = 1;
   // Manual resume is intentionally one finite batch, not an endless retry loop.
   for (let i = 0; i < eligible.length; i += p.maxConcurrentAgents) {
-    const results = await Promise.all(eligible.slice(i, i + p.maxConcurrentAgents).map(s => processIssue(s.issue, { policy: p, local, resume: true, signal: controller.signal })));
+    const results = await Promise.all(eligible.slice(i, i + p.maxConcurrentAgents).map(s => processIssue(s.issue, { policy: p, local, resume: true, allowBlocked: includeBlocked, signal: controller.signal })));
     if (results.some(x => x.status === "paused" || x.status === "blocked")) {
-      console.log("Recovery paused/blocked again; no automatic API retry. Resolve quota/network and run pnpm agent:resume.");
+      console.log("Recovery paused/blocked again; no automatic API retry. Inspect the failure and resume explicitly when resolved.");
       process.exitCode = 1;
       break;
     }
@@ -161,8 +163,9 @@ switch (command) {
   }
   case "seed-issues": await seedIssues(); break;
   case "resume": {
-    const sentence = naturalSentence();
+    const sentence = naturalSentence().replace(/(?:^|\s)--blocked(?=\s|$)/g, " ").trim();
     // Preserve legacy `--issue 123` and `resume` (all paused GitHub tasks).
+    if (args.includes("--blocked") && sentence && !/^(?:--issue\s+)?#?\d+$/.test(sentence)) throw new Error("--blocked is supported only for explicit resume, not natural language");
     if (sentence && !/^(?:--issue\s+)?#?\d+$/.test(sentence)) {
       const results = await recoverFromSentence(sentence, { policy: p, localOnly: local, githubOnly, dryRun, signal: controller.signal });
       if (problematic(results)) process.exitCode = 1;

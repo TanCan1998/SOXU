@@ -7,6 +7,7 @@ import { git } from "./process.mjs";
 import { writeCheckpoint } from "./checkpoint.mjs";
 
 const EARLY = new Set(["worktree", "install", "develop"]);
+const RECHECK = new Set(["checks", "review", "finalChecks", "recoveryInstall"]);
 const NAME = /^(local|github)-issue-([1-9]\d*)\.json$/;
 
 async function loadStates(root) {
@@ -74,14 +75,14 @@ async function inspect(root, state) {
     const head = await git(["rev-parse", "HEAD"], state.directory);
     const intent = state.syncPending;
     if (intent && head !== intent.from && head !== intent.to) info.reason = "unexpected-sync-head";
-    else if (state.status !== "running" && state.status !== "paused") info.reason = "not-recoverable";
+    else if (state.status !== "running" && state.status !== "paused" && state.status !== "blocked") info.reason = "not-recoverable";
     else if (info.lock === "active" || info.lock === "unsafe") info.reason = "worktree-locked";
     else if (!intent && state.base && state.base !== head) info.reason = "checkpoint-base-mismatch";
     else if (info.ahead > 0) info.reason = "diverged-from-main";
     // A checkpoint in tests/review/install can resume on an already-current
     // branch without invalidating its tested/reviewed evidence.
     else if (info.behind === 0 && !intent) info.reason = "up-to-date";
-    else if (!EARLY.has(state.phase) || state.testedTree || state.reviewedTree || state.commit) info.reason = "advanced-phase";
+    else if ((!EARLY.has(state.phase) && !RECHECK.has(state.phase)) || state.commit) info.reason = "advanced-phase";
     else { info.canSync = true; info.reason = info.dirty ? "dirty-sync-eligible" : null; }
   } catch (e) {
     info.reason = "inspection-failed: " + (e.code ?? "git-error");
@@ -100,7 +101,8 @@ async function hasUnmerged(wt) {
   return (await git(["ls-files", "--unmerged"], wt)).trim().length > 0;
 }
 async function updateCheckpointAfterSync(state, dir, to, backup, conflicts) {
-  const next = { ...state, base: to, phase: conflicts ? "develop" : "install" };
+  const next = { ...state, base: to, phase: conflicts ? "develop" : RECHECK.has(state.phase) ? "recoveryInstall" : "install" };
+  next.testedTree = null; next.reviewedTree = null;
   if (backup) next.syncBackup = { sha: backup.sha, marker: backup.marker, target: to };
   if (conflicts) {
     next.mergeConflict = {
@@ -204,7 +206,7 @@ export async function inspectWorktrees({ root = ROOT, sync = false, issueNumbers
         await updateCheckpointAfterSync(state, dir, after, null, false);
         result = "synced";
       }
-      item = { ...item, ahead: 0, behind: 0, phase: result === "synced-conflicts" ? "develop" : "install",
+      item = { ...item, ahead: 0, behind: 0, phase: result === "synced-conflicts" ? "develop" : RECHECK.has(state.phase) ? "recoveryInstall" : "install",
         reason: result, updatedBase: to, canSync: false };
     } catch (e) {
       item.reason = "sync-failed: " + String(e.message ?? e.code ?? "git-or-checkpoint").slice(0, 160);
