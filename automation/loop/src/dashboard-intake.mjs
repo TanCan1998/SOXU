@@ -89,12 +89,12 @@ function assessmentFailure(error) {
 export class IntakeManager {
   constructor({root,assess=assessRequirement,submit=submitRequirement,onChange=()=>{}}) {this.root=root;this.assess=assess;this.submit=submit;this.onChange=onChange;this.draft=null;this.abort=null;this.modelIndex=0;this.marker=join(root,".soxu","intake","pending-submit.json");
     this.initialized=readFile(this.marker,"utf8").then(raw=>{const saved=JSON.parse(raw);this.draft={id:saved.id,status:"unknown",requirement:"",error:"上次提交结果不确定，请先到 GitHub 检查是否已创建，再解除锁定。"};this.onChange();}).catch(err=>{if(err.code!=="ENOENT") throw err;});}
-  publicState() {const d=this.draft;if(!d)return null;return {id:d.id,status:d.status,requirement:d.requirement,assessment:d.assessment ?? null,url:d.url ?? null,ready:d.ready ?? null,milestone:d.milestone ?? null,error:d.error ?? null,model:d.model ?? null};}
+  publicState() {const d=this.draft;if(!d)return null;return {id:d.id,status:d.status,requirement:d.requirement,assessment:d.assessment ?? null,startedAt:d.startedAt ?? null,url:d.url ?? null,ready:d.ready ?? null,milestone:d.milestone ?? null,error:d.error ?? null,model:d.model ?? null};}
   async start(requirement) {
     await this.initialized;
     if(typeof requirement!=="string" || requirement.trim().length<10 || requirement.length>6000) throw fail("invalid-requirement");
     if(this.draft && ["assessing","submitting","unknown"].includes(this.draft.status)) throw fail("intake-busy",409);
-    const d={id:randomUUID(),status:"assessing",requirement:requirement.trim()};this.draft=d;this.abort=new AbortController();this.onChange();
+    const d={id:randomUUID(),status:"assessing",startedAt:new Date().toISOString(),requirement:requirement.trim()};this.draft=d;this.abort=new AbortController();this.onChange();
     Promise.resolve().then(()=>this.assess(this.root,d.requirement,this.abort.signal,this.modelIndex++,model=>{d.model=model;this.onChange();})).then(result=>{d.assessment=result;d.status="review";}).catch(error=>{d.status="failed";d.error=assessmentFailure(error);}).finally(()=>{this.abort=null;this.onChange();});
     return this.publicState();
   }

@@ -41,7 +41,7 @@ function node() {
 function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map(), streamSupport = false } = {}) {
   const ids = [
     "milestoneDialog", "milestoneTitle", "milestoneDetails", "closeMilestone", "token", "tokenLabel", "authPanel", "authNotice", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
-    "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
+    "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh", "copyLogs", "intakeRunState", "productReports", "productCopy", "productDelete", "productClear", "qualityReports", "qualityCopy", "qualityDelete", "qualityClear",
     "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
@@ -60,14 +60,14 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
     addEventListener(type, fn) { listeners.set(type, fn); },
     dispatch(type) { listeners.get(type)?.(); },
   };
-  const requests = [];
+  const requests = [], clipboard=[];
   const sessionStorage = {
     getItem(key) { return storage.get(key) ?? null; },
     setItem(key, value) { storage.set(key, String(value)); },
     removeItem(key) { storage.delete(key); },
   };
   runInNewContext(APP, {
-    document, window:{addEventListener(){}}, ...(streamSupport ? {AbortController, TextDecoder} : {}), sessionStorage, localStorage: { getItem(key) { return preferences.get(key) ?? null; }, setItem(key, value) { preferences.set(key, String(value)); } },
+    document, navigator:{clipboard:{writeText:async text=>clipboard.push(text)}}, window:{addEventListener(){}}, ...(streamSupport ? {AbortController, TextDecoder} : {}), sessionStorage, localStorage: { getItem(key) { return preferences.get(key) ?? null; }, setItem(key, value) { preferences.set(key, String(value)); } },
     setInterval() {}, setTimeout() { return 1; }, clearTimeout() {},
     AbortSignal: { timeout() { return undefined; } },
     fetch: async (path, options) => {
@@ -76,7 +76,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
     },
     confirm: () => true,
   }, { filename: "dashboard-app.js" });
-  return { elements, actions, document, storage, requests };
+  return { elements, actions, document, storage, requests, clipboard };
 }
 
 test("authenticated token survives same-tab reload and reconnects automatically", async () => {
@@ -287,7 +287,7 @@ test("unchanged agent snapshots do not rebuild DOM on every status poll",async()
 
 test("product and quality open separate report dialogs and run only on explicit click",async()=>{
   const report={lane:"product",summary:"建议",findings:[],unknowns:[],createdAt:"2026-10-27T00:00:00Z"};
-  const app=page({handler:path=>({ok:true,status:200,json:async()=>path.includes("advisory-report")?{report}:STATUS})});
+  const app=page({handler:path=>({ok:true,status:200,json:async()=>path.includes("advisory-reports")?(path.includes("&name=")?{report}:{reports:[{name:"2026-10-27T00-00-00-000Z-123.json",modifiedAt:"2026-10-27T00:00:00Z"}]}):STATUS})});
   app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
   app.elements.openProduct.dispatch("click");await tick();
   assert.equal(app.elements.productDialog.open,true,app.elements.notice.textContent);
@@ -296,7 +296,7 @@ test("product and quality open separate report dialogs and run only on explicit 
   assert.deepEqual(JSON.parse(app.requests.find(x=>x.path==="/api/advisory-run").options.body),{lane:"product"});
   app.elements.closeProduct.dispatch("click");app.elements.openQuality.dispatch("click");await tick();
   assert.equal(app.elements.qualityDialog.open,true);
-  assert.ok(app.requests.some(x=>x.path==="/api/advisory-report?lane=quality"));
+  assert.ok(app.requests.some(x=>x.path==="/api/advisory-reports?lane=quality"));
 });
 
 test("navigation switches page without a network request or reload",async()=>{
@@ -347,4 +347,36 @@ test("auto merge switch reflects server state and sends explicit changes", async
   assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"true");
   view.elements.autoMerge.dispatch("click"); await tick(); await tick();
   assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"false");
+});
+
+
+test("copy logs uses the displayed filtered and limited rows",async()=>{
+  const rows=Array.from({length:30},(_,i)=>({seq:i+1,stream:i%2?"stderr":"stdout",time:"2026-10-27T00:00:00Z",message:"message-"+i}));
+  const app=page({handler:()=>({ok:true,status:200,json:async()=>({...STATUS,log:rows})})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  app.elements.logFilter.value="stderr";app.elements.logFilter.dispatch("change");
+  app.elements.copyLogs.dispatch("click");await tick();
+  assert.equal(app.clipboard[0].split("\n").length,15);
+  assert.match(app.clipboard[0],/message-1/);assert.doesNotMatch(app.clipboard[0],/message-2(?:\n|$)/);
+});
+
+test("active intake and advisory report show elapsed state",async()=>{
+ const snapshot={...STATUS,intake:{status:"assessing",startedAt:new Date().toISOString()},advisory:{active:{lane:"product",startedAt:new Date().toISOString()},last:null}};
+ const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
+ app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+ assert.match(app.elements.intakeRunState.textContent,/正在评估 · 已运行/);
+ assert.match(app.elements.productRunState.textContent,/正在分析 · 已运行/);
+ assert.equal(app.elements.productRunState.dataset.running,"true");
+});
+
+test("report copy includes full content and section copy is independent",async()=>{
+ const report={lane:"product",summary:"摘要内容",findings:[{title:"建议一",recommendation:"操作",confidence:"high",evidence:["依据"]}],unknowns:["待确认"]};
+ const filename="2026-10-27T00-00-00-000Z-123.json";
+ const app=page({handler:path=>({ok:true,status:200,json:async()=>path.includes("&name=")?{report}:path.includes("advisory-reports")?{reports:[{name:filename,modifiedAt:"2026-10-27T00:00:00Z"}]}:STATUS})});
+ app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+ app.elements.openProduct.dispatch("click");await tick();await tick();
+ app.elements.productCopy.dispatch("click");await tick();
+ assert.match(app.clipboard[0],/摘要内容/);assert.match(app.clipboard[0],/建议一/);assert.match(app.clipboard[0],/待确认/);
+ const section=app.elements.productReport.children[1];section.children[0].children[1].dispatch("click");await tick();
+ assert.match(app.clipboard[1],/摘要内容/);assert.doesNotMatch(app.clipboard[1],/建议一/);
 });

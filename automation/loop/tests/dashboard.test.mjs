@@ -193,3 +193,19 @@ test("current task model telemetry is bounded and validates untrusted identifier
     assert.equal(snapshot.taskModels.length,1);assert.equal(snapshot.taskModels[0].model,"auto/deepseek-v4.1-flash");
   } finally {coordinator.active=null;await cleanup(root,coordinator);}
 });
+
+test("report deletion enforces authentication, origin and lane-scoped filenames",async()=>{
+  const root=await fixture(),dir=join(root,".soxu","advisory","product"),name="2026-10-27T00-00-00-000Z-123.json";
+  await mkdir(dir,{recursive:true});await writeFile(join(dir,name),JSON.stringify({lane:"product",summary:"a",findings:[],unknowns:[]}));
+  const coordinator=new DashboardCoordinator({root,githubStatus});const {server}=createDashboardServer({root,token:TOKEN,coordinator});
+  try {
+    await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
+    const port=server.address().port,origin=`http://127.0.0.1:${port}`;
+    assert.equal((await call(port,{path:"/api/advisory-reports?lane=product",token:null})).status,401);
+    assert.equal((await call(port,{path:"/api/advisory-reports?lane=product"})).body.reports.length,1);
+    assert.equal((await call(port,{path:"/api/advisory-delete",method:"POST",origin:"http://invalid",body:{lane:"product",name}})).status,403);
+    assert.equal((await call(port,{path:"/api/advisory-delete",method:"POST",origin,body:{lane:"product",name:"../outside"}})).status,400);
+    assert.equal((await call(port,{path:"/api/advisory-delete",method:"POST",origin,body:{lane:"product",name}})).body.deleted,1);
+    assert.equal((await call(port,{path:"/api/advisory-reports?lane=product"})).body.reports.length,0);
+  }finally{await new Promise(resolve=>server.close(resolve));await cleanup(root,coordinator);}
+});

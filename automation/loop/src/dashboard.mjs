@@ -10,7 +10,7 @@ import { localProgress } from "./status.mjs";
 import { safeActivity } from "./dashboard-activity.mjs";
 import { readModelSettings, saveModelSettings, getPiModels } from "./model-settings.mjs";
 import { loadRoleModels } from "./agent-models.mjs";
-import { AdvisoryManager, readLatestReport } from "./dashboard-advisory.mjs";
+import { AdvisoryManager, readLatestReport, listReports, readReport, deleteReports } from "./dashboard-advisory.mjs";
 import { readLaneStatus } from "./dashboard-lanes.mjs";
 import { IntakeManager } from "./dashboard-intake.mjs";
 import { mergeTaskPr } from "./dashboard-merge.mjs";
@@ -376,6 +376,12 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
       try { return reply(200, {report:await readLatestReport(root, request.url.endsWith("product") ? "product" : "quality")}); }
       catch { return reply(503, {error:"report-unavailable"}); }
     }
+    if (request.method === "GET" && request.url.startsWith("/api/advisory-reports?")) {
+      try { const query=new URL(request.url,origin).searchParams, lane=query.get("lane"), name=query.get("name");
+        if ([...query.keys()].some(k=>!['lane','name'].includes(k)) || query.getAll('lane').length!==1 || query.getAll('name').length>1) return reply(400,{error:"invalid-query"});
+        return reply(200,name === null ? {reports:await listReports(root,lane)} : {report:await readReport(root,lane,name)});
+      } catch(error) {return reply(error.status ?? 503,{error:error.status ? error.message : "report-unavailable"});}
+    }
     if (request.method === "GET" && request.url === "/api/model-catalog") {
       try {
         catalogPromise ??= getPiModels(root).finally(()=>{catalogPromise=null;});
@@ -386,7 +392,7 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
       try { return reply(200, await coordinator.snapshot()); }
       catch { return reply(503, { error: "status-unavailable" }); }
     }
-    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge", "/api/intake-assess", "/api/intake-submit", "/api/intake-clear", "/api/advisory-run", "/api/model-settings"].includes(request.url)) {
+    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge", "/api/intake-assess", "/api/intake-submit", "/api/intake-clear", "/api/advisory-run", "/api/advisory-delete", "/api/model-settings"].includes(request.url)) {
       if (request.headers.origin !== origin || request.headers["content-type"] !== "application/json") {
         return reply(403, { error: "invalid-request-origin" });
       }
@@ -395,6 +401,12 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
         if (request.url === "/api/model-settings") {
           try {const settings=await saveModelSettings(body,root);return reply(200,{settings});}
           catch(error){return reply(error.status ?? 400,{error:error.status ? error.message : "invalid-model-settings"});}
+        }
+        if (request.url === "/api/advisory-delete") {
+          if (!body || Object.keys(body).sort().join(",") !== "lane,name" || typeof body.lane!=="string" || !(body.name===null || typeof body.name==="string")) return reply(400,{error:"invalid-body"});
+          const result=await deleteReports(root,body.lane,body.name);
+          coordinator.lanesNext=0; coordinator.emit("dashboard:event",{type:"status",data:{}});
+          return reply(200,result);
         }
         if (request.url === "/api/advisory-run") {
           if (!body || Object.keys(body).join(",") !== "lane" || typeof body.lane !== "string") return reply(400,{error:"invalid-body"});

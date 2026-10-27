@@ -20,7 +20,7 @@ let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", rendered
 let agents = new Map(), lastAgentKey = "", streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
 let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null, lastIntakeKey = "", lastQueueKey = "";
 let lastRoadmapKey = "";
-let advisoryState = null, loadedReportKeys = {product:"",quality:""};
+let advisoryState = null, loadedReportKeys = {product:"",quality:""}, currentReports = {product:null,quality:null};
 let modelSettings = null, modelDraft = null, modelCatalog = [], actualModels = new Map();
 
 function stored(storage, key) { try { return storage.getItem(key); } catch { return null; } }
@@ -348,6 +348,7 @@ function render(data) {
     }
   }
   renderIntake(data.intake);
+  updateRunTimers();
   renderTasks(data);
   if (Array.isArray(data.taskModels)) actualModels = new Map(data.taskModels.map(m=>[m.taskId+":"+m.role,m]));
   if (data.modelInfo?.status === "ok") {modelSettings=data.modelInfo.settings;renderModelSummary(data.modelInfo);}
@@ -476,21 +477,46 @@ async function openStream(token) {
     }
   }
 }
-async function loadAdvisory(lane) {
-  const prefix=lane === "product" ? "product" : "quality", node=$(prefix+"Report");
+async function copyText(text) {
+  try {if (!text) throw new Error("empty"); await navigator.clipboard.writeText(text);notice("已复制到剪贴板。");}
+  catch {notice("复制失败，请检查浏览器剪贴板权限。 ");}
+}
+function copyButton(text, label) {
+  const button=element("button","⧉","icon-button"); button.type="button";
+  button.setAttribute("aria-label",label);button.setAttribute("title",label);
+  button.addEventListener("click",()=>void copyText(text));return button;
+}
+function reportParts(report) {
+  const parts=[{title:"摘要",text:report.summary}];
+  for(const f of report.findings) parts.push({title:f.title,text:f.recommendation+"\n置信度："+f.confidence+"\n证据："+(f.evidence.join("；") || "未提供")});
+  if(report.unknowns.length) parts.push({title:"待核实",text:report.unknowns.join("\n")});
+  return parts;
+}
+async function loadAdvisory(lane, selected=null) {
+  const node=$(lane+"Report"), list=$(lane+"Reports");
   node.replaceChildren(element("p","正在读取本地报告…","hint"));
   try {
-    const {report}=await api("/api/advisory-report?lane="+lane);
-    if (!report) {node.replaceChildren(element("p","暂无报告，请手动开始分析。","hint"));return;}
-    node.replaceChildren();
-    node.append(element("p", "未经核实的模型建议" + (report.createdAt ? " · " + new Date(report.createdAt).toLocaleString() : ""), "notice"));
-    const summary=element("div",undefined,"assessment-block");summary.append(element("strong","摘要"),element("p",report.summary));node.append(summary);
-    for (const finding of report.findings) {
-      const block=element("div",undefined,"assessment-block");
-      block.append(element("strong",finding.title),element("p",finding.recommendation),element("small","置信度："+finding.confidence+" · 证据："+(finding.evidence.join("；") || "未提供"),"hint"));node.append(block);
-    }
-    if (report.unknowns.length) {const block=element("div",undefined,"assessment-block");block.append(element("strong","待核实"),element("p",report.unknowns.join("\n")));node.append(block);}
-  } catch(error) {node.replaceChildren(element("p","报告读取失败："+error.message,"error-text"));}
+    const {reports}=await api("/api/advisory-reports?lane="+lane);
+    if (!Array.isArray(reports)) throw new Error("报告列表不可用");
+    list.replaceChildren();
+    for(const item of reports) {const option=element("option",new Date(item.modifiedAt).toLocaleString());option.value=item.name;list.append(option);}
+    const name=reports.some(x=>x.name===selected) ? selected : reports[0]?.name;
+    $(lane+"Clear").disabled=!reports.length;
+    $(lane+"Delete").disabled=$(lane+"Copy").disabled=!name;
+    if (!name) {currentReports[lane]=null;node.replaceChildren(element("p","暂无报告，请手动开始分析。","hint"));return;}
+    list.value=name;
+    const {report}=await api("/api/advisory-reports?lane="+lane+"&name="+encodeURIComponent(name));
+    currentReports[lane]=report;
+    node.replaceChildren();node.append(element("p","未经核实的模型建议"+(report.createdAt ? " · "+new Date(report.createdAt).toLocaleString() : ""),"notice"));
+    for(const part of reportParts(report)) {const block=element("div",undefined,"assessment-block");const head=element("div",undefined,"report-heading");head.append(element("strong",part.title),copyButton(part.title+"\n"+part.text,"复制"+part.title));block.append(head,element("p",part.text));node.append(block);}
+  } catch(error) {currentReports[lane]=null;node.replaceChildren(element("p","报告读取失败："+error.message,"error-text"));}
+}
+async function deleteAdvisory(lane, all) {
+  const name=all ? null : $(lane+"Reports").value;
+  if(!all && !name) return;
+  if(!confirm(all ? "确认清空此轨道的本地报告？" : "确认删除当前本地报告？")) return;
+  try {await api("/api/advisory-delete",{method:"POST",body:{lane,name}});await loadAdvisory(lane);await refresh();}
+  catch(error) {notice("删除报告失败："+error.message);}
 }
 async function openAdvisory(lane) {
   if (!connected) return notice("先连接本地控制台。");
@@ -503,6 +529,21 @@ async function startAdvisory(lane) {
   try {await api("/api/advisory-run",{method:"POST",body:{lane}});await refresh();}
   catch(error){$(lane+"RunState").textContent="分析启动失败："+error.message; }
 }
+function elapsedText(startedAt) {
+  const value=Date.parse(startedAt);if(!Number.isFinite(value)) return "耗时未知";
+  const seconds=Math.max(0,Math.floor((Date.now()-value)/1000));
+  return "已运行 "+Math.floor(seconds/60)+"分 "+String(seconds%60).padStart(2,"0")+"秒";
+}
+function updateRunTimers() {
+  const active=currentIntake?.status === "assessing";
+  const intake=$("intakeRunState");intake.dataset.running=String(active);
+  intake.textContent=active ? "正在评估 · "+elapsedText(currentIntake.startedAt) : "";
+  for(const lane of ["product","quality"]) {
+    const job=advisoryState?.active?.lane===lane ? advisoryState.active : null;
+    const state=$(lane+"RunState");state.dataset.running=String(Boolean(job));
+    if(job) state.textContent="正在分析 · "+elapsedText(job.startedAt)+(job.model?.provider ? " · "+job.model.provider+" / "+job.model.model : "");
+  }
+}
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   const nextTheme = theme === "dark" ? "light" : "dark";
@@ -514,6 +555,7 @@ function setTheme(theme) {
 }
 function renderIntake(intake) {
   currentIntake = intake ?? null;
+  updateRunTimers();
   const key=JSON.stringify(intake ?? null);
   if (key === lastIntakeKey) return;
   lastIntakeKey=key;
@@ -658,6 +700,10 @@ for (const lane of ["product","quality"]) {
   $("open"+cap).addEventListener("click",()=>void openAdvisory(lane));
   $("close"+cap).addEventListener("click",()=>$(lane+"Dialog").close());
   $("run"+cap).addEventListener("click",()=>void startAdvisory(lane));
+  $(lane+"Reports").addEventListener("change",()=>void loadAdvisory(lane,$(lane+"Reports").value));
+  $(lane+"Copy").addEventListener("click",()=>{const report=currentReports[lane];if(report) void copyText(reportParts(report).map(p=>p.title+"\n"+p.text).join("\n\n"));});
+  $(lane+"Delete").addEventListener("click",()=>void deleteAdvisory(lane,false));
+  $(lane+"Clear").addEventListener("click",()=>void deleteAdvisory(lane,true));
 }
 $("themeToggle").addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
 $("openIntake").addEventListener("click", () => { if (!connected) return notice("先连接本地控制台。"); $("intakeDialog").showModal(); });
@@ -694,6 +740,7 @@ $("submitIntake").addEventListener("click", async () => {
   $("logFilter").value = logFilter;
   $("followLogs").checked = followLogs;
 })();
+$("copyLogs").addEventListener("click",()=>void copyText(visibleLogs().map(row=>new Date(row.time).toLocaleTimeString()+" "+row.message).join("\n")));
 $("logLimit").addEventListener("change", () => {
   const selected = Number($("logLimit").value);
   if (!LOG_LIMITS.has(selected)) return;
@@ -739,7 +786,7 @@ $("stop").addEventListener("click", async () => {
 });
 $("refresh").addEventListener("click", () => void refresh());
 setInterval(() => void refresh(), 15000);
-setInterval(() => { if (!document.hidden) updateElapsed(); }, 1000);
+setInterval(() => { if (!document.hidden) {updateElapsed();updateRunTimers();} }, 1000);
 window.addEventListener("pagehide", stopStream);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
