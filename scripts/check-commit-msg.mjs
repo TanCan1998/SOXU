@@ -53,6 +53,15 @@ function git(...args) {
   return execFileSync('git', args, { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
 }
 
+function isAncestor(base, head) {
+  try {
+    git('merge-base', '--is-ancestor', base, head);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function checkOne(message, label = '当前提交') {
   const error = validateCommitMessage(message);
   if (error) {
@@ -82,7 +91,16 @@ function main(argv) {
       console.error('❌ --range 要求完整的 Git SHA（40 或 64 位十六进制）');
       return 2;
     }
-    const selector = /^0+$/.test(base) ? head : `${base}..${head}`;
+    const zero = /^0+$/.test(base);
+    // 强推或历史重写后，push 事件的 before 不在新 HEAD 的祖先链上，
+    // `base..head` 是非法区间。此时只校验新 tip 并说明原因，不让门禁误报失败。
+    if (!zero && !isAncestor(base, head)) {
+      console.log(
+        `⚠️ 基线 ${base.slice(0, 10)} 不在 ${head.slice(0, 10)} 的历史中（历史重写或强推），仅校验最新提交`
+      );
+      return checkOne(git('show', '-s', '--format=%B', head), head.slice(0, 10)) ? 0 : 1;
+    }
+    const selector = zero ? head : `${base}..${head}`;
     const commits = git('rev-list', '--reverse', selector).trim().split(/\r?\n/).filter(Boolean);
     if (commits.length === 0) {
       console.log('✅ 没有需要检查的新提交');
