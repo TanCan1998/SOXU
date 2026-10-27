@@ -2868,6 +2868,10 @@ version = "0.1.0"
 [[package]]
 name = "soxu-session-index"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "stable_deref_trait"
