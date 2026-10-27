@@ -10,30 +10,42 @@ import { classifyFailure } from "./errors.mjs";
 
 function fail(message, status=400) { return Object.assign(new Error(message), {status}); }
 export function parseIntake(text) {
-  if (typeof text !== "string" || text.length > 120000) throw fail("invalid-assessment", 422);
-  // The sentinel is mandatory; tolerate pretty-printed JSON and an optional Markdown fence.
+  const invalid = reason => Object.assign(fail("invalid-assessment", 422), { reason });
+  if (typeof text !== "string" || text.length > 120000) throw invalid("size");
+  // Accept one complete bare JSON object or one JSON fence without a sentinel.
+  // A marker inside explanatory text still requires a balanced object.
   const marker = /(?:^|\n)\s*SOXU_INTAKE_RESULT:\s*(?:```(?:json)?\s*)?(?=\{)/i.exec(text);
-  if (!marker) throw fail("invalid-assessment", 422);
-  const start=marker.index+marker[0].length;
-  let end=start, depth=0, quoted=false, escaped=false;
-  for (; end<text.length; end++) {
-    const ch=text[end];
-    if (quoted) { if (escaped) escaped=false; else if (ch==="\\") escaped=true; else if (ch==='"') quoted=false; continue; }
-    if (ch==='"') quoted=true;
-    else if (ch==="{") depth++;
-    else if (ch==="}" && --depth===0) { end++; break; }
+  let json;
+  if (!marker) {
+    const trimmed = text.trim();
+    const fenced = /^\x60\x60\x60(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n\x60\x60\x60[ \t]*$/i.exec(trimmed);
+    json = fenced ? fenced[1].trim() : trimmed;
+    if (!json.startsWith("{") || !json.endsWith("}")) throw invalid("missing-result");
+    if (json.length > 30000) throw invalid("size");
+  } else {
+    const start = marker.index + marker[0].length;
+    let end = start, depth = 0, quoted = false, escaped = false;
+    for (; end < text.length; end++) {
+      const ch = text[end];
+      if (quoted) { if (escaped) escaped = false; else if (ch === "\\") escaped = true; else if (ch === '"') quoted = false; continue; }
+      if (ch === '"') quoted = true;
+      else if (ch === "{") depth++;
+      else if (ch === "}" && --depth === 0) { end++; break; }
+    }
+    if (depth !== 0 || end === start) throw invalid("invalid-json");
+    if (end - start > 30000) throw invalid("size");
+    json = text.slice(start, end);
   }
-  if (depth!==0 || end===start || end-start>30000) throw fail("invalid-assessment",422);
-  let result; try {result=JSON.parse(text.slice(start,end));} catch {throw fail("invalid-assessment",422);}
-  if (!result || typeof result !== "object" || Array.isArray(result)) throw fail("invalid-assessment",422);
+  let result; try { result = JSON.parse(json); } catch { throw invalid("invalid-json"); }
+  if (!result || typeof result !== "object" || Array.isArray(result)) throw invalid("schema");
   // List-valued sections are common; preserve their contents as readable text.
   for (const name of ["plan","dependencies","acceptance","unknowns"]) {
     if (Array.isArray(result[name]) && result[name].length>0 && result[name].length<=50 && result[name].every(x=>typeof x==="string" && x.trim())) result[name]=result[name].map(x=>"- "+x).join("\n");
   }
   for (const name of ["title","feasibility","plan","dependencies","acceptance","unknowns"]) {
-    if (typeof result[name] !== "string" || !result[name].trim() || result[name].length > (name === "title" ? 120 : 3000)) throw fail("invalid-assessment",422);
+    if (typeof result[name] !== "string" || !result[name].trim() || result[name].length > (name === "title" ? 120 : 3000)) throw invalid("schema");
   }
-  if (/^\s*\[(?:TASK-\d+|M[0-4])\]/i.test(result.title) || /[\r\n]/.test(result.title)) throw fail("invalid-assessment",422);
+  if (/^\s*\[(?:TASK-\d+|M[0-4])\]/i.test(result.title) || /[\r\n]/.test(result.title)) throw invalid("schema");
   return Object.fromEntries(["title","feasibility","plan","dependencies","acceptance","unknowns"].map(k=>[k,result[k]]));
 }
 export async function assessRequirement(root, requirement, signal, modelIndex=0, onModel=()=>{}) {
@@ -56,7 +68,10 @@ export async function submitRequirement(root, draft, execute=run) {
   } finally { await rm(folder,{recursive:true,force:true}); }
 }
 function assessmentFailure(error) {
-  if (error?.message === "invalid-assessment") return "评估失败：模型返回的评估结果格式不符合要求，请调整需求描述后手动重新评估。";
+  if (error?.message === "invalid-assessment") {
+    const reason = {size:"输出超过允许长度", "missing-result":"未找到完整的评估 JSON", "invalid-json":"评估 JSON 不完整或语法无效", schema:"评估字段缺失、类型或长度不符合要求"}[error.reason] ?? "评估结果格式不符合要求";
+    return `评估失败：${reason}。请检查模型响应或配置后手动重新评估；不一定是需求描述的问题。`;
+  }
   const kind=classifyFailure(error).kind;
   const messages={
     network:"评估失败：模型请求发生网络连接错误，请检查网络和代理后手动重新评估。",

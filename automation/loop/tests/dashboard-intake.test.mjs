@@ -62,5 +62,19 @@ test("assessment accepts bounded formatted JSON and section lists without weaken
   const value={...assessment,plan:["第一步","第二步"],acceptance:["可验证"]};
   assert.equal(parseIntake("说明\nSOXU_INTAKE_RESULT:\n```json\n"+JSON.stringify(value,null,2)+"\n``` ").plan,"- 第一步\n- 第二步");
   assert.deepEqual(parseIntake("SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,plan:'包含 } 和 \" 字符'})).title,assessment.title);
-  for(const invalid of [JSON.stringify(assessment),"SOXU_INTAKE_RESULT:{", "SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,acceptance:[{}]}),"SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,title:"[TASK-004] fake"})]) assert.throws(()=>parseIntake(invalid));
+  for(const invalid of ["SOXU_INTAKE_RESULT:{", "SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,acceptance:[{}]}),"SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,title:"[TASK-004] fake"})]) assert.throws(()=>parseIntake(invalid));
+});
+
+test("accepts a single complete bare or fenced JSON but rejects ambiguous responses",()=>{
+ const json=JSON.stringify(assessment);
+ assert.deepEqual(parseIntake(json),assessment);
+ assert.deepEqual(parseIntake("```json\n"+json+"\n```"),assessment);
+ for(const value of ["解释\n"+json, json+"\n"+json, JSON.stringify({...assessment,title:"[M2] wrong"}), JSON.stringify({...assessment,plan:""})]) assert.throws(()=>parseIntake(value));
+});
+test("format error identifies category without exposing model text",async()=>{
+ const root=await mkdtemp(join(tmpdir(),"soxu-intake-format-"));
+ try { const mgr=new IntakeManager({root,assess:async()=>parseIntake('{"private":"secret"}')});
+ await mgr.start("需要增加一个新功能供项目使用");await tick();
+ assert.match(mgr.publicState().error,/字段缺失/);assert.doesNotMatch(mgr.publicState().error,/secret|private/);
+ } finally {await rm(root,{recursive:true,force:true});}
 });
