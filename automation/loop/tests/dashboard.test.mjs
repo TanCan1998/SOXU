@@ -10,6 +10,12 @@ import { DashboardCoordinator, createDashboardServer } from "../src/dashboard.mj
 import { writeCheckpoint } from "../src/checkpoint.mjs";
 
 const TOKEN = "a".repeat(48);
+const githubStatus = async () => ({});
+async function cleanup(root, coordinator) {
+  coordinator.shutdown();
+  await Promise.allSettled([coordinator.intake.initialized, coordinator.githubPending, coordinator.lanesPending].filter(Boolean));
+  await rm(root, {recursive:true, force:true, maxRetries:5, retryDelay:100});
+}
 async function call(port, { path = "/api/status", method = "GET", token = TOKEN, origin, host, body } = {}) {
   return new Promise((resolve, reject) => {
     const payload = body===undefined?undefined:JSON.stringify(body);
@@ -33,7 +39,7 @@ async function fixture() {
 }
 test("strict localhost auth, read-only status and explicit CSRF checks", async()=>{
   const root=await fixture();
-  const coordinator=new DashboardCoordinator({root});
+  const coordinator=new DashboardCoordinator({root,githubStatus});
   const {server}=createDashboardServer({root,token:TOKEN,coordinator});
   try{
     await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
@@ -59,14 +65,14 @@ test("strict localhost auth, read-only status and explicit CSRF checks", async()
     assert.match(homepage.body,/SOXU/);
   } finally{
     await new Promise(resolve=>server.close(resolve));
-    await rm(root,{recursive:true,force:true});
+    await cleanup(root,coordinator);
   }
 });
 
 test("dashboard only controls its own fork via IPC and rejects overlapping runs",async()=>{
   const root=await fixture(), children=[];
   const spawn=(file,args)=>{const child=new EventEmitter();child.pid=54321;child.connected=true;child.stdout=new PassThrough();child.stderr=new PassThrough();child.messages=[];child.send=msg=>child.messages.push(msg);children.push({file,args,child});return child;};
-  const coordinator=new DashboardCoordinator({root,spawn});
+  const coordinator=new DashboardCoordinator({root,spawn,githubStatus});
   try{
     const result=await coordinator.start("resume");
     assert.equal(result.command,"resume");
@@ -85,26 +91,26 @@ test("dashboard only controls its own fork via IPC and rejects overlapping runs"
     assert.equal((await coordinator.snapshot()).runner,null);
     children[0].child.emit("close",0,null);
     assert.equal((await coordinator.snapshot()).log.filter(x => x.message.startsWith("Finished resume")).length,1);
-  }finally{await rm(root,{recursive:true,force:true});}
+  }finally{await cleanup(root,coordinator);}
 });
 
 test("existing live worktree lock blocks dashboard-owned runner",async()=>{
   const root=await fixture();
   let spawned=0;
-  const coordinator=new DashboardCoordinator({root,spawn:()=>{spawned++;throw new Error("unexpected fork");}});
+  const coordinator=new DashboardCoordinator({root,githubStatus,spawn:()=>{spawned++;throw new Error("unexpected fork");}});
   try{
     await mkdir(join(root,".soxu","locks"),{recursive:true});
     await writeFile(join(root,".soxu","locks","github-issue-1.lock"),JSON.stringify({pid:process.pid}));
     await assert.rejects(()=>coordinator.start("once"),error=>error.status===409);
     assert.equal(spawned,0);
     assert.equal((await coordinator.snapshot()).externalLocks,1);
-  }finally{await rm(root,{recursive:true,force:true});}
+  }finally{await cleanup(root,coordinator);}
 });
 
 test("explicit blocked recovery validates checkpoint and launches only selected issue", async()=>{
   const root=await fixture(), children=[];
   const spawn=(file,args)=>{const child=new EventEmitter();child.connected=true;child.stdout=new PassThrough();child.stderr=new PassThrough();child.send=()=>{};children.push({args,child});return child;};
-  const coordinator=new DashboardCoordinator({root,spawn});
+  const coordinator=new DashboardCoordinator({root,spawn,githubStatus});
   const {server}=createDashboardServer({root,token:TOKEN,coordinator});
   try {
     await writeCheckpoint({issue:{number:1},local:false,status:"blocked",phase:"checks"},join(root,".soxu","checkpoints"));
@@ -121,7 +127,7 @@ test("explicit blocked recovery validates checkpoint and launches only selected 
     await writeCheckpoint({issue:{number:1},local:false,status:"paused",phase:"checks"},join(root,".soxu","checkpoints"));
     assert.equal((await post({command:"resume-blocked",issue:1})).status,409);
     assert.equal(children.length,1);
-  } finally {await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+  } finally {await new Promise(resolve=>server.close(resolve));await cleanup(root,coordinator);}
 });
 
 test("merge and session setting endpoints require authentication and validate targets", async()=>{
@@ -139,13 +145,13 @@ test("merge and session setting endpoints require authentication and validate ta
     assert.equal((await post("/api/auto-merge",{enabled:true})).body.enabled,true);
     assert.equal((await post("/api/merge",{issue:1,pr:21})).body.merged,true);
     assert.equal(calls.length,1);
-  } finally {await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+  } finally {await new Promise(resolve=>server.close(resolve));await cleanup(root,coordinator);}
 });
 
 test("intake endpoints require authentication and explicit approval", async()=>{
   const root=await fixture(), calls=[];
   const intake={publicState:()=>null,start:r=>{calls.push(["assess",r]);return {id:"x",status:"assessing"};},confirm:async(id,ready,milestone)=>{calls.push(["submit",id,ready,milestone]);return {id,status:"submitted"};},shutdown(){}};
-  const coordinator=new DashboardCoordinator({root,intake});
+  const coordinator=new DashboardCoordinator({root,intake,githubStatus});
   const {server}=createDashboardServer({root,token:TOKEN,coordinator});
   try{
     await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
@@ -156,13 +162,13 @@ test("intake endpoints require authentication and explicit approval", async()=>{
     assert.equal((await post("/api/intake-submit",{id:"x"})).status,400);
     assert.equal((await post("/api/intake-submit",{id:"x",ready:false,milestone:null})).status,200);
     assert.deepEqual(calls,[["assess","a test requirement"],["submit","x",false,null]]);
-  }finally{await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+  }finally{await new Promise(resolve=>server.close(resolve));await cleanup(root,coordinator);}
 });
 
 test("advisory endpoints require authentication and explicit one-shot launch",async()=>{
   const root=await fixture(),calls=[];
   const advisory={state:()=>({active:null,last:null}),start:lane=>{calls.push(lane);return {active:{lane}};},shutdown(){}};
-  const coordinator=new DashboardCoordinator({root,advisory});
+  const coordinator=new DashboardCoordinator({root,advisory,githubStatus});
   const {server}=createDashboardServer({root,token:TOKEN,coordinator});
   try {
     await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
@@ -172,16 +178,16 @@ test("advisory endpoints require authentication and explicit one-shot launch",as
     assert.equal((await call(port,{path:"/api/advisory-run",method:"POST",origin,body:{lane:"product",extra:true}})).status,400);
     assert.equal((await call(port,{path:"/api/advisory-run",method:"POST",origin,body:{lane:"product"}})).status,202);
     assert.deepEqual(calls,["product"]);
-  }finally{await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+  }finally{await new Promise(resolve=>server.close(resolve));await cleanup(root,coordinator);}
 });
 
 test("current task model telemetry is bounded and validates untrusted identifiers",async()=>{
-  const root=await fixture();const coordinator=new DashboardCoordinator({root});
+  const root=await fixture();const coordinator=new DashboardCoordinator({root,githubStatus});
   try {
     coordinator.active={};
     coordinator.receiveTelemetry({type:"soxu:model",data:{taskId:1,role:"developer",provider:"magpie",model:"auto/deepseek-v4.1-flash"}});
     coordinator.receiveTelemetry({type:"soxu:model",data:{taskId:2,role:"developer",provider:"bad & shell",model:"x"}});
     const snapshot=await coordinator.snapshot();
     assert.equal(snapshot.taskModels.length,1);assert.equal(snapshot.taskModels[0].model,"auto/deepseek-v4.1-flash");
-  } finally {coordinator.active=null;await rm(root,{recursive:true,force:true});}
+  } finally {coordinator.active=null;await cleanup(root,coordinator);}
 });
