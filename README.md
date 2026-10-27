@@ -125,7 +125,7 @@ pnpm agent:quality              # 显式触发一次付费模型分析
 
 ## 界面方案
 
-UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其品牌、代码和资产）。当前 M0 桌面工程包含：可折叠侧栏、对话输入区、右侧 Agent 检查器、明暗切换和键盘快捷键。**本轮仅实现本地交互原型**：消息不发送给 Pi、不持久化，不提供伪造的实时运行数据。详细设计规范见 [UI/UX 基线](docs/design/gpt-inspired-ui.md)。
+UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其品牌、代码和资产）。桌面端已从本地交互原型推进到**多会话工作区**：项目与会话列表来自真实的 Pi 会话索引（只读，不移动或删除文件），会话 Tab 支持历史分页、完整正文按需加载、Pi RPC 流式输出、取消与停止，右侧检查器展示真实运行时状态；未连接或状态未知时显式显示未知，不提供伪造数据。WebView 实机渲染、macOS/Linux 与真实 Pi 事件全集仍待验证。详细规范见 [UI/UX 基线](docs/design/gpt-inspired-ui.md) 与 [多会话工作区实现说明](docs/development/multi-session-workspace.md)。
 
 ## 依赖锁文件与 CI 门禁
 
@@ -142,6 +142,7 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 | `docs/product/prd.md` | 产品范围与验收指标 |
 | `docs/development/models.md` | 模型选择、角色、额度与命令 |
 | `docs/development/monitoring.md` | 本地 Web 控制台、pnpm、GitHub 进度监控 |
+| `docs/development/multi-session-workspace.md` | 多会话工作区：IPC 契约、事件过滤、历史分页与测试证据 |
 | `docs/design/` | 已审批的 UI/UX 设计基线与历史提案 |
 
 ## 已确认与仍待授权事项

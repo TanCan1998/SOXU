@@ -118,7 +118,7 @@ Start with [`AGENTS.md`](AGENTS.md), then review the [Agent Loop guide](docs/dev
 
 ## Desktop UI design
 
-The owner has approved a **ChatGPT-inspired, conversation-first layout** without copying OpenAI branding, code, or assets. The M0 interface now has a collapsible sidebar, chat composer, optional Agent inspector, light/dark themes, and keyboard shortcuts. This is a **local-only interaction prototype**: messages do not reach Pi and are not persisted, and the inspector does not pretend to show live Agent results. See the [UI baseline](docs/design/gpt-inspired-ui.md).
+The owner has approved a **ChatGPT-inspired, conversation-first layout** without copying OpenAI branding, code, or assets. The desktop app has moved from a local interaction prototype to a **multi-session workspace**: projects and sessions come from the real Pi session index (read-only, never moving or deleting files), session tabs page through history, load full message text on demand, and stream Pi RPC output with cancel and stop; the inspector shows real runtime state and displays "unknown" when disconnected instead of fabricating data. Real WebView rendering, macOS/Linux runs, and the full set of real Pi events are still unverified. See the [UI baseline](docs/design/gpt-inspired-ui.md) and the [multi-session workspace notes](docs/development/multi-session-workspace.md).
 
 ## Dependency locks and CI gate
 
