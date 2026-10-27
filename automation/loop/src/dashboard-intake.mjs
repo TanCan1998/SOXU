@@ -6,6 +6,7 @@ import { collectEvidence } from "./advisory.mjs";
 import { loadRoleModels } from "./agent-models.mjs";
 import { runPi } from "./rpc.mjs";
 import { run } from "./process.mjs";
+import { classifyFailure } from "./errors.mjs";
 
 function fail(message, status=400) { return Object.assign(new Error(message), {status}); }
 export function parseIntake(text) {
@@ -37,6 +38,18 @@ export async function submitRequirement(root, draft, execute=run) {
     return url;
   } finally { await rm(folder,{recursive:true,force:true}); }
 }
+function assessmentFailure(error) {
+  if (error?.message === "invalid-assessment") return "评估失败：模型返回的评估结果格式不符合要求，请调整需求描述后手动重新评估。";
+  const kind=classifyFailure(error).kind;
+  const messages={
+    network:"评估失败：模型请求发生网络连接错误，请检查网络和代理后手动重新评估。",
+    quota:"评估失败：模型额度或请求频率受限，请检查额度或限流状态后手动重新评估。",
+    auth:"评估失败：模型认证失败，请检查 Pi 的模型认证配置后手动重新评估。",
+    timeout:"评估失败：模型响应超时，请检查网络及模型状态后手动重新评估。",
+    interrupted:"评估已中断，请在确认需要时手动重新评估。",
+  };
+  return messages[kind] ?? "评估失败：无法确定具体原因，请检查 Pi 运行状态和模型配置后手动重新评估。";
+}
 export class IntakeManager {
   constructor({root,assess=assessRequirement,submit=submitRequirement,onChange=()=>{}}) {this.root=root;this.assess=assess;this.submit=submit;this.onChange=onChange;this.draft=null;this.abort=null;this.modelIndex=0;this.marker=join(root,".soxu","intake","pending-submit.json");
     this.initialized=readFile(this.marker,"utf8").then(raw=>{const saved=JSON.parse(raw);this.draft={id:saved.id,status:"unknown",requirement:"",error:"上次提交结果不确定，请先到 GitHub 检查是否已创建，再解除锁定。"};this.onChange();}).catch(err=>{if(err.code!=="ENOENT") throw err;});}
@@ -46,7 +59,7 @@ export class IntakeManager {
     if(typeof requirement!=="string" || requirement.trim().length<10 || requirement.length>6000) throw fail("invalid-requirement");
     if(this.draft && ["assessing","submitting","unknown"].includes(this.draft.status)) throw fail("intake-busy",409);
     const d={id:randomUUID(),status:"assessing",requirement:requirement.trim()};this.draft=d;this.abort=new AbortController();this.onChange();
-    Promise.resolve().then(()=>this.assess(this.root,d.requirement,this.abort.signal,this.modelIndex++,model=>{d.model=model;this.onChange();})).then(result=>{d.assessment=result;d.status="review";}).catch(()=>{d.status="failed";d.error="评估失败，请检查网络、额度或模型配置后手动重新评估。";}).finally(()=>{this.abort=null;this.onChange();});
+    Promise.resolve().then(()=>this.assess(this.root,d.requirement,this.abort.signal,this.modelIndex++,model=>{d.model=model;this.onChange();})).then(result=>{d.assessment=result;d.status="review";}).catch(error=>{d.status="failed";d.error=assessmentFailure(error);}).finally(()=>{this.abort=null;this.onChange();});
     return this.publicState();
   }
   async confirm(id, ready, milestone=null) {
