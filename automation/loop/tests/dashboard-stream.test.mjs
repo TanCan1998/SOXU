@@ -9,6 +9,12 @@ import { tmpdir } from "node:os";
 import { DashboardCoordinator, createDashboardServer } from "../src/dashboard.mjs";
 
 const TOKEN = "a".repeat(48);
+const githubStatus = async () => ({});
+async function cleanup(root, coordinator) {
+  coordinator.shutdown();
+  await Promise.allSettled([coordinator.intake.initialized, coordinator.githubPending, coordinator.lanesPending].filter(Boolean));
+  await rm(root, {recursive:true, force:true, maxRetries:5, retryDelay:100});
+}
 async function startServer(coordinator) {
   const options = { root:coordinator.root, token:TOKEN, coordinator };
   const dashboard = createDashboardServer(options);
@@ -33,7 +39,7 @@ function connect(port, token) {
 test("SSE requires token and streams only validated bounded event metadata",async()=>{
   const root=await setup();
   const children=[];
-  const coordinator=new DashboardCoordinator({root, spawn:()=>{
+  const coordinator=new DashboardCoordinator({root, githubStatus, spawn:()=>{
     const child=new EventEmitter();
     child.connected=true;
     child.pid=98765;
@@ -75,16 +81,16 @@ test("SSE requires token and streams only validated bounded event metadata",asyn
     session?.req.destroy();
     server.stopStreams();
     await new Promise(resolve=>server.server.close(resolve));
-    await rm(root,{recursive:true,force:true});
+    await cleanup(root,coordinator);
   }
 });
 test("server memory keeps at most 500 logs and 32 agent cards",async()=>{
-  const root=await setup(), coordinator=new DashboardCoordinator({root});
+  const root=await setup(), coordinator=new DashboardCoordinator({root,githubStatus});
   try {
     for(let i=0;i<650;i++)coordinator.push("line " + i);
     const s=await coordinator.snapshot();
     assert.equal(s.log.length,500);
     assert.equal(s.log[0].seq,151);
     assert.equal(s.log.at(-1).seq,650);
-  } finally {await rm(root,{recursive:true,force:true});}
+  } finally {await cleanup(root,coordinator);}
 });
