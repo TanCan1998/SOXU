@@ -36,7 +36,7 @@ function forgetToken(token) {
     if (sessionStorage.getItem(TOKEN_STORAGE_KEY) === token) sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   } catch {}
 }
-function notice(message) { $("notice").textContent = message; }
+function notice(message) { $("notice").textContent = message; $("authNotice").textContent = message; }
 function element(tag, value, className) {
   const result = document.createElement(tag);
   if (value !== undefined) result.textContent = String(value);
@@ -53,7 +53,7 @@ function lostAuthorization(token) {
   forgetToken(token);
   tokenInput.value = "";
   connected = false;
-  $("tokenLabel").hidden = false; tokenInput.hidden = false; $("connect").textContent = "连接";
+  $("authPanel").hidden = false; $("connect").textContent = "连接";
   $("dot").classList.remove("ok");
   $("connection").textContent = "未连接";
   $("globalRun").dataset.status="unknown"; $("globalRun").textContent="未连接";
@@ -230,6 +230,21 @@ function updateElapsed() {
   for (const label of document.querySelectorAll(".agent-elapsed"))
     label.textContent = "运行 " + fmt(label.dataset.startedAt) + " · 当前状态 " + fmt(label.dataset.activitySince);
 }
+function showMilestoneDetail(id, name, stage, limited) {
+  $("milestoneTitle").textContent = id + " · " + name;
+  const list=$("milestoneDetails"); list.replaceChildren();
+  if (limited) list.append(element("p","GitHub 查询达到上限，以下明细可能不完整。","hint"));
+  if (!stage || !Array.isArray(stage.items)) list.append(element("p","明细暂不可用，请检查 GitHub 连接。","hint"));
+  else if (!stage.items.length) list.append(element("p","该里程碑暂无已归类任务。","hint"));
+  else for (const item of stage.items) {
+    const row=element("div",undefined,"milestone-detail-row");
+    const label=element(item.url ? "a" : "span", "#"+item.number+" "+item.title);
+    if(item.url) { label.href=item.url; label.target="_blank"; label.rel="noopener noreferrer"; }
+    const status=item.merged ? "已合入" : item.state === "CLOSED" ? "已关闭 · 合并待核实" : item.labels.includes("agent:blocked") ? "已阻塞" : item.labels.includes("agent:paused") ? "已暂停" : item.labels.includes("agent:in-progress") ? "进行中" : "待处理";
+    row.append(label,element("span",status,"subtle")); list.append(row);
+  }
+  $("milestoneDialog").showModal();
+}
 function renderProjectPhase(github, data) {
   const names={M0:"工程治理",M1:"产品原型",M2:"多 Agent",M3:"开发工具",M4:"交付发布"};
   const roadmap=github?.status === "ok" ? github.tasks?.__roadmap : null;
@@ -247,6 +262,9 @@ function renderProjectPhase(github, data) {
     if(active)running++;else if(state==="paused")paused++;
     if(!unknown){total+=stage.total;merged+=stage.merged;}
     const card=element("article",undefined,"milestone-card");card.dataset.status=state;
+    card.setAttribute("role","button");card.setAttribute("tabindex","0");card.setAttribute("aria-label",id+" · "+names[id]+"，查看任务明细");
+    const show=()=>showMilestoneDetail(id,names[id],stage,Boolean(roadmap?.limited));
+    card.addEventListener("click",show);card.addEventListener("keydown",event=>{if(event.key==="Enter" || event.key===" "){event.preventDefault();show();}});
     const labels={unknown:"待核实",running:"进行中",paused:"暂停 / 阻塞",completed:"任务已合入 · 验收待确认",waiting:"等待推进"};
     const head=element("div",undefined,"milestone-heading");head.append(element("strong",id+" · "+names[id]),element("span",labels[state],"milestone-state"));card.append(head);
     const track=element("div",undefined,"milestone-track"), fill=element("span",undefined,"milestone-fill");
@@ -265,7 +283,7 @@ function renderProjectPhase(github, data) {
 function render(data) {
   if (typeof data.instanceId === "string") resetInstance(data.instanceId);
   connected = true;
-  $("tokenLabel").hidden = true; tokenInput.hidden = true; $("connect").textContent = "重新连接";
+  $("authPanel").hidden = true;
   $("dot").classList.add("ok");
   $("connection").textContent = "本机已连接";
   const tasks = data.tasks || [];
@@ -284,6 +302,7 @@ function render(data) {
   $("stop").disabled = !data.runner || data.runner.stopping;
   $("autoMerge").disabled = Boolean(data.busy);
   $("autoMerge").dataset.enabled = data.autoMergeEnabled ? "true" : "false";
+  $("autoMerge").setAttribute("aria-checked", data.autoMergeEnabled ? "true" : "false");
   $("autoMerge").textContent = "Agent 自动合并：" + (data.autoMergeEnabled ? "开启" : "关闭");
   $("githubStatus").textContent = data.github?.status === "ok" ? "GitHub PR / CI 状态已更新 · " + new Date(data.github.updatedAt).toLocaleTimeString()
     : data.github?.status === "unavailable" ? "GitHub 状态不可用：请检查 gh 登录和网络；任务与 CI 状态未知" : "GitHub 状态加载中";
@@ -346,6 +365,7 @@ async function refresh() {
       lostAuthorization(token);
     } else {
       connected = false;
+      $("authPanel").hidden = false;
       $("dot").classList.remove("ok");
       $("connection").textContent = "连接中断";
       $("globalRun").dataset.status="unknown"; $("globalRun").textContent="状态未知";
@@ -474,7 +494,11 @@ async function startAdvisory(lane) {
 }
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  $("themeToggle").textContent = theme === "dark" ? "浅色" : "深色";
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  const label = nextTheme === "light" ? "切换到浅色主题" : "切换到深色主题";
+  $("themeToggle").dataset.nextTheme = nextTheme;
+  $("themeToggle").setAttribute("aria-label", label);
+  $("themeToggle").setAttribute("title", label);
   save(preferenceStorage, THEME_KEY, theme);
 }
 function renderIntake(intake) {
@@ -676,12 +700,12 @@ $("followLogs").addEventListener("change", () => {
   save(preferenceStorage, FOLLOW_KEY, followLogs);
   if (followLogs) $("logs").scrollTop = $("logs").scrollHeight;
 });
-$("connect").addEventListener("click", () => { if (connected && tokenInput.hidden) { $("tokenLabel").hidden=false; tokenInput.hidden=false; $("connect").textContent="连接"; return; } void refresh(); });
+$("connect").addEventListener("click", () => void refresh());
 tokenInput.addEventListener("keydown", event => { if (event.key === "Enter") void refresh(); });
 tokenInput.addEventListener("input", () => {
   stopStream();
   connected = false;
-  $("tokenLabel").hidden = false; tokenInput.hidden = false; $("connect").textContent = "连接";
+  $("authPanel").hidden = false; $("connect").textContent = "连接";
   $("dot").classList.remove("ok");
   $("connection").textContent = "尚未连接";
   disableControls();
@@ -712,6 +736,7 @@ document.addEventListener("visibilitychange", () => {
     if (connected && !streamController && !reconnectTimer) void openStream(tokenInput.value.trim());
   }
 });
+$("closeMilestone").addEventListener("click",()=>$("milestoneDialog").close());
 const savedToken = restoreToken();
 if (savedToken) {
   tokenInput.value = savedToken;
