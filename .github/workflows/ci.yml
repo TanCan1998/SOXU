@@ -121,3 +121,44 @@ jobs:
       - run: cargo fmt --all -- --check
       # cargo test compiles workspace targets; avoid duplicating that work with cargo check.
       - run: cargo test --workspace --locked
+
+  gate:
+    name: SOXU CI Gate
+    needs: [changes, quality, rust]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Verify required jobs for changed areas
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          JS_CHANGED: ${{ needs.changes.outputs.js }}
+          RUST_CHANGED: ${{ needs.changes.outputs.rust }}
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          RUST_RESULT: ${{ needs.rust.result }}
+        shell: bash
+        run: |
+          set -eu
+          if [[ "$CHANGES_RESULT" != success ]]; then
+            echo "Change detection did not succeed"; exit 1
+          fi
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            js_required=true
+            rust_required=true
+          else
+            js_required="$JS_CHANGED"
+            rust_required="$RUST_CHANGED"
+          fi
+          for value in "$js_required" "$rust_required"; do
+            if [[ "$value" != true && "$value" != false ]]; then
+              echo "Change detection did not return a valid result"; exit 1
+            fi
+          done
+          if [[ "$js_required" == true && "$QUALITY_RESULT" != success ]] || [[ "$js_required" == false && "$QUALITY_RESULT" != skipped ]]; then
+            echo "Node checks do not match detected changes"; exit 1
+          fi
+          if [[ "$rust_required" == true && "$RUST_RESULT" != success ]] || [[ "$rust_required" == false && "$RUST_RESULT" != skipped ]]; then
+            echo "Rust checks do not match detected changes"; exit 1
+          fi
+          echo "Required CI jobs completed successfully"
