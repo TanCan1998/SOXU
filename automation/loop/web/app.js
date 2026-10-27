@@ -41,6 +41,7 @@ function element(tag, value, className) {
 function disableControls() {
   for (const button of document.querySelectorAll("[data-command], [data-resume-issue]")) button.disabled = true;
   $("stop").disabled = true;
+  $("autoMerge").disabled = true;
 }
 function lostAuthorization(token) {
   if (token !== tokenInput.value.trim()) return;
@@ -160,7 +161,19 @@ function renderTasks(data) {
     if (remote?.pr) {
       const prState = {open:"待合并",merged:"已合并",closed:"已关闭"}[remote.pr.state] ?? "未知";
       const ciState = {pending:"运行中",success:"通过",failure:"失败",unknown:"未知"}[remote.pr.ci] ?? "未知";
-      details.push(`PR #${remote.pr.number} ${prState} · CI ${ciState}`);
+      const box = element("div", undefined, "task-detail");
+      if (typeof remote.pr.url === "string" && /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+$/.test(remote.pr.url)) {
+        const link = element("a", remote.pr.title || `PR #${remote.pr.number}`, "pr-link");
+        link.href = remote.pr.url; link.target = "_blank"; link.rel = "noopener noreferrer";
+        box.append(link, document.createTextNode(` · ${prState} · CI ${ciState}`));
+      } else box.append(document.createTextNode(`PR #${remote.pr.number} ${prState} · CI ${ciState}`));
+      if (remote.pr.state === "open") {
+        const button = element("button", "合并并删除远程分支", "task-merge");
+        button.disabled = Boolean(data.busy) || remote.pr.ci !== "success";
+        button.addEventListener("click", () => void mergePr(remote.issue, remote.pr));
+        box.append(button);
+      }
+      card.append(box);
     } else if (task.status === "done") details.push("本地执行结束；PR 状态待核实");
     if (task.status === "pending" && remote?.missing?.length) details.push("等待依赖合并：" + remote.missing.join("、"));
     if (details.length) card.append(element("div", details.join(" · "), "task-detail"));
@@ -213,6 +226,9 @@ function render(data) {
   $("updated").textContent = "更新于 " + new Date(data.generatedAt).toLocaleTimeString();
   for (const button of document.querySelectorAll("[data-command]")) button.disabled = data.busy;
   $("stop").disabled = !data.runner || data.runner.stopping;
+  $("autoMerge").disabled = Boolean(data.busy);
+  $("autoMerge").dataset.enabled = data.autoMergeEnabled ? "true" : "false";
+  $("autoMerge").textContent = "Agent 自动合并：" + (data.autoMergeEnabled ? "开启" : "关闭");
   $("githubStatus").textContent = data.github?.status === "ok" ? "GitHub PR / CI 状态已更新 · " + new Date(data.github.updatedAt).toLocaleTimeString()
     : data.github?.status === "unavailable" ? "GitHub 状态不可用：请检查 gh 登录和网络；任务与 CI 状态未知" : "GitHub 状态加载中";
   renderTasks(data);
@@ -329,6 +345,15 @@ async function openStream(token) {
     }
   }
 }
+async function mergePr(issue, pr) {
+  if (!connected || !Number.isSafeInteger(issue) || !Number.isSafeInteger(pr.number)) return;
+  if (!confirm(`合并 PR #${pr.number}「${pr.title}」并删除远程分支？将重新检查 PR、CI 和分支头。`)) return;
+  try {
+    const result = await api("/api/merge", {method:"POST", body:{issue,pr:pr.number}});
+    notice(result.branchDeleted ? `PR #${pr.number} 已合并，远程分支已删除。` : `PR #${pr.number} 已合并，但远程分支删除失败：${result.branch || "请检查"}`);
+    await refresh();
+  } catch (error) { notice("合并失败：" + error.message); }
+}
 async function resumeBlocked(issue) {
   if (!connected) return notice("先连接本地控制台。");
   if (!confirm(`恢复任务 #${issue} 前请确认已检查并修复阻塞原因。将重新执行相关门禁，可能调用模型并产生费用。继续？`)) return;
@@ -387,6 +412,12 @@ tokenInput.addEventListener("input", () => {
 });
 for (const button of document.querySelectorAll("[data-command]"))
   button.addEventListener("click", () => void execute(button.dataset.command));
+$("autoMerge").addEventListener("click", async () => {
+  const enabled = $("autoMerge").dataset.enabled !== "true";
+  if (enabled && !confirm("开启后，本次控制台后续启动的 Agent 会在仓库分支保护允许时请求自动合并。关闭或重启控制台不会撤销已经提交给 GitHub 的自动合并请求。继续？")) return;
+  try { await api("/api/auto-merge", {method:"POST", body:{enabled}}); await refresh(); }
+  catch (error) { notice("设置失败：" + error.message); }
+});
 $("stop").addEventListener("click", async () => {
   if (!confirm("请求优雅停止当前调度；工作树和检查点将保留。确定吗？")) return;
   try {

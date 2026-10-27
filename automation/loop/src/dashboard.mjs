@@ -8,6 +8,7 @@ import { ROOT } from "./config.mjs";
 import { readCheckpoint } from "./checkpoint.mjs";
 import { localProgress } from "./status.mjs";
 import { safeActivity } from "./dashboard-activity.mjs";
+import { mergeTaskPr } from "./dashboard-merge.mjs";
 import { readGithubStatus } from "./dashboard-github.mjs";
 
 export const DASHBOARD_PORT = 47321;
@@ -54,7 +55,7 @@ async function liveExternalLocks(root) {
 
 /** Owns only jobs explicitly launched from this web process. It cannot seize external Pi processes. */
 export class DashboardCoordinator extends EventEmitter {
-  constructor({ root = ROOT, spawn = fork, githubStatus = readGithubStatus } = {}) {
+  constructor({ root = ROOT, spawn = fork, githubStatus = readGithubStatus, mergePr = mergeTaskPr } = {}) {
     super();
     this.root = root;
     this.spawn = spawn;
@@ -67,6 +68,8 @@ export class DashboardCoordinator extends EventEmitter {
     this.agents = new Map();
     this.phases = new Map();
     this.githubStatus = githubStatus;
+    this.mergePr = mergePr;
+    this.autoMergeEnabled = false;
     this.github = {status:"loading", updatedAt:null, tasks:{}};
     this.githubNext = 0;
     this.githubPending = null;
@@ -117,6 +120,7 @@ export class DashboardCoordinator extends EventEmitter {
       generatedAt: new Date().toISOString(),
       source: "local-checkpoints",
       github: this.github,
+      autoMergeEnabled: this.autoMergeEnabled,
       isLive: false,
       tasks: GROUPS.flatMap(status => progress[status].map(item => ({
         id: item.id, title: cleanLine(item.title ?? item.name).slice(0, 160),
@@ -149,7 +153,7 @@ export class DashboardCoordinator extends EventEmitter {
         cwd: this.root,
         stdio: ["ignore", "pipe", "pipe", "ipc"],
         windowsHide: true,
-        env: process.env,
+        env: {...process.env, SOXU_DASHBOARD_AUTO_MERGE: this.autoMergeEnabled ? "1" : "0"},
       });
       const job = { child, command, startedAt: new Date().toISOString(), stopping: false };
       this.active = job;
@@ -195,6 +199,27 @@ export class DashboardCoordinator extends EventEmitter {
     } finally {
       this.reserved = false;
     }
+  }
+  setAutoMerge(enabled) {
+    if (typeof enabled !== "boolean") throw Object.assign(new Error("invalid-setting"), {status:400});
+    if (this.reserved || this.active) throw Object.assign(new Error("runner-busy"), {status:409});
+    this.autoMergeEnabled = enabled;
+    this.push(`Dashboard automatic merge ${enabled ? "enabled" : "disabled"} for future runs`);
+    this.emit("dashboard:event", {type:"status",data:{}});
+    return {enabled};
+  }
+  async merge(issue, pr) {
+    if (this.reserved || this.active) throw Object.assign(new Error("runner-busy"), {status:409});
+    this.reserved = true;
+    try {
+      if (await liveExternalLocks(this.root)) throw Object.assign(new Error("external-runner-active"), {status:409});
+      const found = Object.values(this.github.tasks).some(t => t.issue === issue && t.pr?.number === pr && t.pr.state === "open");
+      if (this.github.status !== "ok" || !found) throw Object.assign(new Error("pr-not-listed"), {status:409});
+      const result = await this.mergePr(this.root, issue, pr);
+      this.push(`PR #${pr} merged; remote branch ${result.branchDeleted ? "deleted" : "not deleted"}`);
+      this.githubNext = 0; this.refreshGithub();
+      return result;
+    } finally { this.reserved = false; this.emit("dashboard:event", {type:"status",data:{}}); }
   }
   stop() {
     const job = this.active;
@@ -311,7 +336,7 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
       try { return reply(200, await coordinator.snapshot()); }
       catch { return reply(503, { error: "status-unavailable" }); }
     }
-    if (request.method === "POST" && ["/api/run", "/api/stop"].includes(request.url)) {
+    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge"].includes(request.url)) {
       if (request.headers.origin !== origin || request.headers["content-type"] !== "application/json") {
         return reply(403, { error: "invalid-request-origin" });
       }
@@ -327,6 +352,14 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
           }
           if (keys.length !== 1) return reply(400, { error: "invalid-command" });
           return reply(202, await coordinator.start(body.command));
+        }
+        if (request.url === "/api/merge") {
+          if (!body || Object.keys(body).sort().join(",") !== "issue,pr") return reply(400, {error:"invalid-body"});
+          return reply(200, await coordinator.merge(body.issue, body.pr));
+        }
+        if (request.url === "/api/auto-merge") {
+          if (!body || Object.keys(body).join(",") !== "enabled") return reply(400, {error:"invalid-body"});
+          return reply(200, coordinator.setAutoMerge(body.enabled));
         }
         if (!body || typeof body !== "object" || Object.keys(body).length !== 0)
           return reply(400, { error: "invalid-body" });

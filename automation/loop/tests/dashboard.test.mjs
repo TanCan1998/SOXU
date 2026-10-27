@@ -121,3 +121,21 @@ test("explicit blocked recovery validates checkpoint and launches only selected 
     assert.equal(children.length,1);
   } finally {await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
 });
+
+test("merge and session setting endpoints require authentication and validate targets", async()=>{
+  const root=await fixture(), calls=[];
+  const coordinator=new DashboardCoordinator({root,githubStatus:async()=>({}),mergePr:async(...args)=>{calls.push(args);return {merged:true,branchDeleted:true};}});
+  coordinator.github={status:"ok",tasks:{"TASK-001":{issue:1,pr:{number:21,state:"open"}}}};
+  const {server}=createDashboardServer({root,token:TOKEN,coordinator});
+  try {
+    await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
+    const port=server.address().port, origin=`http://127.0.0.1:${port}`;
+    const post=(path,body,token=TOKEN)=>call(port,{path,method:"POST",origin,body,token});
+    assert.equal((await post("/api/merge",{issue:1,pr:21},null)).status,401);
+    assert.equal((await post("/api/merge",{issue:2,pr:21})).status,409);
+    assert.equal((await post("/api/auto-merge",{enabled:"true"})).status,400);
+    assert.equal((await post("/api/auto-merge",{enabled:true})).body.enabled,true);
+    assert.equal((await post("/api/merge",{issue:1,pr:21})).body.merged,true);
+    assert.equal(calls.length,1);
+  } finally {await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+});

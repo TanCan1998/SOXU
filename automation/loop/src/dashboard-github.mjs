@@ -3,6 +3,9 @@ import { loadTaskCatalog, taskIdFromIssueTitle } from "./task-catalog.mjs";
 import { mergedIssueNumbers } from "./github-queue.mjs";
 
 // Remote data is advisory; scheduling remains governed by github-queue.mjs.
+function safePrUrl(value, number) {
+  try { const url = new URL(value); return url.protocol === "https:" && url.hostname === "github.com" && new RegExp(`^/[^/]+/[^/]+/pull/${number}$`).test(url.pathname) && !url.search && !url.hash ? url.href : null; } catch { return null; }
+}
 export function buildGithubStatus(catalog, issues, prs) {
   const byTask = new Map();
   for (const issue of issues) {
@@ -31,7 +34,7 @@ export function buildGithubStatus(catalog, issues, prs) {
     }
     tasks[task.id] = { issue: issue?.number ?? null, issueState: issue?.state ?? null,
       missing: task.dependencies.filter(id => !completed.has(id)),
-      pr: pr ? {number: pr.number, state: pr.mergedAt ? "merged" : pr.state === "OPEN" ? "open" : "closed", ci} : null };
+      pr: pr ? {number: pr.number, title: String(pr.title ?? "").slice(0,200), url: safePrUrl(pr.url, pr.number), state: pr.mergedAt ? "merged" : pr.state === "OPEN" ? "open" : "closed", ci} : null };
   }
   return tasks;
 }
@@ -39,7 +42,7 @@ export async function readGithubStatus(root, execute = run) {
   const [catalog, issues, prs] = await Promise.all([
     loadTaskCatalog(root),
     execute("gh", ["issue", "list", "--state", "all", "--limit", "1000", "--json", "number,title,state"], {cwd:root, timeoutMs:15000}),
-    execute("gh", ["pr", "list", "--state", "all", "--limit", "1000", "--json", "number,state,body,baseRefName,mergedAt,statusCheckRollup"], {cwd:root, timeoutMs:15000}),
+    execute("gh", ["pr", "list", "--state", "all", "--limit", "1000", "--json", "number,title,url,state,body,baseRefName,mergedAt,statusCheckRollup"], {cwd:root, timeoutMs:15000}),
   ]);
   return buildGithubStatus(catalog, JSON.parse(issues.stdout), JSON.parse(prs.stdout));
 }

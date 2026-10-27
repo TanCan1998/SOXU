@@ -4,3 +4,5 @@
 .task-resume{font-size:11px;padding:7px 10px}@media(max-width:850px){.task-resume{grid-column:2/4;justify-self:start}}
 
 .task-detail{grid-column:2/-1;color:#aebcd2;font-size:12px;overflow-wrap:anywhere}
+
+.pr-link{color:#9cbaff}.task-merge{font-size:11px;padding:6px 9px;margin-left:10px}

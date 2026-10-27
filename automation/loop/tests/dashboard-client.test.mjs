@@ -41,7 +41,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
-    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus",
+    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -211,6 +211,16 @@ test("task cards distinguish local completion, pending CI and dependencies", asy
   const snapshot={...STATUS, tasks:[{id:1,title:"One",status:"done"},{id:2,title:"Two",status:"pending"}], github:{status:"ok",updatedAt:"2026-10-27T00:00:00Z",tasks:{"TASK-001":{pr:{number:21,state:"open",ci:"pending"}},"TASK-002":{missing:["TASK-001"]}}}};
   const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
   app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
-  assert.match(app.elements.tasks.children[0].children.at(-1).textContent,/PR #21 待合并 · CI 运行中/);
+  assert.match(app.elements.tasks.children[0].children.at(-1).children[0].textContent,/PR #21 待合并 · CI 运行中/);
   assert.match(app.elements.tasks.children[1].children.at(-1).textContent,/等待依赖合并：TASK-001/);
+});
+
+test("PR title links to GitHub and merge sends the selected issue and PR", async () => {
+  const snapshot={...STATUS,tasks:[{id:1,title:"One",status:"done"}],github:{status:"ok",updatedAt:"2026-10-27T00:00:00Z",tasks:{"TASK-001":{issue:1,pr:{number:21,title:"Implement supervisor",url:"https://github.com/a/b/pull/21",state:"open",ci:"success"}}}}};
+  const app=page({handler:path=>({ok:true,status:200,json:async()=>path==="/api/merge"?{merged:true,branchDeleted:true}:snapshot})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  const detail=app.elements.tasks.children[0].children.at(-1), link=detail.children[0], button=detail.children.at(-1);
+  assert.equal(link.textContent,"Implement supervisor");assert.equal(link.href,"https://github.com/a/b/pull/21");
+  button.dispatch("click");await tick();
+  assert.deepEqual(JSON.parse(app.requests.find(r=>r.path==="/api/merge").options.body),{issue:1,pr:21});
 });

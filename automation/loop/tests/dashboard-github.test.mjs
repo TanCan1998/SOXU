@@ -7,7 +7,7 @@ test("PR checks and unresolved dependencies reflect GitHub evidence", () => {
   const issues=[{number:11,title:"[TASK-001] One",state:"OPEN"},{number:22,title:"[TASK-002] Two",state:"OPEN"}];
   const prs=[{number:21,state:"OPEN",baseRefName:"main",body:"Closes #11",mergedAt:null,statusCheckRollup:[{status:"IN_PROGRESS",conclusion:""}]}];
   let snapshot=buildGithubStatus(catalog,issues,prs);
-  assert.deepEqual(snapshot["TASK-001"].pr,{number:21,state:"open",ci:"pending"});
+  assert.deepEqual(snapshot["TASK-001"].pr,{number:21,title:"",url:null,state:"open",ci:"pending"});
   assert.deepEqual(snapshot["TASK-002"].missing,["TASK-001"]);
   prs[0].statusCheckRollup=[{status:"COMPLETED",conclusion:"FAILURE"}];
   assert.equal(buildGithubStatus(catalog,issues,prs)["TASK-001"].pr.ci,"failure");
