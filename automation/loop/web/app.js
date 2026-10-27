@@ -18,7 +18,7 @@ const activityLabels = { waiting:"等待模型", generating:"生成中", tool:"�
 let connected = false, requestInFlight = false;
 let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", renderedLogKey = "";
 let agents = new Map(), streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
-let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null;
+let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null, lastIntakeKey = "", lastQueueKey = "";
 
 function stored(storage, key) { try { return storage.getItem(key); } catch { return null; } }
 function save(storage, key, value) { try { storage.setItem(key, String(value)); } catch {} }
@@ -81,6 +81,7 @@ function resetInstance(next) {
   agents.clear();
   lastTaskKey = "";
   renderedLogKey = "";
+  lastIntakeKey = ""; lastQueueKey = "";
 }
 function mergeLog(line) {
   if (!line || !Number.isSafeInteger(line.seq) || !["system", "stdout", "stderr"].includes(line.stream)
@@ -260,16 +261,26 @@ function render(data) {
   $("autoMerge").textContent = "Agent 自动合并：" + (data.autoMergeEnabled ? "开启" : "关闭");
   $("githubStatus").textContent = data.github?.status === "ok" ? "GitHub PR / CI 状态已更新 · " + new Date(data.github.updatedAt).toLocaleTimeString()
     : data.github?.status === "unavailable" ? "GitHub 状态不可用：请检查 gh 登录和网络；任务与 CI 状态未知" : "GitHub 状态加载中";
+  $("developmentLane").textContent = data.runner ? "控制台调度运行中" : data.externalLocks ? "存在外部任务锁" : "控制台当前空闲";
+  const reportLabel = lane => !lane ? "状态加载中" : lane.status === "unavailable" ? "本地报告状态不可用" : lane.status === "empty" ? "暂无本地建议报告" : `本地报告 ${lane.count} 份 · 最近 ${new Date(lane.lastAt).toLocaleString()}`;
+  $("productLane").textContent=reportLabel(data.lanes?.product);
+  $("qualityLane").textContent=reportLabel(data.lanes?.quality);
+  const lessons=data.lanes?.lessons;
+  $("lessonsStatus").textContent=lessons?.status === "available" ? `已记录 ${lessons.count} 条教训，${lessons.eligible} 条达到提出申请的条件。每条须有至少 3 个不同日期的证据；维护者核实、批准并通过单独治理 PR，不自动修改规则。` : "复盘规则：同一规则须有至少 3 个不同日期的证据，才可提出人工晋升申请；教训记录状态待核实。";
   renderProjectPhase(data.github);
-  renderIntake(data.intake);
-  const queue=$("queueList"); queue.replaceChildren();
-  if (data.github?.status === "ok") for (const item of data.github.tasks?.__queue || []) {
+  const queueItems = data.github?.status === "ok" ? data.github.tasks?.__queue || [] : [];
+  const queueKey=JSON.stringify([data.github?.status,queueItems]);
+  const queue=$("queueList");
+  if (queueKey !== lastQueueKey) {
+    lastQueueKey=queueKey; queue.replaceChildren();
+    for (const item of queueItems) {
     const row=element("div",undefined,"queue-item");
     const title=element(item.url ? "a" : "span",`#${item.number} ${item.title}`,"pr-link");
     if (item.url && /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(item.url)) {title.href=item.url;title.target="_blank";title.rel="noopener noreferrer";}
     const labels=item.labels || [];
     const state=labels.includes("agent:blocked") ? "等待人工处理" : labels.includes("agent:paused") ? "已暂停" : labels.includes("agent:pr") ? "PR 待处理" : labels.includes("agent:in-progress") ? "执行中" : labels.includes("agent:waiting") ? "等待依赖" : "可执行";
     row.append(title,element("span",state,"queue-state"));queue.append(row);
+    }
   }
   renderIntake(data.intake);
   renderTasks(data);
@@ -393,6 +404,9 @@ function setTheme(theme) {
 }
 function renderIntake(intake) {
   currentIntake = intake ?? null;
+  const key=JSON.stringify(intake ?? null);
+  if (key === lastIntakeKey) return;
+  lastIntakeKey=key;
   const node = $("intakeResult"); node.replaceChildren();
   const state = intake?.status;
   $("assessIntake").disabled = ["assessing", "submitting", "unknown"].includes(state);

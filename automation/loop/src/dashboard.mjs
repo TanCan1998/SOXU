@@ -8,6 +8,7 @@ import { ROOT } from "./config.mjs";
 import { readCheckpoint } from "./checkpoint.mjs";
 import { localProgress } from "./status.mjs";
 import { safeActivity } from "./dashboard-activity.mjs";
+import { readLaneStatus } from "./dashboard-lanes.mjs";
 import { IntakeManager } from "./dashboard-intake.mjs";
 import { mergeTaskPr } from "./dashboard-merge.mjs";
 import { readGithubStatus } from "./dashboard-github.mjs";
@@ -75,6 +76,7 @@ export class DashboardCoordinator extends EventEmitter {
     this.github = {status:"loading", updatedAt:null, tasks:{}};
     this.githubNext = 0;
     this.githubPending = null;
+    this.lanes = null; this.lanesNext = 0; this.lanesPending = null;
   }
   push(message, stream = "system") {
     const line = { seq: ++this.serial, time: new Date().toISOString(), stream, message: cleanLine(message) };
@@ -109,8 +111,15 @@ export class DashboardCoordinator extends EventEmitter {
       this.github = {status:"unavailable", updatedAt:null, tasks:{}};
     }).finally(() => { this.githubPending = null; this.emit("dashboard:event", {type:"status",data:{}}); });
   }
+  refreshLanes() {
+    if (this.lanesPending || Date.now() < this.lanesNext) return;
+    this.lanesNext = Date.now() + 30000;
+    this.lanesPending = readLaneStatus(this.root).then(value=>{this.lanes=value;}).catch(()=>{this.lanes=null;})
+      .finally(()=>{this.lanesPending=null;this.emit("dashboard:event",{type:"status",data:{}});});
+  }
   async snapshot() {
     this.refreshGithub();
+    this.refreshLanes();
     await this.intake.initialized;
     const [progress, externalLocks] = await Promise.all([
       localProgress(this.root, id => readCheckpoint(id, join(this.root, ".soxu", "checkpoints"))),
@@ -125,6 +134,7 @@ export class DashboardCoordinator extends EventEmitter {
       github: this.github,
       autoMergeEnabled: this.autoMergeEnabled,
       intake: this.intake.publicState(),
+      lanes: this.lanes,
       isLive: false,
       tasks: GROUPS.flatMap(status => progress[status].map(item => ({
         id: item.id, title: cleanLine(item.title ?? item.name).slice(0, 160),

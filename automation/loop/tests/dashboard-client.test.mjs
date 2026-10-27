@@ -41,7 +41,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
-    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "phaseSelect", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "submitIntake", "clearIntake",
+    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "phaseSelect", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "submitIntake", "clearIntake",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
