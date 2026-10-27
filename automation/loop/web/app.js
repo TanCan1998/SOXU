@@ -284,6 +284,7 @@ function render(data) {
   $("stop").disabled = !data.runner || data.runner.stopping;
   $("autoMerge").disabled = Boolean(data.busy);
   $("autoMerge").dataset.enabled = data.autoMergeEnabled ? "true" : "false";
+  $("autoMerge").setAttribute("aria-checked", data.autoMergeEnabled ? "true" : "false");
   $("autoMerge").textContent = "Agent 自动合并：" + (data.autoMergeEnabled ? "开启" : "关闭");
   $("githubStatus").textContent = data.github?.status === "ok" ? "GitHub PR / CI 状态已更新 · " + new Date(data.github.updatedAt).toLocaleTimeString()
     : data.github?.status === "unavailable" ? "GitHub 状态不可用：请检查 gh 登录和网络；任务与 CI 状态未知" : "GitHub 状态加载中";

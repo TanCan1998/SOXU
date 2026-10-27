@@ -21,9 +21,9 @@ function response(status = 200) {
   };
 }
 function node() {
-  const listeners = new Map(), children = [];
+  const listeners = new Map(), children = [], attributes = {};
   const result = {
-    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "", style: {}, replacements:0, setAttribute() {},
+    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "", style: {}, replacements:0, setAttribute(name, value) { attributes[name] = String(value); }, getAttribute(name) { return attributes[name] ?? null; },
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
     classList: { add() {}, remove() {}, contains(value) { return result.className.split(" ").includes(value); } },
     showModal() {result.open=true;}, close() {result.open=false;},
@@ -324,4 +324,18 @@ test("large model catalog limits rendered rows and keeps search available",async
   assert.match(app.elements.modelGroups.children[1].textContent,/前 300/);
   app.elements.modelSearch.value="model-399";app.elements.modelSearch.dispatch("input");
   assert.equal(app.elements.modelGroups.children[0].children.length,2);
+});
+
+test("auto merge switch reflects server state and sends explicit changes", async () => {
+  let enabled=false;
+  const view=page({handler: (path, options) => {
+    if (path === "/api/auto-merge") { enabled=JSON.parse(options.body).enabled; return response(); }
+    return {ok:true,status:200,async json(){return {...STATUS,autoMergeEnabled:enabled};}};
+  }});
+  view.elements.token.value=TOKEN; view.elements.connect.dispatch("click"); await tick();
+  assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"false");
+  view.elements.autoMerge.dispatch("click"); await tick(); await tick();
+  assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"true");
+  view.elements.autoMerge.dispatch("click"); await tick(); await tick();
+  assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"false");
 });
