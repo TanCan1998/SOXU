@@ -1,5 +1,5 @@
-import { ROOT } from "../automation/loop/src/config.mjs";
-import { git } from "../automation/loop/src/process.mjs";
+import { ROOT } from "./lib/config.mjs";
+import { git } from "./lib/process.mjs";
 const [githubUrl, atomgitUrl] = process.argv.slice(2);
 if (!githubUrl || !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+(?:\.git)?$/.test(githubUrl)) throw new Error("Usage: node scripts/set-remotes.mjs https://github.com/OWNER/SOXU.git [https://atomgit.com/OWNER/SOXU.git]");
 const remotes = (await git(["remote"], ROOT)).split("\n");

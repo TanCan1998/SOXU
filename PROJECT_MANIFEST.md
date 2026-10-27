@@ -49,22 +49,22 @@
 
 1. 阅读 `README.md`；在 Windows 上安装依赖。
 2. `node scripts/init-git.mjs`。
-3. `pnpm agent:doctor`。
-4. 配置 `origin`、AtomGit、main branch protection，再执行 `pnpm agent:seed`。
-5. 用 `pnpm agent:once -- --dry-run` 预览 GitHub 任务，完成配置后执行 `pnpm agent:loop` 或受预算约束的 `pnpm agent:watch`。
+3. `node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor`。
+4. 配置 `origin`、AtomGit、main branch protection，再执行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs seed-issues`。
+5. 用 `node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run` 预览 GitHub 任务，完成配置后执行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs loop` 或受预算约束的 `node ../soxu-agent-loop/automation/loop/src/cli.mjs watch`。
 
 **安全边界**：Agent 本地执行工具不是安全沙箱。正式长期自治运行应使用隔离的低权限账户，禁止让开发 Agent 访问个人凭据与生产资源。请勿把自动执行成功等同于代码已经通过生产审计。
 
 ## v3 增量：自然语言手动恢复
 
-- 新增 `agent:say`：`pnpm agent:say -- "继续 SOXU"`，本地词法解析，不请求模型判断恢复意图。
+- 新增 `agent:say`：`node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"`，本地词法解析，不请求模型判断恢复意图。
 - 支持最近暂停任务、具体 Issue、所有暂停任务；默认单任务，避免意外批量花费额度。
 - 只恢复 `paused` 检查点，复用原工作树和阶段；无任务则无操作；仍需在真实 Pi 环境做端到端联调。
 - 新增 `.pi/skills/soxu-recover/SKILL.md`；更新 README、恢复策略和 Node 离线测试。
 
 ## 2026-10-26 增强：有限时间预算及一句话恢复
 
-- 新增 `pnpm agent:resume` 和仓库 `.pi/skills/soxu-recover/SKILL.md`，用户对**在本项目中运行的 Pi Agent**说“继续 SOXU”即可触发恢复指引。
+- 新增 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 和仓库 `.pi/skills/soxu-recover/SKILL.md`，用户对**在本项目中运行的 Pi Agent**说“继续 SOXU”即可触发恢复指引。
 - 引入 Pi 启动、无进展、硬上限、Reviewer 和网络等分阶段预算；超时主动终止受管理进程树。
 - 额度、网络、超时、中断采用 `paused` 检查点与 `agent:paused` 标签（网络断开时本地状态先行），禁止 Runner 自动重发模型请求。
 - 新增 `.soxu/checkpoints/issue-*.json` 原子写入，保留 Worktree、Git Branch、最后阶段、Review 反馈与 PR；支持从上次阶段恢复。
@@ -76,7 +76,7 @@
 
 **v3 验证**：`node --test automation/loop/tests/*.test.mjs` 已通过 14/14；三种语句对应的独立命令行 dry-run 使用模拟 `paused` 检查点验证通过（未执行 Pi RPC）。真实额度/网络恢复后的 Pi 继续执行尚未端到端联调。
 
-- 支持可选自然语言一句话命令 `pnpm agent:say -- "继续 SOXU"`；离线意图解析不消耗模型额度，默认为最近一个暂停任务，指明“所有”才批量恢复。
+- 支持可选自然语言一句话命令 `node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"`；离线意图解析不消耗模型额度，默认为最近一个暂停任务，指明“所有”才批量恢复。
 
 ## 2026-10-26 v1.2 验证与审批候选增量
 

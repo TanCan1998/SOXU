@@ -42,8 +42,8 @@ Test-Path Cargo.lock
 pnpm install --frozen-lockfile
 
 # 质量检查：切勿把未经执行的步骤标成通过
-pnpm agent:models
-pnpm agent:status
+node ../soxu-agent-loop/automation/loop/src/cli.mjs models
+node ../soxu-agent-loop/automation/loop/src/cli.mjs status
 pnpm check
 cargo fmt --all -- --check
 cargo test --workspace

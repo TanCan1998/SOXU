@@ -4,11 +4,13 @@
 
 > A lightweight cross-platform desktop workspace for Pi Agent, focused on projects, sessions, concurrent agents, resource efficiency, and reliable recovery.
 
-**Status: in development; not released.** The repository contains a Tauri + Vue desktop project, Pi RPC supervisor and project/session catalog code, and a Node.js development Agent Loop. **The finished SOXU desktop product does not exist yet.** Historical ZIP labels (such as v1.3) identify bootstrap iterations, not released SOXU application versions.
+**Status: in development; not released.** The repository contains a Tauri + Vue desktop project, Pi RPC supervisor and project/session catalog code; the Node.js development Agent Loop is maintained separately. **The finished SOXU desktop product does not exist yet.** Historical ZIP labels (such as v1.3) identify bootstrap iterations, not released SOXU application versions.
+
+> The development orchestrator is maintained in [soxu-agent-loop](https://github.com/TanCan1998/soxu-agent-loop). Commands below assume sibling checkouts; first set `$env:SOXU_PROJECT_ROOT = (Get-Location).Path` from the SOXU root. See the tool repository for migration and version status.
 
 ## Local Agent Web dashboard
 
-Run `pnpm agent:dashboard`, open `http://127.0.0.1:47321/`, and enter the ephemeral token
+Run `node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs`, open `http://127.0.0.1:47321/`, and enter the ephemeral token
 shown in the terminal. View checkpoint progress and bounded runner logs, or explicitly run,
 stop, and resume Agent Loop tasks. The dashboard uses authenticated SSE for incremental coordinator logs and Developer/Reviewer activity, with a 15-second HTTP calibration fallback. Show the most recent 50 logs by default (configurable: 20/50/100/200), filter by source and toggle auto-follow. Activity shows only status, tool name and elapsed time—never prompts or raw model/tool content. After successful authentication, the token is held in per-tab `sessionStorage` so reloads reconnect automatically; restarting the dashboard requires a fresh token. No PiDeck dependency or external-process takeover.
 See the [dashboard guide](docs/development/dashboard.md).
@@ -47,34 +49,34 @@ pnpm --version
 pi --version
 pnpm install --frozen-lockfile # Install from the committed lockfile
 node scripts/setup-git-hooks.mjs # Install commit hooks
-pnpm agent:models      # Show model routing; no paid inference
-pnpm agent:doctor      # Inspect tools, Git, and paused runs
+node ../soxu-agent-loop/automation/loop/src/cli.mjs models      # Show model routing; no paid inference
+node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor      # Inspect tools, Git, and paused runs
 ```
 
 ## Updating existing task worktrees
 
-Merging into `main` does not update existing task worktrees. Run `pnpm agent:worktrees` to inspect lag and `pnpm agent:worktrees -- --sync` to safely preserve task edits in a recovery stash, fast-forward eligible early-phase branches to latest main and reapply edits. For conflicts, `pnpm agent:resume` invokes the Developer to resolve them before checks and review. Stash backups are kept. See [Agent Loop guide](docs/development/agent-loop.md).
+Merging into `main` does not update existing task worktrees. Run `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs` to inspect lag and `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs -- --sync` to safely preserve task edits in a recovery stash, fast-forward eligible early-phase branches to latest main and reapply edits. For conflicts, `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` invokes the Developer to resolve them before checks and review. Stash backups are kept. See [Agent Loop guide](docs/development/agent-loop.md).
 
 ## Start and monitor autonomous development
 
 ```powershell
 node scripts/init-git.mjs          # Safe no-op for existing repos
 # First configure origin and main-branch protection, then once:
-pnpm agent:seed
-pnpm agent:status          # Offline local task/checkpoint snapshot (not live GitHub)
-pnpm agent:once -- --dry-run        # Preview eligible tasks
-pnpm agent:once                     # One controlled batch
-pnpm agent:loop                     # Bounded development rounds
-# pnpm agent:watch                  # Only on an authorized dedicated runner
+node ../soxu-agent-loop/automation/loop/src/cli.mjs seed-issues
+node ../soxu-agent-loop/automation/loop/src/cli.mjs status          # Offline local task/checkpoint snapshot (not live GitHub)
+node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run        # Preview eligible tasks
+node ../soxu-agent-loop/automation/loop/src/cli.mjs once                     # One controlled batch
+node ../soxu-agent-loop/automation/loop/src/cli.mjs loop                     # Bounded development rounds
+# node ../soxu-agent-loop/automation/loop/src/cli.mjs watch                  # Only on an authorized dedicated runner
 
-pnpm agent:resume -- --dry-run      # Preview recovery
-pnpm agent:resume                  # Resume paused runs
-pnpm agent:say -- "继续 SOXU"         # Local natural-language recovery shortcut
+node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --dry-run      # Preview recovery
+node ../soxu-agent-loop/automation/loop/src/cli.mjs resume                  # Resume paused runs
+node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"         # Local natural-language recovery shortcut
 
 pnpm tauri:dev                     # Launch desktop app separately
 ```
 
-Use SOXU's local dashboard (`pnpm agent:dashboard`) for task status and explicit Agent Loop controls. GitHub Issues/PRs/Actions record collaboration progress; `.soxu/checkpoints/` stores recovery state. PiDeck remains optional for viewing archived Pi session history, not for coordinating SOXU's Agent Loop. See [Monitoring](docs/development/monitoring.md).
+Use SOXU's local dashboard (`node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs`) for task status and explicit Agent Loop controls. GitHub Issues/PRs/Actions record collaboration progress; `.soxu/checkpoints/` stores recovery state. PiDeck remains optional for viewing archived Pi session history, not for coordinating SOXU's Agent Loop. See [Monitoring](docs/development/monitoring.md).
 
 TASK frontmatter priorities and dependency IDs are now enforced. TASK-001/002 may run first; dependent tasks wait for a closed predecessor Issue **and a corresponding PR actually merged into `main`**. A legacy TASK-006 may still carry `agent:blocked` from the older seed; inspect before manually changing it to `agent:waiting`. Agent execution stops before paid calls when pnpm/Cargo lockfiles are absent, while `--dry-run` remains available. See [Task queue rules](tasks/README.md).
 
@@ -89,7 +91,7 @@ The development orchestrator has separate **Developer** and **Reviewer** Pi proc
 # Optional explicit override; the approved defaults are already committed
 $env:SOXU_DEVELOPER_PROVIDER = 'magpie'
 $env:SOXU_DEVELOPER_MODEL = 'auto/deepseek-v4.1-flash'
-pnpm agent:models
+node ../soxu-agent-loop/automation/loop/src/cli.mjs models
 ```
 
 Permanent routing is defined in [`automation/agent-models.json`](automation/agent-models.json). **Do not store API keys in this file.** See the [model configuration guide](docs/development/models.md) for thinking levels, command precedence, and quota/retry policy.
@@ -99,11 +101,11 @@ Permanent routing is defined in [`automation/agent-models.json`](automation/agen
 The existing Issue → Worktree → Review → PR development lane remains unchanged. Product and Quality lanes run only when explicitly invoked, make a single **read-only, tool-free Pi analysis request**, and save unverified local proposals. They do not run background services, modify governance files, create Issues, merge, or release.
 
 ```powershell
-pnpm agent:product -- --dry-run  # Offline preview; no model request
-pnpm agent:quality -- --dry-run
-pnpm agent:lessons -- --json    # Count distinct evidence dates
-pnpm agent:product              # Explicit paid analysis call
-pnpm agent:quality              # Explicit paid analysis call
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs product -- --dry-run  # Offline preview; no model request
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality -- --dry-run
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs lessons -- --json    # Count distinct evidence dates
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs product              # Explicit paid analysis call
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality              # Explicit paid analysis call
 ```
 
 Reports stay in git-ignored `.soxu/advisory/`. See [`LESSONS.md`](LESSONS.md) and [the three-lane design](docs/development/three-lane-agent-loop.md). Three distinct dates of corroborated recurrence merely qualify a lesson for **manual** policy-promotion review; protected policies never change automatically.
@@ -130,7 +132,7 @@ The repository includes `pnpm-lock.yaml` and `Cargo.lock`. Use `pnpm install --f
 | --- | --- |
 | `apps/desktop/` | Tauri + Vue product skeleton |
 | `crates/` | Rust runtime, session index, resource monitoring |
-| `automation/loop/` | Agent development orchestration and offline tests |
+| [SOXU Agent Loop](https://github.com/TanCan1998/soxu-agent-loop) | Separate development orchestrator and dashboard |
 | `agents/` + `AGENTS.md` | Roles, safeguards, policies, workflows |
 | `docs/product/prd.md` | Product scope and measurable acceptance targets |
 | `docs/development/models.md` | Model selection and budget rules |
@@ -147,4 +149,4 @@ The repository `LICENSE` governs SOXU; third-party sources and dependencies reta
 
 The approved mark is an interwoven cyan-to-blue S/X on a dark rounded square. `apps/desktop/assets/soxu-master.png` is the single high-resolution master; the web UI uses `apps/desktop/src/assets/soxu-{64,256}.png`. Do not use the old teal C-shaped placeholder or a plain letter S as the product mark. Tauri PNG/ICO/ICNS variants are not tracked in Git; regenerate them using `pnpm icons:generate`. `pnpm tauri:dev` and `pnpm tauri:build` generate them automatically. Run `pnpm icons:generate` before direct `cargo check/test`.
 
-The Runner cleans only its own task branches after verifying the PR was merged and its head remains unchanged. `watch` checks about once a minute; the Dashboard checks after a merge and while in use. Other Runner modes check on startup or completion, and `pnpm agent:cleanup` performs a manual check. Local branches are retained if the worktree contains uncommitted, untracked, or ignored files outside generated dependency and build directories; both branches are retained if the remote ref has changed. No background monitoring runs after both Runner and Dashboard stop; the next run retries.
+The Runner cleans only its own task branches after verifying the PR was merged and its head remains unchanged. `watch` checks about once a minute; the Dashboard checks after a merge and while in use. Other Runner modes check on startup or completion, and `node ../soxu-agent-loop/automation/loop/src/cli.mjs cleanup` performs a manual check. Local branches are retained if the worktree contains uncommitted, untracked, or ignored files outside generated dependency and build directories; both branches are retained if the remote ref has changed. No background monitoring runs after both Runner and Dashboard stop; the next run retries.

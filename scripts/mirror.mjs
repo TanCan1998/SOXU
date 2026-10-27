@@ -1,7 +1,7 @@
 // 可选的单向镜像推送：GitHub 是主仓库，AtomGit 必须是只读镜像。
 // 优先使用 AtomGit 控制台 GitHub -> AtomGit Pull Mirror，不需要执行此脚本。
-import { ROOT } from "../automation/loop/src/config.mjs";
-import { git } from "../automation/loop/src/process.mjs";
+import { ROOT } from "./lib/config.mjs";
+import { git } from "./lib/process.mjs";
 const branch = await git(["branch", "--show-current"], ROOT);
 if (branch !== "main") throw new Error("Mirror requires main checkout");
 if (await git(["status", "--porcelain"], ROOT)) throw new Error("Mirror requires clean worktree");

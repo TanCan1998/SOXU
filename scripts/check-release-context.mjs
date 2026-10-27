@@ -1,5 +1,5 @@
-import { ROOT } from "../automation/loop/src/config.mjs";
-import { gh, git } from "../automation/loop/src/process.mjs";
+import { ROOT } from "./lib/config.mjs";
+import { gh, git } from "./lib/process.mjs";
 import { readFile } from "node:fs/promises";
 const tag = process.env.GITHUB_REF_NAME;
 const commit = process.env.GITHUB_SHA;

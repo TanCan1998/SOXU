@@ -4,11 +4,13 @@
 
 > 面向 Pi Agent 的轻量跨平台桌面工作台：多项目、多会话、多 Agent，强调低资源占用和可靠恢复。
 
-**项目状态：开发中，尚未发布。** 当前仓库包含 Tauri + Vue 桌面工程、Pi RPC supervisor 和项目与会话目录代码，以及 Node.js Agent 开发调度器；SOXU 最终桌面产品**尚未完成**。历史 ZIP 包版本（如 v1.3）代表原型工程迭代，并非正式 SOXU 软件发行版本。
+**项目状态：开发中，尚未发布。** 当前仓库包含 Tauri + Vue 桌面工程、Pi RPC supervisor 和项目与会话目录代码；开发调度器独立维护；SOXU 最终桌面产品**尚未完成**。历史 ZIP 包版本（如 v1.3）代表原型工程迭代，并非正式 SOXU 软件发行版本。
+
+> 开发调度器已拆分至 [soxu-agent-loop](https://github.com/TanCan1998/soxu-agent-loop)。以下命令假定两个仓库是同级目录，并在 SOXU 根目录先执行 `$env:SOXU_PROJECT_ROOT = (Get-Location).Path`。迁移和版本状态请以独立仓库为准。
 
 ## 本地 Web Agent 控制台
 
-`pnpm agent:dashboard` 启动按需开放的本地控制台：在浏览器访问 `http://127.0.0.1:47321/`，
+`node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs` 启动按需开放的本地控制台：在浏览器访问 `http://127.0.0.1:47321/`，
 输入终端提供的临时令牌，查看任务阶段和有限日志，并手动运行、停止、恢复 Agent Loop。
 首次验证成功后，页面在当前标签页的 `sessionStorage` 中暂存令牌；刷新自动重连，控制台重启导致令牌失效时需重新输入。
 监控通过经过认证的 SSE 通道实时接收日志和 Developer/Reviewer 活动信息，并以 15 秒 HTTP 校准兜底。日志默认显示最新 50 条，可切换 20/50/100/200 条以及过滤来源和自动滚动；实时活动只展示状态、工具名称和耗时，不包含提示词、模型回复和工具参数。不依赖 PiDeck、不接管其他终端的 Pi 进程。完整说明见 [Dashboard 操作手册](docs/development/dashboard.md)。
@@ -47,13 +49,13 @@ pnpm --version
 pi --version
 pnpm install --frozen-lockfile # 按已提交的锁文件安装依赖
 node scripts/setup-git-hooks.mjs # 安装提交钩子
-pnpm agent:models           # 查看模型路由，不发起付费请求
-pnpm agent:doctor           # 工具链、Git、恢复状态检查
+node ../soxu-agent-loop/automation/loop/src/cli.mjs models           # 查看模型路由，不发起付费请求
+node ../soxu-agent-loop/automation/loop/src/cli.mjs doctor           # 工具链、Git、恢复状态检查
 ```
 
 ## 已有任务 Worktree 同步
 
-`main` 更新后，现有 Worktree 不会自动更新。通过 `pnpm agent:worktrees` 检查落后情况，通过 `pnpm agent:worktrees -- --sync` 对早期任务生成旧修改的 Git stash 备份、快进最新 `main` 后恢复改动；若存在冲突则由 `pnpm agent:resume` 启动 Developer 自动修复，再经过质量门禁和 Reviewer 审查。保留备份、不强制覆盖、不自动绕过保护。详见 [Agent Loop 手册](docs/development/agent-loop.md)。
+`main` 更新后，现有 Worktree 不会自动更新。通过 `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs` 检查落后情况，通过 `node ../soxu-agent-loop/automation/loop/src/worktree-sync-cli.mjs -- --sync` 对早期任务生成旧修改的 Git stash 备份、快进最新 `main` 后恢复改动；若存在冲突则由 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume` 启动 Developer 自动修复，再经过质量门禁和 Reviewer 审查。保留备份、不强制覆盖、不自动绕过保护。详见 [Agent Loop 手册](docs/development/agent-loop.md)。
 
 ## 如何启动与监控自主开发
 
@@ -62,25 +64,25 @@ pnpm agent:doctor           # 工具链、Git、恢复状态检查
 node scripts/init-git.mjs
 
 # 配好远端和分支保护后，初始化 GitHub Issues（仅一次）
-pnpm agent:seed
+node ../soxu-agent-loop/automation/loop/src/cli.mjs seed-issues
 
 # 先预览，再人工授权执行
-pnpm agent:status           # 已实现：本地离线任务状态，不代表 GitHub 实时数据
-pnpm agent:once -- --dry-run
-pnpm agent:once
-pnpm agent:loop             # 有界自动循环
-# pnpm agent:watch          # 仅专用执行环境且确认权限后使用
+node ../soxu-agent-loop/automation/loop/src/cli.mjs status           # 已实现：本地离线任务状态，不代表 GitHub 实时数据
+node ../soxu-agent-loop/automation/loop/src/cli.mjs once -- --dry-run
+node ../soxu-agent-loop/automation/loop/src/cli.mjs once
+node ../soxu-agent-loop/automation/loop/src/cli.mjs loop             # 有界自动循环
+# node ../soxu-agent-loop/automation/loop/src/cli.mjs watch          # 仅专用执行环境且确认权限后使用
 
 # 中断/额度/网络问题：本地检查点恢复
-pnpm agent:resume -- --dry-run
-pnpm agent:resume
-pnpm agent:say -- "继续 SOXU"
+node ../soxu-agent-loop/automation/loop/src/cli.mjs resume -- --dry-run
+node ../soxu-agent-loop/automation/loop/src/cli.mjs resume
+node ../soxu-agent-loop/automation/loop/src/cli.mjs say -- "继续 SOXU"
 
 # 启动桌面应用（与 Agent Loop 独立）
 pnpm tauri:dev
 ```
 
-自主开发以 SOXU 本地 Web 控制台作为主要监控入口（`pnpm agent:dashboard`）；GitHub Issues/PR/Actions 记录远端协作进度，本地 `.soxu/checkpoints/` 负责诊断和恢复。PiDeck 仅用于查看已有 Pi 会话历史，不承担 Agent Loop 控制。参见 [监控手册](docs/development/monitoring.md)。
+自主开发以 SOXU 本地 Web 控制台作为主要监控入口（`node ../soxu-agent-loop/automation/loop/src/dashboard-cli.mjs`）；GitHub Issues/PR/Actions 记录远端协作进度，本地 `.soxu/checkpoints/` 负责诊断和恢复。PiDeck 仅用于查看已有 Pi 会话历史，不承担 Agent Loop 控制。参见 [监控手册](docs/development/monitoring.md)。
 
 新版任务调度会读取 `priority` 和 `dependencies`：TASK-001/002 首批可运行，其余任务等待前置 PR 已合并且 Issue 已关闭。旧 v1.5 已创建的 TASK-006 可能带有 `agent:blocked` 标签，核对不是实际阻塞后才能手工修改为 `agent:waiting`；绝不自动解除人工封锁。**缺少 pnpm/Cargo 锁文件时真实 Agent 执行被阻止，`--dry-run` 可以正常预览。** 详见 [任务说明](tasks/README.md)。
 
@@ -96,7 +98,7 @@ pnpm tauri:dev
 # 临时覆盖仅用于经批准的特殊任务，例如：
 $env:SOXU_DEVELOPER_PROVIDER = 'magpie'
 $env:SOXU_DEVELOPER_MODEL = 'auto/deepseek-v4.1-flash'
-pnpm agent:models
+node ../soxu-agent-loop/automation/loop/src/cli.mjs models
 ```
 
 长期配置文件是 [`automation/agent-models.json`](automation/agent-models.json)。无需将 API Key 放在此文件；详情见 [模型配置说明](docs/development/models.md)。
@@ -106,11 +108,11 @@ pnpm agent:models
 开发 Loop 保留既有 Issue → Worktree → Review → PR 流程。新增**显式启动、单轮、只生成本地建议**的 Product/Quality 分析，参考 Magpie 的质量反馈闭环；不在后台常驻，不自动创建 Issue、修改受保护规则或发布。
 
 ```powershell
-pnpm agent:product -- --dry-run  # 离线预览，不使用模型
-pnpm agent:quality -- --dry-run
-pnpm agent:lessons -- --json    # 按不同日期统计复盘证据
-pnpm agent:product              # 显式触发一次付费模型分析
-pnpm agent:quality              # 显式触发一次付费模型分析
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs product -- --dry-run  # 离线预览，不使用模型
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality -- --dry-run
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs lessons -- --json    # 按不同日期统计复盘证据
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs product              # 显式触发一次付费模型分析
+node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality              # 显式触发一次付费模型分析
 ```
 
 报告存放 `.soxu/advisory/`（不提交 Git），经验记录模板见 [`LESSONS.md`](LESSONS.md)。只有至少三个不同日期的同类真实证据才能**建议**晋升规范，维护者仍须审批。参见 [三轨 Loop 设计](docs/development/three-lane-agent-loop.md)。
@@ -137,7 +139,7 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 | --- | --- |
 | `apps/desktop/` | Tauri + Vue 产品界面骨架 |
 | `crates/` | Rust Runtime、会话索引与资源监测模块 |
-| `automation/loop/` | Agent 自主开发调度器与离线测试 |
+| [SOXU Agent Loop](https://github.com/TanCan1998/soxu-agent-loop) | 独立的开发调度器与 Dashboard |
 | `agents/` + `AGENTS.md` | Agent 角色、开发/安全/测试规范与工作流 |
 | `docs/product/prd.md` | 产品范围与验收指标 |
 | `docs/development/models.md` | 模型选择、角色、额度与命令 |
@@ -155,4 +157,4 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 
 已确认的品牌图标为深色圆角底、蓝青渐变 S/X 交织造型。唯一高分辨率源文件为 `apps/desktop/assets/soxu-master.png`；Web UI 使用 `apps/desktop/src/assets/soxu-{64,256}.png`。不再使用青绿色 C 形占位图或字母 S 替代品牌图标。Tauri 的 32/128/256 PNG、Windows ICO 和 macOS ICNS 不提交到 Git，运行 `pnpm icons:generate` 从源图生成。`pnpm tauri:dev`、`pnpm tauri:build` 会自动生成；直接运行 `cargo check/test` 前先执行 `pnpm icons:generate`。
 
-Runner 仅对可核验已合并且提交号未变化的自有任务分支进行清理。运行 `watch` 时约每分钟检查；Dashboard 合并后及打开期间也会检查，其他运行模式在启动或结束时检查，也可运行 `pnpm agent:cleanup`。工作树存在未提交、未跟踪或非构建缓存的忽略文件时保留本地分支；远程分支已发生变化时两者均保留。Runner 和 Dashboard 都停止时不会后台监控，下一次运行会重试。
+Runner 仅对可核验已合并且提交号未变化的自有任务分支进行清理。运行 `watch` 时约每分钟检查；Dashboard 合并后及打开期间也会检查，其他运行模式在启动或结束时检查，也可运行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs cleanup`。工作树存在未提交、未跟踪或非构建缓存的忽略文件时保留本地分支；远程分支已发生变化时两者均保留。Runner 和 Dashboard 都停止时不会后台监控，下一次运行会重试。

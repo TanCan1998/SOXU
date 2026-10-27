@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-export const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
+export const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 export async function policy() {
   const value = JSON.parse(await readFile(resolve(ROOT, "automation/policy.json"), "utf8"));
   for (const name of ["maxConcurrentAgents", "maxRoundsPerInvocation", "maxRetries", "maxChangedFiles", "maxChangedBytes"]) {
