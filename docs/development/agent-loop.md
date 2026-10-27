@@ -21,7 +21,7 @@ GitHub Issues（TASK ID 依赖已满足、`agent:ready` 或可提升的 `agent:w
 
 ### Worktree 与最新 main 的同步
 
-已有 Worktree 不会自动接收后续合并到 `main` 的提交。执行：
+已有 Worktree 不会自动接收后续合并到 `main` 的提交。`pnpm agent:resume` 会在模型调用前检查并安全快进所选任务；如存在未提交任务成果或其他风险，则保留检查点并跳过该任务，不能自动合并。也可以执行：
 
 ```powershell
 git fetch origin main

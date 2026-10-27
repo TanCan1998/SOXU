@@ -79,8 +79,10 @@ test("dashboard only controls its own fork via IPC and rejects overlapping runs"
     assert.deepEqual(children[0].child.messages,[{type:"soxu:interrupt"}]);
     assert.equal((await coordinator.snapshot()).runner.stopping,true);
     children[0].child.stdout.end();children[0].child.stderr.end();
-    children[0].child.emit("close",0,null);
+    children[0].child.emit("exit",0,null);
     assert.equal((await coordinator.snapshot()).runner,null);
+    children[0].child.emit("close",0,null);
+    assert.equal((await coordinator.snapshot()).log.filter(x => x.message.startsWith("Finished resume")).length,1);
   }finally{await rm(root,{recursive:true,force:true});}
 });
 

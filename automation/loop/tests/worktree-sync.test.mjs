@@ -85,3 +85,12 @@ test("interrupted fast-forward completes recorded sync intent safely", async () 
     assert.equal(state.syncPending, undefined);
   } finally { await rm(f.outer, { recursive:true, force:true }); }
 });
+
+test("explicit selection cannot update unrelated task checkpoints",async()=>{
+  const f=await fixture();
+  try{
+    assert.deepEqual(await inspectWorktrees({root:f.root,sync:true,issueNumbers:[{id:2,local:false}]}),[]);
+    assert.equal(await git(f.wt,"rev-parse","HEAD"),f.old);
+    assert.equal((await inspectWorktrees({root:f.root,sync:true,issueNumbers:[{id:1,local:false}]}))[0].reason,"synced");
+  }finally{await rm(f.outer,{recursive:true,force:true});}
+});

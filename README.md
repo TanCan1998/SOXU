@@ -50,7 +50,7 @@ pnpm agent:doctor           # 工具链、Git、恢复状态检查
 
 ## 已有任务 Worktree 同步
 
-`main` 更新后，现有 Worktree 不会自动更新。通过 `pnpm agent:worktrees` 检查落后情况，通过 `pnpm agent:worktrees -- --sync` 安全快进干净、无活动锁且处于早期阶段的任务，并同步检查点。已有任务修改绝不会被自动覆盖。详见 [Agent Loop 手册](docs/development/agent-loop.md)。
+`main` 更新后，现有 Worktree 不会自动更新。通过 `pnpm agent:worktrees` 检查落后情况，通过 `pnpm agent:worktrees -- --sync` 安全快进干净、无活动锁且处于早期阶段的任务，并同步检查点。已有任务修改绝不会被自动覆盖。`pnpm agent:resume` 会在模型调用前检查基准；需要手工整合的旧分支会保留检查点并跳过该任务。详见 [Agent Loop 手册](docs/development/agent-loop.md)。
 
 ## 如何启动与监控自主开发
 

@@ -1,6 +1,6 @@
 
-import { open, readFile, readdir, realpath, rm } from "node:fs/promises";
-import { join, relative, resolve, sep } from "node:path";
+import { mkdir, open, readFile, readdir, realpath, rm } from "node:fs/promises";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { ROOT } from "./config.mjs";
 import { git } from "./process.mjs";
 import { writeCheckpoint } from "./checkpoint.mjs";
@@ -92,14 +92,16 @@ async function inspect(root, state) {
  * --sync fast-forwards only clean, unlocked early-phase worktrees.
  * Persist syncPending first so interruption after moving HEAD can be reconciled.
  */
-export async function inspectWorktrees({ root = ROOT, sync = false } = {}) {
+export async function inspectWorktrees({ root = ROOT, sync = false, issueNumbers = null } = {}) {
   if (sync) await git(["fetch", "origin", "main"], root);
-  const entries = await loadStates(root);
+  const entries = (await loadStates(root)).filter(({state}) => !issueNumbers || issueNumbers.some(item =>
+    item.id === state.issue.number && item.local === Boolean(state.local)));
   const output = [];
   for (const { state, dir } of entries) {
     let item = await inspect(root, state);
     if (!sync || !item.canSync) { output.push(item); continue; }
     const path = taskLock(root, state);
+    await mkdir(dirname(path), { recursive: true });
     let handle;
     try {
       if (item.lock === "orphan") {
