@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { inspectWorktrees } from "../src/worktree-sync.mjs";
 import { readCheckpoint, writeCheckpoint } from "../src/checkpoint.mjs";
+import { ROOT } from "../src/config.mjs";
 
 const run = promisify(execFile);
 const git = async (cwd, ...args) => (await run("git", args, { cwd, timeout: 10000 })).stdout.trim();
@@ -93,4 +94,11 @@ test("explicit selection cannot update unrelated task checkpoints",async()=>{
     assert.equal(await git(f.wt,"rev-parse","HEAD"),f.old);
     assert.equal((await inspectWorktrees({root:f.root,sync:true,issueNumbers:[{id:1,local:false}]}))[0].reason,"synced");
   }finally{await rm(f.outer,{recursive:true,force:true});}
+});
+
+test("worktree CLI has shebang at byte zero and compiles as Node ESM", async () => {
+  const filename = join(ROOT, "automation", "loop", "src", "worktree-sync-cli.mjs");
+  const content = await readFile(filename, "utf8");
+  assert.ok(content.startsWith("#!/usr/bin/env node\n"), "shebang must be first line without leading newline or BOM");
+  await run(process.execPath, ["--check", filename], { cwd: ROOT, timeout: 10000 });
 });
