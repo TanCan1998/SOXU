@@ -62,6 +62,8 @@ test("strict localhost auth, read-only status and explicit CSRF checks", async()
     assert.equal(favicon.status,204);
     const homepage=await call(port,{path:"/",token:null});
     assert.equal(homepage.status,200);
+    assert.match(homepage.headers["content-security-policy"], /(?:^|;)\s*img-src 'self'(?:;|$)/);
+    assert.match(homepage.headers["content-security-policy"], /default-src 'none'/);
     assert.match(homepage.body,/SOXU/);
   } finally{
     await new Promise(resolve=>server.close(resolve));
