@@ -49,6 +49,10 @@ pnpm agent:models      # Show model routing; no paid inference
 pnpm agent:doctor      # Inspect tools, Git, and paused runs
 ```
 
+## Updating existing task worktrees
+
+Merging into `main` does not update existing task worktrees. Run `pnpm agent:worktrees` to inspect lag and `pnpm agent:worktrees -- --sync` to fast-forward only clean, unlocked, early-phase task branches while updating checkpoint bases. Dirty worktrees are never overwritten. See [Agent Loop guide](docs/development/agent-loop.md).
+
 ## Start and monitor autonomous development
 
 ```powershell

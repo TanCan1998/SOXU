@@ -18,6 +18,19 @@ GitHub Issues（TASK ID 依赖已满足、`agent:ready` 或可提升的 `agent:w
 
 **注意：** `git` 锁文件 `.soxu/locks` 防止同任务在本机重复领取。Runner 崩溃后可能保留锁和 Worktree，必须检查 PR/HEAD/目录再清理锁；不要盲删。该锁不跨机器分布式生效，因此只允许一台 Coordinator 执行同仓库任务。Worktree 与主仓库同级。
 
+
+### Worktree 与最新 main 的同步
+
+已有 Worktree 不会自动接收后续合并到 `main` 的提交。执行：
+
+```powershell
+git fetch origin main
+pnpm agent:worktrees            # 查看各任务落后、工作树修改和活动锁
+pnpm agent:worktrees -- --sync  # 只安全更新干净的早期任务
+```
+
+`--sync` 只对没有未提交变更、没有活动锁，并且还处于 `worktree/install/develop` 阶段的工作树执行 fast-forward，同时更新检查点的 `state.base` 并重新安装依赖。已有未提交开发成果、已进入检查/审查/提交的任务，以及分叉或检查点不一致的任务**不会被自动修改**。禁止使用 `reset --hard` 或删除工作树。若同步过程中断，`syncPending` 记录可供下一次安全续作。本命令不调用模型。
+
 ### 超时与手动恢复
 
 所有任务均有启动、连续无进展和绝对总时长三类超时保护。出现额度不足、网络中断、超时后，不做自动付费 API 重试；Git Worktree 与当前阶段保存在 `.soxu/checkpoints/`。**只需说“继续 SOXU”或运行 `pnpm agent:resume`**；不需要手动清理 Issue/Worktree。详情参见 `docs/development/timeouts-and-recovery.md`。
