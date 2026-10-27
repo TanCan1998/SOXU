@@ -181,6 +181,17 @@ function renderTasks(data) {
         link.href = remote.pr.url; link.target = "_blank"; link.rel = "noopener noreferrer";
         box.append(link, document.createTextNode(` · ${prState} · CI ${ciState}`));
       } else box.append(document.createTextNode(`PR #${remote.pr.number} ${prState} · CI ${ciState}`));
+      if (Array.isArray(remote.pr.activeChecks) && remote.pr.activeChecks.length) {
+        for (const check of remote.pr.activeChecks) {
+          const started = Date.parse(check.startedAt);
+          const elapsed = Number.isFinite(started) ? ` · 已运行 ${Math.max(0, Math.floor((Date.now() - started) / 60000))} 分钟` : "";
+          box.append(element("div", `CI 任务：${check.name}${elapsed}`, "task-detail"));
+          if (check.stepStatus === "available") {
+            const changed = check.stepObservedAt ? new Date(check.stepObservedAt).toLocaleString() : "未知";
+            box.append(element("div", `当前步骤：${check.step?.name || "暂无运行中步骤"} · 步骤状态最近变化：${changed}（非日志时间）`, "task-detail"));
+          } else box.append(element("div", "步骤状态不可用；实时日志请查看 GitHub", "task-detail"));
+        }
+      }
       if (remote.pr.state === "open") {
         const button = element("button", "合并并删除远程分支", "task-merge");
         button.disabled = Boolean(data.busy) || remote.pr.ci !== "success";
