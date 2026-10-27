@@ -161,9 +161,22 @@ test("intake endpoints require authentication and explicit approval", async()=>{
     const post=(path,body,token=TOKEN)=>call(port,{path,method:"POST",origin,body,token});
     assert.equal((await post("/api/intake-assess",{requirement:"a test requirement"},null)).status,401);
     assert.equal((await post("/api/intake-assess",{requirement:"a test requirement"})).status,202);
-    assert.equal((await post("/api/intake-submit",{id:"x"})).status,400);
-    assert.equal((await post("/api/intake-submit",{id:"x",ready:false,milestone:null})).status,200);
-    assert.deepEqual(calls,[["assess","a test requirement"],["submit","x",false,null]]);
+    assert.equal((await post("/api/intake-submit",{id:"x"})).status,409);
+    assert.equal((await post("/api/intake-submit",{id:"x",ready:false,milestone:null})).status,409);
+    assert.deepEqual(calls,[["assess","a test requirement"]]);
+  }finally{await new Promise(resolve=>server.close(resolve));await cleanup(root,coordinator);}
+});
+
+test("draft endpoints require authentication and same origin",async()=>{
+  const root=await fixture(), coordinator=new DashboardCoordinator({root,githubStatus});
+  const {server}=createDashboardServer({root,token:TOKEN,coordinator});
+  try{await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
+    const port=server.address().port,origin=`http://127.0.0.1:${port}`,body={id:null,requirement:"这是一个完整的需求描述用于测试"};
+    assert.equal((await call(port,{path:"/api/drafts-save",method:"POST",token:null,origin,body})).status,401);
+    assert.equal((await call(port,{path:"/api/drafts-save",method:"POST",origin:"http://evil.invalid",body})).status,403);
+    assert.equal((await call(port,{path:"/api/drafts-save",method:"POST",origin,body:{...body,extra:true}})).status,400);
+    const saved=await call(port,{path:"/api/drafts-save",method:"POST",origin,body});assert.equal(saved.status,200);assert.equal(saved.body.items.length,1);
+    assert.equal((await call(port,{path:"/api/drafts-batch",method:"POST",origin,body:{ids:[saved.body.items[0].id]}})).status,409);
   }finally{await new Promise(resolve=>server.close(resolve));await cleanup(root,coordinator);}
 });
 
@@ -192,4 +205,20 @@ test("current task model telemetry is bounded and validates untrusted identifier
     const snapshot=await coordinator.snapshot();
     assert.equal(snapshot.taskModels.length,1);assert.equal(snapshot.taskModels[0].model,"auto/deepseek-v4.1-flash");
   } finally {coordinator.active=null;await cleanup(root,coordinator);}
+});
+
+test("report deletion enforces authentication, origin and lane-scoped filenames",async()=>{
+  const root=await fixture(),dir=join(root,".soxu","advisory","product"),name="2026-10-27T00-00-00-000Z-123.json";
+  await mkdir(dir,{recursive:true});await writeFile(join(dir,name),JSON.stringify({lane:"product",summary:"a",findings:[],unknowns:[]}));
+  const coordinator=new DashboardCoordinator({root,githubStatus});const {server}=createDashboardServer({root,token:TOKEN,coordinator});
+  try {
+    await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
+    const port=server.address().port,origin=`http://127.0.0.1:${port}`;
+    assert.equal((await call(port,{path:"/api/advisory-reports?lane=product",token:null})).status,401);
+    assert.equal((await call(port,{path:"/api/advisory-reports?lane=product"})).body.reports.length,1);
+    assert.equal((await call(port,{path:"/api/advisory-delete",method:"POST",origin:"http://invalid",body:{lane:"product",name}})).status,403);
+    assert.equal((await call(port,{path:"/api/advisory-delete",method:"POST",origin,body:{lane:"product",name:"../outside"}})).status,400);
+    assert.equal((await call(port,{path:"/api/advisory-delete",method:"POST",origin,body:{lane:"product",name}})).body.deleted,1);
+    assert.equal((await call(port,{path:"/api/advisory-reports?lane=product"})).body.reports.length,0);
+  }finally{await new Promise(resolve=>server.close(resolve));await cleanup(root,coordinator);}
 });

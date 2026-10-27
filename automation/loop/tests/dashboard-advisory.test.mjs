@@ -27,3 +27,22 @@ test("latest lane report is validated, bounded and read-only",async()=>{
     await assert.rejects(()=>readLatestReport(root,"../product"),e=>e.status===400);
   }finally{await rm(root,{recursive:true,force:true});}
 });
+
+test("report history and deletion are scoped to the requested lane and reject traversal",async()=>{
+  const {listReports,readReport,deleteReports}=await import("../src/dashboard-advisory.mjs");
+  const root=await mkdtemp(join(tmpdir(),"soxu-reports-"));
+  try {
+    const dir=join(root,".soxu","advisory","product"), other=join(root,".soxu","advisory","quality");
+    await mkdir(dir,{recursive:true});await mkdir(other,{recursive:true});
+    const names=["2026-10-27T00-00-00-000Z-123.json","2026-10-28T00-00-00-000Z-123.json"];
+    const report={lane:"product",summary:"summary",findings:[],unknowns:[]};
+    for(const name of names) await writeFile(join(dir,name),JSON.stringify(report));
+    await writeFile(join(other,names[0]),"other");
+    assert.deepEqual((await listReports(root,"product")).map(r=>r.name),names.toReversed());
+    assert.equal((await readReport(root,"product",names[0])).summary,"summary");
+    await assert.rejects(()=>deleteReports(root,"product","../quality/"+names[0]),e=>e.status===400);
+    assert.equal((await deleteReports(root,"product",names[0])).deleted,1);
+    assert.equal((await deleteReports(root,"product",null)).deleted,1);
+    assert.equal((await listReports(root,"quality")).length,1);
+  }finally{await rm(root,{recursive:true,force:true});}
+});
