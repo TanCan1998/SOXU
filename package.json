@@ -12,7 +12,9 @@
     "dev": "pnpm --filter @soxu/desktop dev",
     "tauri:dev": "pnpm --filter @soxu/desktop tauri dev",
     "tauri:build": "pnpm --filter @soxu/desktop tauri build",
-    "check": "pnpm --filter @soxu/desktop check && pnpm --filter @soxu/desktop test",
+    "check": "pnpm --filter @soxu/desktop check && pnpm --filter @soxu/desktop test && pnpm test:scripts",
+    "test:scripts": "node --test scripts/tests/*.test.mjs",
+    "release:readiness": "node scripts/check-release-readiness.mjs",
     "agent:release": "node scripts/release.mjs",
     "mirror:atomgit": "node scripts/mirror.mjs"
   }
