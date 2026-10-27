@@ -44,7 +44,9 @@
 
 ## 一句话手动恢复（重要）
 
-- 用户说 **“继续 SOXU”**、**“恢复 SOXU”** 时，按 `.pi/skills/soxu-recover/SKILL.md` 执行 `pnpm agent:resume`，先预览，后执行，不索取 Issue 编号。
+开发调度器位于同级 `soxu-agent-loop` 仓库；在 SOXU 根目录的 PowerShell 中先设置 `$env:SOXU_PROJECT_ROOT = (Get-Location).Path`。
+
+- 用户说 **“继续 SOXU”**、**“恢复 SOXU”** 时，按 `.pi/skills/soxu-recover/SKILL.md` 执行 `node ../soxu-agent-loop/automation/loop/src/cli.mjs resume`，先预览，后执行，不索取 Issue 编号。
 - 对额度不足、网络故障、运行超时采取暂停并保存 Worktree/检查点策略，不重复计费式重试；不得擅自清理工作目录。
 - 参考 `docs/development/timeouts-and-recovery.md` 与 `automation/policy.json`。
 

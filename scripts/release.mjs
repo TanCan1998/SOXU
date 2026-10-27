@@ -1,7 +1,7 @@
 // 自主预发布候选 Tag：严格依赖主分支、GitHub 主分支 CI、版本声明和治理策略。
 import { readFile } from "node:fs/promises";
-import { ROOT, policy } from "../automation/loop/src/config.mjs";
-import { gh, git } from "../automation/loop/src/process.mjs";
+import { ROOT, policy } from "./lib/config.mjs";
+import { gh, git } from "./lib/process.mjs";
 const version = process.argv[2];
 if (!version || !/^0\.\d+\.\d+(?:-rc\.\d+)?$/.test(version)) throw new Error("Usage: node scripts/release.mjs 0.x.y[-rc.N]");
 const p = await policy();
