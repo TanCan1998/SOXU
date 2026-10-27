@@ -3,6 +3,8 @@ const tokenInput = $("token");
 const TOKEN_STORAGE_KEY = "soxu.dashboard.sessionToken.v1";
 const LOG_LIMIT_KEY = "soxu.dashboard.logLimit.v1";
 const LOG_FILTER_KEY = "soxu.dashboard.logFilter.v1";
+const PHASE_KEY = "soxu.dashboard.projectPhase.v1";
+const THEME_KEY = "soxu.dashboard.theme.v1";
 const FOLLOW_KEY = "soxu.dashboard.followLogs.v1";
 const LOG_LIMITS = new Set([20, 50, 100, 200]);
 const preferenceStorage = typeof localStorage === "undefined" ? { getItem: () => null, setItem: () => {} } : localStorage;
@@ -16,7 +18,7 @@ const activityLabels = { waiting:"等待模型", generating:"生成中", tool:"�
 let connected = false, requestInFlight = false;
 let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", renderedLogKey = "";
 let agents = new Map(), streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
-let logLimit = 50, logFilter = "all", followLogs = true;
+let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null;
 
 function stored(storage, key) { try { return storage.getItem(key); } catch { return null; } }
 function save(storage, key, value) { try { storage.setItem(key, String(value)); } catch {} }
@@ -60,7 +62,7 @@ async function api(path, options = {}, token = tokenInput.value.trim()) {
     method: options.method || "GET",
     headers: { "X-SOXU-Control-Token": token, ...(options.method ? { "Content-Type": "application/json" } : {}) },
     ...(options.method ? { body: JSON.stringify(options.body ?? {}) } : {}),
-    cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(9000)
+    cache: "no-store", credentials: "omit", signal: AbortSignal.timeout(path === "/api/intake-submit" ? 55000 : 9000)
   });
   const data = await response.json();
   if (!response.ok) {
@@ -211,6 +213,32 @@ function updateElapsed() {
   for (const label of document.querySelectorAll(".agent-elapsed"))
     label.textContent = "运行 " + fmt(label.dataset.startedAt) + " · 当前状态 " + fmt(label.dataset.activitySince);
 }
+function renderProjectPhase(github) {
+  if (github?.status !== "ok") {
+    $("projectPhaseDetail").textContent="GitHub 状态不可用；六项任务进度待核实。当前阶段由维护者在本机设置。";
+    $("projectPhaseCount").textContent="—";
+    $("projectProgressFill").style.width="0%";
+    $("projectProgress").setAttribute("aria-valuenow","0");
+    $("projectProgress").setAttribute("aria-valuetext","状态未知");
+    return;
+  }
+  const tasks=github.tasks || {};
+  const ids=["TASK-001","TASK-002","TASK-003","TASK-004","TASK-005","TASK-006"];
+  if (ids.some(id=>!tasks[id] || !tasks[id].issue)) {
+    $("projectPhaseDetail").textContent="当前六项任务的 Issue 不完整，合并进度待核实。当前阶段由维护者在本机设置。";
+    $("projectPhaseCount").textContent="—";
+    $("projectProgressFill").style.width="0%";
+    $("projectProgress").setAttribute("aria-valuetext","状态未知");
+    return;
+  }
+  const merged=id=>tasks[id].issueState === "CLOSED" && tasks[id].pr?.state === "merged";
+  const count=ids.filter(merged).length;
+  $("projectPhaseDetail").textContent="当前阶段由维护者在本机设置；六项任务按 Issue 关闭且 PR 合并计算，不代表阶段验收。";
+  $("projectPhaseCount").textContent=`${count} / 6 已合并`;
+  $("projectProgressFill").style.width=`${count / 6 * 100}%`;
+  $("projectProgress").setAttribute("aria-valuenow",String(count));
+  $("projectProgress").setAttribute("aria-valuetext",`${count} 项已合并，共 6 项`);
+}
 function render(data) {
   if (typeof data.instanceId === "string") resetInstance(data.instanceId);
   connected = true;
@@ -219,6 +247,7 @@ function render(data) {
   const tasks = data.tasks || [];
   for (const group of ["running", "pending", "done"]) $(group).textContent = tasks.filter(t => t.status === group).length;
   $("total").textContent = tasks.length;
+  $("badge").dataset.state = data.runner ? (data.runner.stopping ? "stopping" : "running") : data.externalLocks ? "external" : "idle";
   $("badge").textContent = data.runner ? (data.runner.stopping ? "停止中" : "运行中") : data.externalLocks ? "外部任务执行中" : "空闲";
   $("runner").textContent = data.runner ? "正在执行 " + data.runner.command + " · 开始于 " + new Date(data.runner.startedAt).toLocaleTimeString()
     : data.externalLocks ? "检测到 " + data.externalLocks + " 个正在运行的工作树锁（此处不能停止）"
@@ -231,6 +260,18 @@ function render(data) {
   $("autoMerge").textContent = "Agent 自动合并：" + (data.autoMergeEnabled ? "开启" : "关闭");
   $("githubStatus").textContent = data.github?.status === "ok" ? "GitHub PR / CI 状态已更新 · " + new Date(data.github.updatedAt).toLocaleTimeString()
     : data.github?.status === "unavailable" ? "GitHub 状态不可用：请检查 gh 登录和网络；任务与 CI 状态未知" : "GitHub 状态加载中";
+  renderProjectPhase(data.github);
+  renderIntake(data.intake);
+  const queue=$("queueList"); queue.replaceChildren();
+  if (data.github?.status === "ok") for (const item of data.github.tasks?.__queue || []) {
+    const row=element("div",undefined,"queue-item");
+    const title=element(item.url ? "a" : "span",`#${item.number} ${item.title}`,"pr-link");
+    if (item.url && /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(item.url)) {title.href=item.url;title.target="_blank";title.rel="noopener noreferrer";}
+    const labels=item.labels || [];
+    const state=labels.includes("agent:blocked") ? "等待人工处理" : labels.includes("agent:paused") ? "已暂停" : labels.includes("agent:pr") ? "PR 待处理" : labels.includes("agent:in-progress") ? "执行中" : labels.includes("agent:waiting") ? "等待依赖" : "可执行";
+    row.append(title,element("span",state,"queue-state"));queue.append(row);
+  }
+  renderIntake(data.intake);
   renderTasks(data);
   if (Array.isArray(data.agents)) {
     agents = new Map(data.agents.map(a => [a.taskId + ":" + a.role, a]));
@@ -345,6 +386,30 @@ async function openStream(token) {
     }
   }
 }
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  $("themeToggle").textContent = theme === "dark" ? "浅色" : "深色";
+  save(preferenceStorage, THEME_KEY, theme);
+}
+function renderIntake(intake) {
+  currentIntake = intake ?? null;
+  const node = $("intakeResult"); node.replaceChildren();
+  const state = intake?.status;
+  $("assessIntake").disabled = ["assessing", "submitting", "unknown"].includes(state);
+  $("requirement").readOnly = ["assessing", "review", "submitting", "unknown"].includes(state);
+  if (intake?.requirement && ["assessing", "review", "submitting"].includes(state)) $("requirement").value = intake.requirement;
+  $("submitIntake").disabled = state !== "review";
+  $("clearIntake").hidden = state !== "unknown";
+  if (!intake) { $("intakeSummary").textContent = "尚未提交本次需求"; return; }
+  $("intakeSummary").textContent = ({assessing:"Agent 正在评估",review:"评估完成，等待确认",submitting:"正在提交需求",submitted:"需求已提交",failed:"评估失败",unknown:"提交结果待核实"})[state] || "状态未知";
+  if (intake.assessment) for (const [key,label] of [["title","建议标题"],["feasibility","可行性"],["plan","实施安排"],["dependencies","前置依赖"],["acceptance","验收标准"],["unknowns","未知与待确认"]]) {
+    const block=element("div",undefined,"assessment-block"); block.append(element("strong",label),element("p",intake.assessment[key]));node.append(block);
+  }
+  if (intake.error) node.append(element("p",intake.error,"error-text"));
+  if (intake.url && /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(intake.url)) {
+    const link=element("a","在 GitHub 查看需求","pr-link");link.href=intake.url;link.target="_blank";link.rel="noopener noreferrer";node.append(link);
+  }
+}
 async function mergePr(issue, pr) {
   if (!connected || !Number.isSafeInteger(issue) || !Number.isSafeInteger(pr.number)) return;
   if (!confirm(`合并 PR #${pr.number}「${pr.title}」并删除远程分支？将重新检查 PR、CI 和分支头。`)) return;
@@ -374,7 +439,40 @@ async function execute(command) {
   } catch (error) { notice("操作失败：" + error.message); }
 }
 
+function setProjectPhase(value) {
+  const names={unknown:"项目当前阶段待确认",M0:"M0 · 工程治理",M1:"M1 · 产品原型",M2:"M2 · 多 Agent",M3:"M3 · 开发工具",M4:"M4 · 发布"};
+  const selected=Object.hasOwn(names,value) ? value : "unknown";
+  $("phaseSelect").value=selected;
+  $("projectPhaseTitle").textContent=names[selected];
+  save(preferenceStorage,PHASE_KEY,selected);
+}
+$("phaseSelect").addEventListener("change",()=>setProjectPhase($("phaseSelect").value));
+$("themeToggle").addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+$("openIntake").addEventListener("click", () => { if (!connected) return notice("先连接本地控制台。"); $("intakeDialog").showModal(); });
+$("closeIntake").addEventListener("click", () => $("intakeDialog").close());
+$("assessIntake").addEventListener("click", async () => {
+  if (!confirm("评估会调用一次模型并可能产生费用，继续？")) return;
+  $("queueReady").checked=false;
+  try { const result=await api("/api/intake-assess",{method:"POST",body:{requirement:$("requirement").value}});renderIntake(result); }
+  catch(error){$("intakeResult").textContent="评估启动失败："+error.message;}
+});
+$("clearIntake").addEventListener("click", async () => {
+  if (!currentIntake || !confirm("请先检查 GitHub 是否已有此需求。确认已核实提交结果，解除锁定？")) return;
+  try {await api("/api/intake-clear",{method:"POST",body:{id:currentIntake.id}});renderIntake(null);}
+  catch(error){notice("解除锁定失败："+error.message);}
+});
+$("submitIntake").addEventListener("click", async () => {
+  if (!currentIntake || currentIntake.status !== "review") return;
+  const ready=Boolean($("queueReady").checked);
+  if (!confirm(ready ? "确认提交并加入可执行队列？请确保前置依赖已完成。" : "确认创建 GitHub 需求并标记为阻塞，等待人工核对依赖？")) return;
+  $("submitIntake").disabled=true;
+  try {const result=await api("/api/intake-submit",{method:"POST",body:{id:currentIntake.id,ready}});renderIntake(result);}
+  catch(error){$("intakeResult").textContent=error.message === "potential-secret" ? "检测到疑似密钥，未提交。请删除敏感内容后重新评估。" : "提交结果可能不确定，请先检查 GitHub，避免重复提交。";}
+});
 (function initializePreferences() {
+  setProjectPhase(stored(preferenceStorage,PHASE_KEY) || "unknown");
+  const theme = stored(preferenceStorage,THEME_KEY);
+  setTheme(theme === "light" || theme === "dark" ? theme : "dark");
   const preferred = Number(stored(preferenceStorage, LOG_LIMIT_KEY));
   logLimit = LOG_LIMITS.has(preferred) ? preferred : 50;
   logFilter = ["all","system","stdout","stderr"].includes(stored(preferenceStorage,LOG_FILTER_KEY))

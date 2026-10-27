@@ -23,7 +23,7 @@ function response(status = 200) {
 function node() {
   const listeners = new Map(), children = [];
   const result = {
-    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "",
+    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "", style: {}, setAttribute() {},
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
     classList: { add() {}, remove() {}, contains(value) { return result.className.split(" ").includes(value); } },
     addEventListener(type, fn) { listeners.set(type, fn); },
@@ -41,7 +41,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
-    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge",
+    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "phaseSelect", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "submitIntake", "clearIntake",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -51,7 +51,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   });
   const listeners = new Map();
   const document = {
-    hidden,
+    hidden, documentElement: {dataset:{}},
     getElementById(id) { assert.ok(elements[id], `Unexpected element: ${id}`); return elements[id]; },
     querySelectorAll(selector) { if (selector === ".agent-elapsed") return []; if (selector === "[data-command], [data-resume-issue]") return [...actions, ...elements.tasks.children.flatMap(card => card.children.filter(child => child.dataset?.resumeIssue))]; assert.equal(selector, "[data-command]"); return actions; },
     createElement() { return node(); },
@@ -223,4 +223,27 @@ test("PR title links to GitHub and merge sends the selected issue and PR", async
   assert.equal(link.textContent,"Implement supervisor");assert.equal(link.href,"https://github.com/a/b/pull/21");
   button.dispatch("click");await tick();
   assert.deepEqual(JSON.parse(app.requests.find(r=>r.path==="/api/merge").options.body),{issue:1,pr:21});
+});
+
+test("theme preference survives reload", async()=>{
+  const preferences=new Map();const first=page({preferences});
+  assert.equal(first.document.documentElement.dataset.theme,"dark");
+  first.elements.themeToggle.dispatch("click");
+  assert.equal(first.document.documentElement.dataset.theme,"light");
+  const reloaded=page({preferences});
+  assert.equal(reloaded.document.documentElement.dataset.theme,"light");
+});
+
+test("project phase reflects merged milestones and reports unknown when incomplete",async()=>{
+  const tasks=Object.fromEntries(Array.from({length:6},(_,i)=>[`TASK-00${i+1}`,{issue:i+1,issueState:i<2?"CLOSED":"OPEN",pr:i<2?{state:"merged"}:null}]));
+  const snapshot={...STATUS,github:{status:"ok",updatedAt:"2026-10-27T00:00:00Z",tasks}};
+  const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  assert.equal(app.elements.projectPhaseTitle.textContent,"项目当前阶段待确认");
+  app.elements.phaseSelect.value="M1"; app.elements.phaseSelect.dispatch("change");
+  assert.equal(app.elements.projectPhaseTitle.textContent,"M1 · 产品原型");
+  assert.equal(app.elements.projectPhaseCount.textContent,"2 / 6 已合并");
+  snapshot.github={status:"unavailable"};app.elements.refresh.dispatch("click");await tick();
+  assert.equal(app.elements.projectPhaseTitle.textContent,"M1 · 产品原型");
+  assert.equal(app.elements.projectPhaseCount.textContent,"—");
 });
