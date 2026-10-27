@@ -47,9 +47,10 @@ export async function cleanupMergedTasks(root, { execute=run, log=console.log, s
       const entries=[];let entry={};for(const part of listing){if(!part){if(entry.path)entries.push(entry);entry={};}else if(part.startsWith("worktree "))entry.path=part.slice(9);else if(part.startsWith("branch "))entry.branch=part.slice(7);else if(part.startsWith("locked"))entry.locked=true;}
       const holders=entries.filter(x=>x.branch===`refs/heads/${branch}`);
       let localStatus="absent";
-      const ref=await exec("git",["show-ref","--verify","--hash",`refs/heads/${branch}`],{allowFailure:true});
+      const ref=await exec("git",["show-ref","--verify","--quiet",`refs/heads/${branch}`],{allowFailure:true});
       if(ref.code===0){
-        if(ref.stdout.trim()!==sha) localStatus="changed";
+        const refHash=await exec("git",["show-ref","--verify","--hash",`refs/heads/${branch}`]);
+        if(refHash.stdout.trim()!==sha) localStatus="changed";
         else if(holders.length>1 || holders.some(x=>resolve(x.path)!==expected || x.locked)) localStatus="other-worktree";
         else {
           if(holders.length){
