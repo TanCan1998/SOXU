@@ -57,3 +57,8 @@ GitHub 为唯一写入源，AtomGit 主要用作中国大陆克隆加速。优�
 本工程的 Developer 和 Reviewer 可在 `automation/agent-models.json` 使用不同 Pi Provider/Model，或保持 `null` 继承 Pi 默认。`pnpm agent:models` 仅显示路由而不调用模型。详见 [模型选择手册](models.md)。PiDeck 仅作为开发监控工具；独立启动的 Pi 会话能否在 PiDeck 实时附加需实测。进度以 GitHub Issue/PR/CI 和本地检查点为准，详见 [监控手册](monitoring.md)。
 
 M0～M4 和可量化 P-01～P-08 标准见 [PRD](../product/prd.md)。新项目尚未完成，UI/UX 与依赖版本须单独获得所有者批准。
+
+
+## 三轨 Loop / Magpie 开发机制借鉴
+
+现有开发 Loop 不变；另外两个自愿启动的 Product/Quality 轨道分别产生未核实的建议报告。其只读 Pi RPC 参数、证据输入、成本边界、复盘/晋升审批规则见 [`three-lane-agent-loop.md`](three-lane-agent-loop.md)。`autoMerge=false` 与 `autoRelease=false` 仍然生效，不能把上面的理论性自动合并描述当成当前已启用能力。
