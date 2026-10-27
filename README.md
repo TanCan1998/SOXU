@@ -73,11 +73,11 @@ pnpm agent:say -- "继续 SOXU"
 pnpm tauri:dev
 ```
 
-PiDeck 主要监控自身管理的 Pi 会话；Runner 从 PiDeck 终端启动时可直接看日志。GitHub Issues/PR/Actions 负责总体进度，本地 `.soxu/checkpoints/` 负责诊断和恢复。参见 [监控手册](docs/development/monitoring.md)。
+自主开发以 SOXU 本地 Web 控制台作为主要监控入口（`pnpm agent:dashboard`）；GitHub Issues/PR/Actions 记录远端协作进度，本地 `.soxu/checkpoints/` 负责诊断和恢复。PiDeck 仅用于查看已有 Pi 会话历史，不承担 Agent Loop 控制。参见 [监控手册](docs/development/monitoring.md)。
 
 新版任务调度会读取 `priority` 和 `dependencies`：TASK-001/002 首批可运行，其余任务等待前置 PR 已合并且 Issue 已关闭。旧 v1.5 已创建的 TASK-006 可能带有 `agent:blocked` 标签，核对不是实际阻塞后才能手工修改为 `agent:waiting`；绝不自动解除人工封锁。**缺少 pnpm/Cargo 锁文件时真实 Agent 执行被阻止，`--dry-run` 可以正常预览。** 详见 [任务说明](tasks/README.md)。
 
-`agent:status` 已可用，仅统计本地 backlog 和检查点，不查询 GitHub。`agent:logs`、`agent:dashboard` **属于计划功能，目前尚未实现**。
+`agent:status` 仅统计本地 backlog 和检查点；`agent:dashboard` 已实现本地任务看板、有限日志和显式调度控制，不查询远端 GitHub 最新状态。单独的 `agent:logs` 命令尚未实现。
 
 ## 如何指定 Agent 模型
 
@@ -134,7 +134,7 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 | `agents/` + `AGENTS.md` | Agent 角色、开发/安全/测试规范与工作流 |
 | `docs/product/prd.md` | 产品范围与验收指标 |
 | `docs/development/models.md` | 模型选择、角色、额度与命令 |
-| `docs/development/monitoring.md` | PiDeck、pnpm、GitHub 进度监控 |
+| `docs/development/monitoring.md` | 本地 Web 控制台、pnpm、GitHub 进度监控 |
 | `docs/design/` | 已审批的 UI/UX 设计基线与历史提案 |
 
 ## 已确认与仍待授权事项

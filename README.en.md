@@ -68,11 +68,11 @@ pnpm agent:say -- "继续 SOXU"         # Local natural-language recovery shortc
 pnpm tauri:dev                     # Launch desktop app separately
 ```
 
-Use PiDeck to interact with Pi sessions it owns, or run the Agent Loop from a PiDeck terminal to see its output. GitHub Issues/PRs/Actions record overall progress; `.soxu/checkpoints/` stores local diagnostic/recovery state. See [Monitoring](docs/development/monitoring.md).
+Use SOXU's local dashboard (`pnpm agent:dashboard`) for task status and explicit Agent Loop controls. GitHub Issues/PRs/Actions record collaboration progress; `.soxu/checkpoints/` stores recovery state. PiDeck remains optional for viewing archived Pi session history, not for coordinating SOXU's Agent Loop. See [Monitoring](docs/development/monitoring.md).
 
 TASK frontmatter priorities and dependency IDs are now enforced. TASK-001/002 may run first; dependent tasks wait for a closed predecessor Issue **and a corresponding PR actually merged into `main`**. A legacy TASK-006 may still carry `agent:blocked` from the older seed; inspect before manually changing it to `agent:waiting`. Agent execution stops before paid calls when pnpm/Cargo lockfiles are absent, while `--dry-run` remains available. See [Task queue rules](tasks/README.md).
 
-`agent:status` is now available for **local-only, offline progress**; `agent:logs` and `agent:dashboard` are **planned but not implemented**.
+`agent:status` reports local checkpoints. `agent:dashboard` provides a local browser view, bounded coordinator logs, and explicitly triggered commands; it does not query live GitHub state. A separate `agent:logs` CLI is not implemented.
 
 ## Choose Developer and Reviewer models
 
@@ -128,7 +128,7 @@ Direct dependency versions are pinned, Node.js requires `>=24` (local Node 26 is
 | `agents/` + `AGENTS.md` | Roles, safeguards, policies, workflows |
 | `docs/product/prd.md` | Product scope and measurable acceptance targets |
 | `docs/development/models.md` | Model selection and budget rules |
-| `docs/development/monitoring.md` | Progress through PiDeck, pnpm, and GitHub |
+| `docs/development/monitoring.md` | Progress through the local dashboard, pnpm, and GitHub |
 | `docs/design/` | Approved UI/UX baseline and historical proposals |
 
 ## Approval and remaining prerequisites
