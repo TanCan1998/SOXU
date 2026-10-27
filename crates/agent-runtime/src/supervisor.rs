@@ -23,6 +23,7 @@ use crate::connection::{run_reader, run_stderr, run_writer};
 use crate::error::{SupervisorError, SupervisorResult};
 use crate::handle::{RuntimeHandle, wait_for_exit};
 use crate::identity::RuntimeIdentity;
+use crate::process::RuntimeProcess;
 use crate::shared::{
     ExitInfo, ExitReason, RuntimeShared, TerminateReason, lock, request_response_with,
 };
@@ -172,6 +173,8 @@ impl PiSupervisor {
             program: program.describe(),
             detail: error.to_string(),
         })?;
+        // 进程树根 PID：资源监控按它采样（含 Pi 自己再拉起的子进程）。
+        let child_pid = child.id();
         let stdin = child
             .stdin
             .take()
@@ -193,6 +196,7 @@ impl PiSupervisor {
 
         let runtime = Arc::new(RuntimeShared::new(
             identity.clone(),
+            child_pid,
             frame_tx,
             events_tx,
             exit_tx,
@@ -281,6 +285,23 @@ impl PiSupervisor {
             .values()
             .map(|record| record.shared.identity.clone())
             .collect()
+    }
+
+    /// 受管运行时 + 可采样的进程树根 PID，按登记顺序无关的稳定顺序返回。
+    ///
+    /// 这是资源监控的唯一集成点：`soxu-resource-monitor` 不需要依赖本 crate，
+    /// 由上层把这里的 pid/state 映射成 `Target`。
+    pub fn processes(&self) -> Vec<RuntimeProcess> {
+        let mut processes: Vec<RuntimeProcess> = lock(&self.shared.runtimes)
+            .values()
+            .map(|record| RuntimeProcess {
+                identity: record.shared.identity.clone(),
+                pid: record.shared.pid,
+                state: record.shared.state.get(),
+            })
+            .collect();
+        processes.sort_by(|left, right| left.identity.runtime_id.cmp(&right.identity.runtime_id));
+        processes
     }
 
     pub fn is_empty(&self) -> bool {

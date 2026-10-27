@@ -96,6 +96,8 @@ pub enum SupervisorEvent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeDiagnostics {
     pub identity: RuntimeIdentity,
+    /// 进程树根 PID；从没拿到子进程时为 `None`。资源监控按它采样。
+    pub pid: Option<u32>,
     pub state: RuntimeState,
     pub pending_requests: usize,
     pub dropped_events: u64,
@@ -115,6 +117,8 @@ pub(crate) struct Diagnostics {
 /// 单个 Pi 运行时的共享状态。
 pub(crate) struct RuntimeShared {
     pub(crate) identity: RuntimeIdentity,
+    /// 子进程 PID，只由 supervisor 在 spawn 成功后写入，之后不再变化。
+    pub(crate) pid: Option<u32>,
     pub(crate) state: StateCell,
     pub(crate) pending: StdMutex<HashMap<String, oneshot::Sender<RpcResponse>>>,
     pub(crate) frame_tx: StdMutex<Option<mpsc::Sender<String>>>,
@@ -128,6 +132,7 @@ pub(crate) struct RuntimeShared {
 impl RuntimeShared {
     pub(crate) fn new(
         identity: RuntimeIdentity,
+        pid: Option<u32>,
         frame_tx: mpsc::Sender<String>,
         events_tx: mpsc::Sender<SupervisorEvent>,
         exit_tx: watch::Sender<Option<ExitInfo>>,
@@ -136,6 +141,7 @@ impl RuntimeShared {
         Self {
             state: StateCell::new(),
             identity,
+            pid,
             pending: StdMutex::new(HashMap::new()),
             frame_tx: StdMutex::new(Some(frame_tx)),
             events_tx,
@@ -242,6 +248,7 @@ impl RuntimeShared {
         let diagnostics = lock(&self.diagnostics);
         RuntimeDiagnostics {
             identity: self.identity.clone(),
+            pid: self.pid,
             state: self.state.get(),
             pending_requests: lock(&self.pending).len(),
             dropped_events: diagnostics.dropped_events,
