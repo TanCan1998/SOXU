@@ -44,3 +44,15 @@ test("confirmed requirement is classified in the chosen milestone title",async()
   await submitRequirement("/repo",{id:"test",requirement:"需求",assessment,ready:true,milestone:"M2"},execute);
   assert.equal(args[args.indexOf("--title")+1],"[M2] 新需求");
 });
+
+
+test("assessment failures provide safe, specific diagnostics without leaking underlying data",async()=>{
+  const root=await mkdtemp(join(tmpdir(),"soxu-intake-errors-"));
+  const cases=[[new Error("invalid-assessment"),"格式"],[new Error("TLS handshake timeout token=secret"),"网络"],[new Error("HTTP 429"),"额度"],[new Error("HTTP 401"),"认证"],[Object.assign(new Error("private output"),{kind:"timeout"}),"超时"],[new Error("secret raw prompt"),"无法确定"]];
+  try {for(const [failure,expected] of cases){
+    const mgr=new IntakeManager({root,assess:async()=>{throw failure;}});
+    await mgr.start("需要增加一个新功能供项目使用");await tick();
+    const state=mgr.publicState();assert.equal(state.status,"failed");assert.match(state.error,new RegExp(expected));
+    assert.doesNotMatch(state.error,/secret|private|raw prompt|token/i);
+  }} finally {await rm(root,{recursive:true,force:true});}
+});
