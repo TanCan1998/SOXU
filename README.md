@@ -10,7 +10,7 @@
 
 `pnpm agent:dashboard` 启动按需开放的本地控制台：在浏览器访问 `http://127.0.0.1:47321/`，
 输入终端提供的临时令牌，查看任务阶段和有限日志，并手动运行、停止、恢复 Agent Loop。
-不依赖 PiDeck、不接管其他终端的 Pi 进程。完整说明见 [Dashboard 操作手册](docs/development/dashboard.md)。
+首次验证成功后，页面在当前标签页的 `sessionStorage` 中暂存令牌；刷新自动重连，控制台重启导致令牌失效时需重新输入。不依赖 PiDeck、不接管其他终端的 Pi 进程。完整说明见 [Dashboard 操作手册](docs/development/dashboard.md)。
 
 ## 产品目标
 
