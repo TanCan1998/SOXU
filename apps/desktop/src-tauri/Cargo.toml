@@ -15,4 +15,8 @@ tauri-build = { version = "=2.7.4", features = [] }
 [dependencies]
 tauri = { version = "=2.12.5", features = [] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 soxu-pi-protocol = { path = "../../../crates/pi-protocol" }
+soxu-agent-runtime = { path = "../../../crates/agent-runtime" }
+soxu-session-index = { path = "../../../crates/session-index" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
