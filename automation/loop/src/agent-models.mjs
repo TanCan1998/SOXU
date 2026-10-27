@@ -2,14 +2,14 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { readModelSettings, selectModel } from './model-settings.mjs';
 import { ROOT } from './config.mjs';
+import { isModelIdentifier } from './model-identifiers.mjs';
 
-const VALID_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._:/+-]*$/;
 const VALID_THINKING = new Set(['off', 'minimal', 'low', 'medium', 'high', 'xhigh']);
 const ROLES = ['developer', 'reviewer'];
 
 function optionalToken(value, key) {
   if (value === undefined || value === null || value === '') return null;
-  if (typeof value !== 'string' || value.length > 180 || !VALID_TOKEN.test(value)) {
+  if (!isModelIdentifier(value)) {
     throw new Error(`Invalid ${key}: use a Pi provider/model identifier, not CLI flags or shell syntax`);
   }
   return value;
