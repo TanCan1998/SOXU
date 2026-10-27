@@ -56,3 +56,11 @@ test("assessment failures provide safe, specific diagnostics without leaking und
     assert.doesNotMatch(state.error,/secret|private|raw prompt|token/i);
   }} finally {await rm(root,{recursive:true,force:true});}
 });
+
+
+test("assessment accepts bounded formatted JSON and section lists without weakening validation",()=>{
+  const value={...assessment,plan:["第一步","第二步"],acceptance:["可验证"]};
+  assert.equal(parseIntake("说明\nSOXU_INTAKE_RESULT:\n```json\n"+JSON.stringify(value,null,2)+"\n``` ").plan,"- 第一步\n- 第二步");
+  assert.deepEqual(parseIntake("SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,plan:'包含 } 和 \" 字符'})).title,assessment.title);
+  for(const invalid of [JSON.stringify(assessment),"SOXU_INTAKE_RESULT:{", "SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,acceptance:[{}]}),"SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,title:"[TASK-004] fake"})]) assert.throws(()=>parseIntake(invalid));
+});
