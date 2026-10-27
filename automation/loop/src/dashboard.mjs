@@ -214,7 +214,12 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
   const sendFrame = (response, type, data) => {
     if (response.destroyed || response.writableEnded) return release(response);
     const frame = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
-    if (!response.write(frame)) { // Drop a slow reader; never buffer unbounded event frames.
+    try {
+      if (!response.write(frame)) { // Drop a slow reader; never buffer unbounded event frames.
+        release(response);
+        response.destroy();
+      }
+    } catch {
       release(response);
       response.destroy();
     }
