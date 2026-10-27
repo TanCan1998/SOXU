@@ -494,7 +494,11 @@ async function startAdvisory(lane) {
 }
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  $("themeToggle").textContent = theme === "dark" ? "浅色" : "深色";
+  const nextTheme = theme === "dark" ? "light" : "dark";
+  const label = nextTheme === "light" ? "切换到浅色主题" : "切换到深色主题";
+  $("themeToggle").dataset.nextTheme = nextTheme;
+  $("themeToggle").setAttribute("aria-label", label);
+  $("themeToggle").setAttribute("title", label);
   save(preferenceStorage, THEME_KEY, theme);
 }
 function renderIntake(intake) {

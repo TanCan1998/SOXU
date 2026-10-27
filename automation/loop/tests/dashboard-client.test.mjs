@@ -233,7 +233,11 @@ test("PR title links to GitHub and merge sends the selected issue and PR", async
 test("theme preference survives reload", async()=>{
   const preferences=new Map();const first=page({preferences});
   assert.equal(first.document.documentElement.dataset.theme,"dark");
+  assert.equal(first.elements.themeToggle.dataset.nextTheme,"light");
+  assert.equal(first.elements.themeToggle.getAttribute("aria-label"),"切换到浅色主题");
   first.elements.themeToggle.dispatch("click");
+  assert.equal(first.elements.themeToggle.dataset.nextTheme,"dark");
+  assert.equal(first.elements.themeToggle.getAttribute("aria-label"),"切换到深色主题");
   assert.equal(first.document.documentElement.dataset.theme,"light");
   const reloaded=page({preferences});
   assert.equal(reloaded.document.documentElement.dataset.theme,"light");
