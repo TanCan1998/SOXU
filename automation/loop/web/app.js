@@ -36,7 +36,7 @@ function forgetToken(token) {
     if (sessionStorage.getItem(TOKEN_STORAGE_KEY) === token) sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   } catch {}
 }
-function notice(message) { $("notice").textContent = message; }
+function notice(message) { $("notice").textContent = message; $("authNotice").textContent = message; }
 function element(tag, value, className) {
   const result = document.createElement(tag);
   if (value !== undefined) result.textContent = String(value);
@@ -53,7 +53,7 @@ function lostAuthorization(token) {
   forgetToken(token);
   tokenInput.value = "";
   connected = false;
-  $("tokenLabel").hidden = false; tokenInput.hidden = false; $("connect").textContent = "连接";
+  $("authPanel").hidden = false; $("connect").textContent = "连接";
   $("dot").classList.remove("ok");
   $("connection").textContent = "未连接";
   $("globalRun").dataset.status="unknown"; $("globalRun").textContent="未连接";
@@ -265,7 +265,7 @@ function renderProjectPhase(github, data) {
 function render(data) {
   if (typeof data.instanceId === "string") resetInstance(data.instanceId);
   connected = true;
-  $("tokenLabel").hidden = true; tokenInput.hidden = true; $("connect").textContent = "重新连接";
+  $("authPanel").hidden = true;
   $("dot").classList.add("ok");
   $("connection").textContent = "本机已连接";
   const tasks = data.tasks || [];
@@ -346,6 +346,7 @@ async function refresh() {
       lostAuthorization(token);
     } else {
       connected = false;
+      $("authPanel").hidden = false;
       $("dot").classList.remove("ok");
       $("connection").textContent = "连接中断";
       $("globalRun").dataset.status="unknown"; $("globalRun").textContent="状态未知";
@@ -676,12 +677,12 @@ $("followLogs").addEventListener("change", () => {
   save(preferenceStorage, FOLLOW_KEY, followLogs);
   if (followLogs) $("logs").scrollTop = $("logs").scrollHeight;
 });
-$("connect").addEventListener("click", () => { if (connected && tokenInput.hidden) { $("tokenLabel").hidden=false; tokenInput.hidden=false; $("connect").textContent="连接"; return; } void refresh(); });
+$("connect").addEventListener("click", () => void refresh());
 tokenInput.addEventListener("keydown", event => { if (event.key === "Enter") void refresh(); });
 tokenInput.addEventListener("input", () => {
   stopStream();
   connected = false;
-  $("tokenLabel").hidden = false; tokenInput.hidden = false; $("connect").textContent = "连接";
+  $("authPanel").hidden = false; $("connect").textContent = "连接";
   $("dot").classList.remove("ok");
   $("connection").textContent = "尚未连接";
   disableControls();

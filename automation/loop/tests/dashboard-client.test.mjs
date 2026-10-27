@@ -40,7 +40,7 @@ function node() {
 }
 function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map(), streamSupport = false } = {}) {
   const ids = [
-    "token", "tokenLabel", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
+    "token", "tokenLabel", "authPanel", "authNotice", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
     "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake",
   ];
@@ -86,9 +86,7 @@ test("authenticated token survives same-tab reload and reconnects automatically"
   first.elements.connect.dispatch("click");
   await tick();
   assert.equal(first.elements.connection.textContent, "本机已连接");
-  assert.equal(first.elements.token.hidden, true);
-  assert.equal(first.elements.tokenLabel.hidden, true);
-  assert.equal(first.elements.connect.textContent, "重新连接");
+  assert.equal(first.elements.authPanel.hidden, true);
   assert.equal(storage.get(TOKEN_STORAGE_KEY), TOKEN);
 
   const reloaded = page({ storage });
@@ -107,6 +105,7 @@ test("rejecting a token clears only the matching stored session", async () => {
   assert.equal(storage.has(TOKEN_STORAGE_KEY), false);
   assert.equal(reloaded.elements.token.value, "");
   assert.equal(reloaded.elements.connection.textContent, "未连接");
+  assert.equal(reloaded.elements.authPanel.hidden, false);
   assert.match(reloaded.elements.notice.textContent, /令牌已失效/);
   assert.ok(reloaded.actions.every(button => button.disabled));
 
@@ -127,10 +126,12 @@ test("temporary network errors retain the token and allow reconnection", async (
   await tick();
   assert.equal(storage.get(TOKEN_STORAGE_KEY), TOKEN);
   assert.equal(view.elements.connection.textContent, "连接中断");
+  assert.equal(view.elements.authPanel.hidden, false);
   available = true;
   view.elements.refresh.dispatch("click");
   await tick();
   assert.equal(view.elements.connection.textContent, "本机已连接");
+  assert.equal(view.elements.authPanel.hidden, true);
 });
 
 test("hidden-page reload restores the token when the page becomes visible", async () => {
