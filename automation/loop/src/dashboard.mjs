@@ -14,7 +14,7 @@ const COMMANDS = new Set(["once", "resume", "loop", "watch"]);
 const GROUPS = ["running", "paused", "blocked", "pending", "done"];
 const MAX_LOGS = 500;
 const MAX_STREAM_CLIENTS = 8;
-const PHASES = new Set(["worktree", "install", "develop", "checks", "review", "postConflictInstall", "finalChecks", "commit", "push", "createPr", "merge", "done"]);
+const PHASES = new Set(["worktree", "install", "develop", "checks", "review", "postConflictInstall", "recoveryInstall", "finalChecks", "commit", "push", "createPr", "merge", "done"]);
 const WEB_DIR = join(ROOT, "automation", "loop", "web");
 const ASSETS = new Map([
   ["/", ["index.html", "text/html; charset=utf-8"]],
@@ -114,14 +114,22 @@ export class DashboardCoordinator extends EventEmitter {
       note: "Task phase is a checkpoint, not proof of a live Pi process; controls affect only dashboard-launched jobs.",
     };
   }
-  async start(command) {
-    if (!COMMANDS.has(command)) throw Object.assign(new Error("unsupported-command"), { status: 400 });
+  async start(command, issue = null) {
+    if (!COMMANDS.has(command) && command !== "resume-blocked") throw Object.assign(new Error("unsupported-command"), { status: 400 });
     if (this.reserved || this.active) throw Object.assign(new Error("runner-busy"), { status: 409 });
     this.reserved = true; // reserve before awaiting disk I/O to reject simultaneous requests
     try {
       if (await liveExternalLocks(this.root)) throw Object.assign(new Error("external-runner-active"), { status: 409 });
+      let args = [command];
+      if (command === "resume-blocked") {
+        if (!Number.isSafeInteger(issue) || issue <= 0 || issue >= 1e9) throw Object.assign(new Error("invalid-issue"), { status: 400 });
+        const state = await readCheckpoint(issue, join(this.root, ".soxu", "checkpoints"));
+        if (!state || state.status !== "blocked" || state.issue?.number !== issue || state.local === true)
+          throw Object.assign(new Error("task-not-blocked"), { status: 409 });
+        args = ["resume", "--blocked", "--issue", String(issue)];
+      }
       const script = join(this.root, "automation", "loop", "src", "cli.mjs");
-      const child = this.spawn(script, [command], {
+      const child = this.spawn(script, args, {
         cwd: this.root,
         stdio: ["ignore", "pipe", "pipe", "ipc"],
         windowsHide: true,
@@ -132,7 +140,7 @@ export class DashboardCoordinator extends EventEmitter {
       this.agents.clear();
       this.phases.clear();
       child.on("message", data => { if (this.active === job) this.receiveTelemetry(data); });
-      this.push(`Started ${command} (dashboard-owned)`);
+      this.push(`Started ${command}${issue ? ` #${issue}` : ""} (dashboard-owned)`);
       this.emit("dashboard:event", { type: "status", data: {} });
       const attach = (stream, pipe) => {
         if (!pipe) return;
@@ -294,8 +302,14 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
       try {
         const body = await readBody(request);
         if (request.url === "/api/run") {
-          if (!body || typeof body !== "object" || Object.keys(body).length !== 1 || typeof body.command !== "string")
+          if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.command !== "string")
             return reply(400, { error: "invalid-command" });
+          const keys = Object.keys(body);
+          if (body.command === "resume-blocked") {
+            if (keys.length !== 2 || !keys.includes("issue")) return reply(400, { error: "invalid-command" });
+            return reply(202, await coordinator.start(body.command, body.issue));
+          }
+          if (keys.length !== 1) return reply(400, { error: "invalid-command" });
           return reply(202, await coordinator.start(body.command));
         }
         if (!body || typeof body !== "object" || Object.keys(body).length !== 0)

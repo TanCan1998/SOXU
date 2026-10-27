@@ -98,3 +98,26 @@ test("existing live worktree lock blocks dashboard-owned runner",async()=>{
     assert.equal((await coordinator.snapshot()).externalLocks,1);
   }finally{await rm(root,{recursive:true,force:true});}
 });
+
+test("explicit blocked recovery validates checkpoint and launches only selected issue", async()=>{
+  const root=await fixture(), children=[];
+  const spawn=(file,args)=>{const child=new EventEmitter();child.connected=true;child.stdout=new PassThrough();child.stderr=new PassThrough();child.send=()=>{};children.push({args,child});return child;};
+  const coordinator=new DashboardCoordinator({root,spawn});
+  const {server}=createDashboardServer({root,token:TOKEN,coordinator});
+  try {
+    await writeCheckpoint({issue:{number:1},local:false,status:"blocked",phase:"checks"},join(root,".soxu","checkpoints"));
+    await new Promise((ok,fail)=>{server.once("error",fail);server.listen(0,"127.0.0.1",ok)});
+    const port=server.address().port, origin=`http://127.0.0.1:${port}`;
+    const post=body=>call(port,{path:"/api/run",method:"POST",origin,body});
+    assert.equal((await post({command:"resume-blocked",issue:"1"})).status,400);
+    assert.equal((await post({command:"resume-blocked",issue:2})).status,409);
+    assert.equal((await post({command:"resume-blocked",issue:1,extra:true})).status,400);
+    assert.equal((await post({command:"resume-blocked",issue:1})).status,202);
+    assert.deepEqual(children[0].args,["resume","--blocked","--issue","1"]);
+    assert.equal((await post({command:"resume-blocked",issue:1})).status,409);
+    children[0].child.emit("exit",0,null);
+    await writeCheckpoint({issue:{number:1},local:false,status:"paused",phase:"checks"},join(root,".soxu","checkpoints"));
+    assert.equal((await post({command:"resume-blocked",issue:1})).status,409);
+    assert.equal(children.length,1);
+  } finally {await new Promise(resolve=>server.close(resolve));await rm(root,{recursive:true,force:true});}
+});
