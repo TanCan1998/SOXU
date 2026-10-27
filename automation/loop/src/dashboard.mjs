@@ -8,6 +8,8 @@ import { ROOT } from "./config.mjs";
 import { readCheckpoint } from "./checkpoint.mjs";
 import { localProgress } from "./status.mjs";
 import { safeActivity } from "./dashboard-activity.mjs";
+import { readLaneStatus } from "./dashboard-lanes.mjs";
+import { IntakeManager } from "./dashboard-intake.mjs";
 import { mergeTaskPr } from "./dashboard-merge.mjs";
 import { readGithubStatus } from "./dashboard-github.mjs";
 
@@ -55,7 +57,7 @@ async function liveExternalLocks(root) {
 
 /** Owns only jobs explicitly launched from this web process. It cannot seize external Pi processes. */
 export class DashboardCoordinator extends EventEmitter {
-  constructor({ root = ROOT, spawn = fork, githubStatus = readGithubStatus, mergePr = mergeTaskPr } = {}) {
+  constructor({ root = ROOT, spawn = fork, githubStatus = readGithubStatus, mergePr = mergeTaskPr, intake = null } = {}) {
     super();
     this.root = root;
     this.spawn = spawn;
@@ -70,9 +72,11 @@ export class DashboardCoordinator extends EventEmitter {
     this.githubStatus = githubStatus;
     this.mergePr = mergePr;
     this.autoMergeEnabled = false;
+    this.intake = intake ?? new IntakeManager({root, onChange:()=>this.emit("dashboard:event", {type:"status",data:{}})});
     this.github = {status:"loading", updatedAt:null, tasks:{}};
     this.githubNext = 0;
     this.githubPending = null;
+    this.lanes = null; this.lanesNext = 0; this.lanesPending = null;
   }
   push(message, stream = "system") {
     const line = { seq: ++this.serial, time: new Date().toISOString(), stream, message: cleanLine(message) };
@@ -107,8 +111,16 @@ export class DashboardCoordinator extends EventEmitter {
       this.github = {status:"unavailable", updatedAt:null, tasks:{}};
     }).finally(() => { this.githubPending = null; this.emit("dashboard:event", {type:"status",data:{}}); });
   }
+  refreshLanes() {
+    if (this.lanesPending || Date.now() < this.lanesNext) return;
+    this.lanesNext = Date.now() + 30000;
+    this.lanesPending = readLaneStatus(this.root).then(value=>{this.lanes=value;}).catch(()=>{this.lanes=null;})
+      .finally(()=>{this.lanesPending=null;this.emit("dashboard:event",{type:"status",data:{}});});
+  }
   async snapshot() {
     this.refreshGithub();
+    this.refreshLanes();
+    await this.intake.initialized;
     const [progress, externalLocks] = await Promise.all([
       localProgress(this.root, id => readCheckpoint(id, join(this.root, ".soxu", "checkpoints"))),
       liveExternalLocks(this.root),
@@ -121,6 +133,8 @@ export class DashboardCoordinator extends EventEmitter {
       source: "local-checkpoints",
       github: this.github,
       autoMergeEnabled: this.autoMergeEnabled,
+      intake: this.intake.publicState(),
+      lanes: this.lanes,
       isLive: false,
       tasks: GROUPS.flatMap(status => progress[status].map(item => ({
         id: item.id, title: cleanLine(item.title ?? item.name).slice(0, 160),
@@ -233,6 +247,7 @@ export class DashboardCoordinator extends EventEmitter {
     return { accepted: true, stopping: true };
   }
   shutdown() {
+    this.intake.shutdown();
     if (this.active && !this.active.stopping) {
       try { this.stop(); } catch { this.push("Stop message failed; inspect child process before exit"); }
     }
@@ -243,7 +258,7 @@ async function readBody(request) {
   let raw = "";
   for await (const chunk of request) {
     raw += chunk.toString("utf8");
-    if (Buffer.byteLength(raw) > 1024) throw Object.assign(new Error("body-too-large"), { status: 413 });
+    if (Buffer.byteLength(raw) > 40000) throw Object.assign(new Error("body-too-large"), { status: 413 });
   }
   try { return JSON.parse(raw); }
   catch { throw Object.assign(new Error("invalid-json"), { status: 400 }); }
@@ -341,12 +356,24 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
       try { return reply(200, await coordinator.snapshot()); }
       catch { return reply(503, { error: "status-unavailable" }); }
     }
-    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge"].includes(request.url)) {
+    if (request.method === "POST" && ["/api/run", "/api/stop", "/api/merge", "/api/auto-merge", "/api/intake-assess", "/api/intake-submit", "/api/intake-clear"].includes(request.url)) {
       if (request.headers.origin !== origin || request.headers["content-type"] !== "application/json") {
         return reply(403, { error: "invalid-request-origin" });
       }
       try {
         const body = await readBody(request);
+        if (request.url === "/api/intake-assess") {
+          if (!body || Object.keys(body).join(",") !== "requirement") return reply(400,{error:"invalid-body"});
+          return reply(202, await coordinator.intake.start(body.requirement));
+        }
+        if (request.url === "/api/intake-clear") {
+          if (!body || Object.keys(body).join(",") !== "id" || typeof body.id !== "string") return reply(400,{error:"invalid-body"});
+          return reply(200, await coordinator.intake.clearUnknown(body.id));
+        }
+        if (request.url === "/api/intake-submit") {
+          if (!body || Object.keys(body).sort().join(",") !== "id,ready" || typeof body.id !== "string" || typeof body.ready !== "boolean") return reply(400,{error:"invalid-body"});
+          return reply(200, await coordinator.intake.confirm(body.id, body.ready));
+        }
         if (request.url === "/api/run") {
           if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.command !== "string")
             return reply(400, { error: "invalid-command" });

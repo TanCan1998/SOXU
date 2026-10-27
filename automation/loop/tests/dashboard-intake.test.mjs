@@ -1,0 +1,39 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { IntakeManager, parseIntake, submitRequirement } from "../src/dashboard-intake.mjs";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
+const assessment={title:"新需求",feasibility:"可行",plan:"分步实现",dependencies:"人工核对",acceptance:"测试",unknowns:"待确认"};
+const tick=()=>new Promise(r=>setImmediate(r));
+test("assessment requires explicit confirmation and queues only selected state",async()=>{
+  const root=await mkdtemp(join(tmpdir(),"soxu-intake-test-"));
+  const calls=[]; const mgr=new IntakeManager({root,assess:async()=>assessment,submit:async(root,d)=>{calls.push(d.ready);return "https://github.com/a/b/issues/99";}});
+  const draft=await mgr.start("需要增加一个新功能供项目使用");assert.equal(draft.status,"assessing");assert.equal(calls.length,0);
+  await tick();assert.equal(mgr.publicState().status,"review");
+  await assert.rejects(()=>mgr.confirm("invalid",true));assert.equal(calls.length,0);
+  const result=await mgr.confirm(draft.id,false);assert.equal(result.status,"submitted");assert.deepEqual(calls,[false]);
+  await assert.rejects(()=>mgr.confirm(draft.id,false));
+  await rm(root,{recursive:true,force:true});
+});
+test("unknown submit outcome blocks repeated submission or reassessment",async()=>{
+  const root=await mkdtemp(join(tmpdir(),"soxu-intake-test-"));
+  const mgr=new IntakeManager({root,assess:async()=>assessment,submit:async()=>{throw Error("timeout");}});
+  const d=await mgr.start("需要增加一个新功能供项目使用");await tick();
+  assert.equal((await mgr.confirm(d.id,true)).status,"unknown");
+  await assert.rejects(()=>mgr.start("需要增加一个新功能供项目使用"));
+  await assert.rejects(()=>mgr.confirm(d.id,true));
+  const reloaded=new IntakeManager({root,assess:async()=>assessment});await reloaded.initialized;
+  assert.equal(reloaded.publicState().status,"unknown");
+  await reloaded.clearUnknown(d.id);
+  await rm(root,{recursive:true,force:true});
+});
+test("submission sends exact approved body and conservative queue choice",async()=>{
+  const calls=[];const execute=async(bin,args)=>{calls.push({bin,args,body:await readFile(args[args.indexOf("--body-file")+1],"utf8")});return {stdout:"https://github.com/a/b/issues/99\n"};};
+  await submitRequirement("/repo",{id:"test",requirement:"真实需求",assessment,ready:false},execute);
+  assert.equal(calls[0].args.at(-1),"agent:blocked");assert.match(calls[0].body,/真实需求/);
+});
+test("model response is strictly structured and cannot impersonate backlog IDs",()=>{
+  assert.deepEqual(parseIntake("SOXU_INTAKE_RESULT:"+JSON.stringify(assessment)),assessment);
+  assert.throws(()=>parseIntake("SOXU_INTAKE_RESULT:"+JSON.stringify({...assessment,title:"[TASK-001] fake"})));
+});
