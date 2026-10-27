@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import {
   CircleAlert,
   Folder,
+  GitBranch,
   MessageCircle,
   Moon,
   Plus,
@@ -11,7 +12,7 @@ import {
   Settings,
   Sun,
 } from "@lucide/vue";
-import type { ProjectSummary, SessionId } from "../workspace/types.ts";
+import type { ProjectSummary, SessionId, WorktreeId } from "../workspace/types.ts";
 
 const props = defineProps<{
   projects: ProjectSummary[];
@@ -22,7 +23,13 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (event: "open-session", payload: { sessionId: SessionId; projectId: string; title: string }): void;
+  (event: "open-session", payload: {
+    sessionId: SessionId;
+    projectId: string;
+    title: string;
+    worktreeId: WorktreeId;
+  }): void;
+  (event: "open-worktrees", projectId: string): void;
   (event: "new-temporary"): void;
   (event: "add-project", root: string): void;
   (event: "refresh-project", projectId: string): void;
@@ -93,16 +100,28 @@ function submitProject() {
             <Folder :size="14" :stroke-width="1.75" aria-hidden="true" />
             {{ project.name }}
           </span>
-          <button
-            class="icon-button small"
-            type="button"
-            :disabled="busy || !bridgeAvailable"
-            :aria-label="`刷新项目 ${project.name}`"
-            title="重新扫描会话目录"
-            @click="emit('refresh-project', project.id)"
-          >
-            <RefreshCw :size="14" :stroke-width="1.75" aria-hidden="true" />
-          </button>
+          <span class="project-actions">
+            <button
+              class="icon-button small"
+              type="button"
+              :disabled="!bridgeAvailable"
+              :aria-label="`管理 ${project.name} 的工作树`"
+              title="工作树：枚举、创建、Diff 与受确认的删除"
+              @click="emit('open-worktrees', project.id)"
+            >
+              <GitBranch :size="14" :stroke-width="1.75" aria-hidden="true" />
+            </button>
+            <button
+              class="icon-button small"
+              type="button"
+              :disabled="busy || !bridgeAvailable"
+              :aria-label="`刷新项目 ${project.name}`"
+              title="重新扫描会话目录"
+              @click="emit('refresh-project', project.id)"
+            >
+              <RefreshCw :size="14" :stroke-width="1.75" aria-hidden="true" />
+            </button>
+          </span>
         </div>
         <ul class="session-list">
           <li v-for="session in project.sessions" :key="session.id">
@@ -117,6 +136,7 @@ function submitProject() {
                   sessionId: session.id,
                   projectId: project.id,
                   title: session.title,
+                  worktreeId: session.worktreeId,
                 })
               "
             >
@@ -294,6 +314,12 @@ function submitProject() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.project-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .icon-button.small {

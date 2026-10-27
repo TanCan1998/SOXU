@@ -134,6 +134,7 @@ fn summarize(
         .map(|record| SessionSummary {
             id: record.id.to_string(),
             project_id: project.id.to_string(),
+            worktree_id: record.worktree.to_string(),
             title: title_for(catalog, state, &record.id),
             file_name: SessionSummary::file_name(&record.file),
             entry_count: record.entry_count,

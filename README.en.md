@@ -137,6 +137,7 @@ The repository includes `pnpm-lock.yaml` and `Cargo.lock`. Use `pnpm install --f
 | `docs/product/prd.md` | Product scope and measurable acceptance targets |
 | `docs/development/models.md` | Model selection and budget rules |
 | `docs/development/monitoring.md` | Progress through the local dashboard, pnpm, and GitHub |
+| `docs/architecture/worktree-service.md` | Git worktrees: enumeration/creation, diffs, session links, and confirmation-gated deletion |
 | `docs/design/` | Approved UI/UX baseline and historical proposals |
 
 ## Approval and remaining prerequisites
