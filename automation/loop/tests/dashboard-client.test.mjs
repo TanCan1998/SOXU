@@ -34,6 +34,8 @@ function node() {
     get firstElementChild() { return children[0]; },
     replaceChildren(...items) { result.replacements++; children.splice(0,children.length,...items); for(const x of items) x.parent = result; },
     append(...items) { children.push(...items); for(const x of items) x.parent = result; },
+    querySelectorAll(selector) { const all=[];const visit=n=>{for(const c of n.children || []){if(selector==='fieldset' && c.tagName==='fieldset' || selector==='input:checked' && c.tagName==='input' && c.checked)all.push(c);visit(c);}};visit(result);return all; },
+    querySelector(selector) { const find=n=>{for(const c of n.children || []){if(c.tagName===selector)return c;const hit=find(c);if(hit)return hit;}return null;};return find(result); },
     remove() { if (result.parent) { const i = result.parent.children.indexOf(result); if (i >= 0) result.parent.children.splice(i,1); } },
   };
   return result;
@@ -41,8 +43,8 @@ function node() {
 function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map(), streamSupport = false } = {}) {
   const ids = [
     "milestoneDialog", "milestoneTitle", "milestoneDetails", "closeMilestone", "token", "tokenLabel", "authPanel", "authNotice", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
-    "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
-    "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake",
+    "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh", "copyLogs", "intakeRunState", "productReports", "productCopy", "productDelete", "productClear", "qualityReports", "qualityCopy", "qualityDelete", "qualityClear",
+    "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake", "draftList", "batchDrafts", "saveDraft", "saveAnswers",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -55,19 +57,19 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
     hidden, documentElement: {dataset:{}},
     getElementById(id) { assert.ok(elements[id], `Unexpected element: ${id}`); return elements[id]; },
     querySelectorAll(selector) { if (selector === ".agent-elapsed") return []; if (selector === "[data-command], [data-resume-issue]") return [...actions, ...elements.tasks.children.flatMap(card => card.children.filter(child => child.dataset?.resumeIssue))]; assert.equal(selector, "[data-command]"); return actions; },
-    createElement() { return node(); },
+    createElement(tag) { const n=node();n.tagName=tag;return n; },
     createTextNode(value) { return { textContent: value }; },
     addEventListener(type, fn) { listeners.set(type, fn); },
     dispatch(type) { listeners.get(type)?.(); },
   };
-  const requests = [];
+  const requests = [], clipboard=[];
   const sessionStorage = {
     getItem(key) { return storage.get(key) ?? null; },
     setItem(key, value) { storage.set(key, String(value)); },
     removeItem(key) { storage.delete(key); },
   };
   runInNewContext(APP, {
-    document, window:{addEventListener(){}}, ...(streamSupport ? {AbortController, TextDecoder} : {}), sessionStorage, localStorage: { getItem(key) { return preferences.get(key) ?? null; }, setItem(key, value) { preferences.set(key, String(value)); } },
+    document, navigator:{clipboard:{writeText:async text=>clipboard.push(text)}}, window:{addEventListener(){}}, ...(streamSupport ? {AbortController, TextDecoder} : {}), sessionStorage, localStorage: { getItem(key) { return preferences.get(key) ?? null; }, setItem(key, value) { preferences.set(key, String(value)); } },
     setInterval() {}, setTimeout() { return 1; }, clearTimeout() {},
     AbortSignal: { timeout() { return undefined; } },
     fetch: async (path, options) => {
@@ -76,7 +78,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
     },
     confirm: () => true,
   }, { filename: "dashboard-app.js" });
-  return { elements, actions, document, storage, requests };
+  return { elements, actions, document, storage, requests, clipboard };
 }
 
 test("authenticated token survives same-tab reload and reconnects automatically", async () => {
@@ -287,7 +289,7 @@ test("unchanged agent snapshots do not rebuild DOM on every status poll",async()
 
 test("product and quality open separate report dialogs and run only on explicit click",async()=>{
   const report={lane:"product",summary:"建议",findings:[],unknowns:[],createdAt:"2026-10-27T00:00:00Z"};
-  const app=page({handler:path=>({ok:true,status:200,json:async()=>path.includes("advisory-report")?{report}:STATUS})});
+  const app=page({handler:path=>({ok:true,status:200,json:async()=>path.includes("advisory-reports")?(path.includes("&name=")?{report}:{reports:[{name:"2026-10-27T00-00-00-000Z-123.json",modifiedAt:"2026-10-27T00:00:00Z"}]}):STATUS})});
   app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
   app.elements.openProduct.dispatch("click");await tick();
   assert.equal(app.elements.productDialog.open,true,app.elements.notice.textContent);
@@ -296,7 +298,7 @@ test("product and quality open separate report dialogs and run only on explicit 
   assert.deepEqual(JSON.parse(app.requests.find(x=>x.path==="/api/advisory-run").options.body),{lane:"product"});
   app.elements.closeProduct.dispatch("click");app.elements.openQuality.dispatch("click");await tick();
   assert.equal(app.elements.qualityDialog.open,true);
-  assert.ok(app.requests.some(x=>x.path==="/api/advisory-report?lane=quality"));
+  assert.ok(app.requests.some(x=>x.path==="/api/advisory-reports?lane=quality"));
 });
 
 test("navigation switches page without a network request or reload",async()=>{
@@ -347,4 +349,48 @@ test("auto merge switch reflects server state and sends explicit changes", async
   assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"true");
   view.elements.autoMerge.dispatch("click"); await tick(); await tick();
   assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"false");
+});
+
+
+test("copy logs uses the displayed filtered and limited rows",async()=>{
+  const rows=Array.from({length:30},(_,i)=>({seq:i+1,stream:i%2?"stderr":"stdout",time:"2026-10-27T00:00:00Z",message:"message-"+i}));
+  const app=page({handler:()=>({ok:true,status:200,json:async()=>({...STATUS,log:rows})})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  app.elements.logFilter.value="stderr";app.elements.logFilter.dispatch("change");
+  app.elements.copyLogs.dispatch("click");await tick();
+  assert.equal(app.clipboard[0].split("\n").length,15);
+  assert.match(app.clipboard[0],/message-1/);assert.doesNotMatch(app.clipboard[0],/message-2(?:\n|$)/);
+});
+
+test("active intake and advisory report show elapsed state",async()=>{
+ const snapshot={...STATUS,intake:{status:"assessing",startedAt:new Date().toISOString()},advisory:{active:{lane:"product",startedAt:new Date().toISOString()},last:null}};
+ const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
+ app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+ assert.match(app.elements.intakeRunState.textContent,/正在评估 · 已运行/);
+ assert.match(app.elements.productRunState.textContent,/正在分析 · 已运行/);
+ assert.equal(app.elements.productRunState.dataset.running,"true");
+});
+
+test("report copy includes full content and section copy is independent",async()=>{
+ const report={lane:"product",summary:"摘要内容",findings:[{title:"建议一",recommendation:"操作",confidence:"high",evidence:["依据"]}],unknowns:["待确认"]};
+ const filename="2026-10-27T00-00-00-000Z-123.json";
+ const app=page({handler:path=>({ok:true,status:200,json:async()=>path.includes("&name=")?{report}:path.includes("advisory-reports")?{reports:[{name:filename,modifiedAt:"2026-10-27T00:00:00Z"}]}:STATUS})});
+ app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+ app.elements.openProduct.dispatch("click");await tick();await tick();
+ app.elements.productCopy.dispatch("click");await tick();
+ assert.match(app.clipboard[0],/摘要内容/);assert.match(app.clipboard[0],/建议一/);assert.match(app.clipboard[0],/待确认/);
+ const section=app.elements.productReport.children[1];section.children[0].children[1].dispatch("click");await tick();
+ assert.match(app.clipboard[1],/摘要内容/);assert.doesNotMatch(app.clipboard[1],/建议一/);
+});
+
+
+test("draft review requires a selection or custom answer before submission",async()=>{
+ const id="11111111-1111-4111-8111-111111111111";
+ const assessment={title:"Test",feasibility:"可行",plan:"计划",dependencies:"任务：解释",acceptance:"验收",unknowns:"平台",questions:[{text:"平台",options:["Windows","Linux"]}]};
+ const state={...STATUS,drafts:{busy:false,items:[{id,requirement:"一个足够长的需求描述内容",status:"review",assessment}]}};
+ const app=page({storage:new Map([[TOKEN_STORAGE_KEY,TOKEN]]),handler:()=>({ok:true,status:200,json:async()=>state})});await tick();
+ const row=app.elements.draftList.children[0];row.children.find(n=>n.textContent==="编辑").dispatch("click");
+ assert.equal(app.elements.submitIntake.disabled,true);
+ const field=app.elements.intakeResult.querySelectorAll("fieldset")[0];const custom=field.querySelector("textarea");custom.value="手工输入";field.dispatch("input");
+ assert.equal(app.elements.submitIntake.disabled,false);
 });

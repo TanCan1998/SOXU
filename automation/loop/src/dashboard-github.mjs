@@ -35,9 +35,21 @@ export function buildGithubStatus(catalog, issues, prs) {
         checks.some(c => c.status && c.status !== "COMPLETED" || c.state === "PENDING" || c.state === "EXPECTED") ? "pending" :
         checks.every(c => ["SUCCESS", "NEUTRAL", "SKIPPED"].includes(c.conclusion) || c.state === "SUCCESS") ? "success" : "unknown";
     }
+    // Check runs are job-level summaries, not step logs.
+    const activeChecks = pr && ci === "pending" ? (pr.statusCheckRollup ?? [])
+      .filter(c => c.status && c.status !== "COMPLETED" && typeof c.name === "string")
+      .slice(0, 10).map(c => ({
+        name: c.name.slice(0, 120),
+        jobId: (() => { try {
+          const url = new URL(c.detailsUrl);
+          const m = url.hostname === "github.com" && url.protocol === "https:" && /^\/[^/]+\/[^/]+\/actions\/runs\/\d+\/job\/(\d+)$/.exec(url.pathname);
+          const id = m && Number(m[1]); return Number.isSafeInteger(id) && id > 0 ? id : null;
+        } catch { return null; } })(),
+        startedAt: typeof c.startedAt === "string" && Number.isFinite(Date.parse(c.startedAt)) ? c.startedAt : null,
+      })) : [];
     tasks[task.id] = { issue: issue?.number ?? null, issueState: issue?.state ?? null,
       missing: task.dependencies.filter(id => !completed.has(id)),
-      pr: pr ? {number: pr.number, title: String(pr.title ?? "").slice(0,200), url: safePrUrl(pr.url, pr.number), state: pr.mergedAt ? "merged" : pr.state === "OPEN" ? "open" : "closed", ci} : null };
+      pr: pr ? {number: pr.number, title: String(pr.title ?? "").slice(0,200), url: safePrUrl(pr.url, pr.number), state: pr.mergedAt ? "merged" : pr.state === "OPEN" ? "open" : "closed", ci, ...(activeChecks.length ? {activeChecks} : {})} : null };
   }
   // Progress is derived from all explicitly classified Issues, never from a fixed task count.
   const stages=Object.fromEntries(["M0","M1","M2","M3","M4"].map(id=>[id,{id,total:0,merged:0,running:0,paused:0,unknown:0,issues:[],items:[]}]));
@@ -66,11 +78,34 @@ export function buildGithubStatus(catalog, issues, prs) {
       url: safeIssueUrl(i.url,i.number)}));
   return tasks;
 }
+function validTime(value) { return typeof value === "string" && Number.isFinite(Date.parse(value)) ? value : null; }
 export async function readGithubStatus(root, execute = run) {
   const [catalog, issues, prs] = await Promise.all([
     loadTaskCatalog(root),
     execute("gh", ["issue", "list", "--state", "all", "--limit", "1000", "--json", "number,title,state,labels,url,milestone"], {cwd:root, timeoutMs:15000}),
     execute("gh", ["pr", "list", "--state", "all", "--limit", "1000", "--json", "number,title,url,state,body,baseRefName,mergedAt,statusCheckRollup"], {cwd:root, timeoutMs:15000}),
   ]);
-  return buildGithubStatus(catalog, JSON.parse(issues.stdout), JSON.parse(prs.stdout));
+  const snapshot = buildGithubStatus(catalog, JSON.parse(issues.stdout), JSON.parse(prs.stdout));
+  await enrichActiveChecks(snapshot, root, execute);
+  return snapshot;
+}
+
+export async function enrichActiveChecks(snapshot, root, execute = run) {
+  // Bound read-only requests; an inaccessible job does not erase the whole snapshot.
+  const checks = Object.values(snapshot).flatMap(task => task?.pr?.activeChecks ?? []).filter(c => c.jobId).slice(0, 5);
+  await Promise.all(checks.map(async check => {
+    try {
+      const response = await execute("gh", ["api", `repos/{owner}/{repo}/actions/jobs/${check.jobId}`], {cwd:root, timeoutMs:10000});
+      const job = JSON.parse(response.stdout);
+      if (job.id !== check.jobId || !Array.isArray(job.steps)) throw new Error("Invalid job response");
+      const step = job.steps.find(s => s.status === "in_progress") ?? null;
+      check.step = step ? {name:String(step.name ?? "").slice(0,120), startedAt:validTime(step.started_at)} : null;
+      const times = job.steps.flatMap(s => [validTime(s.started_at), validTime(s.completed_at)]).filter(Boolean).sort();
+      check.stepObservedAt = times.at(-1) ?? null;
+      check.stepStatus = "available";
+    } catch {
+      check.stepStatus = "unavailable";
+    }
+  }));
+  return snapshot;
 }

@@ -2,3 +2,15 @@
 name = "soxu-resource-monitor"
 version = "0.1.0"
 edition = "2024"
+
+# 平台差异不引入新的第三方包：
+# - Windows 只用 windows-sys，它已经在 tauri 依赖树里（Cargo.lock: 0.61.2）；
+# - Linux 走 procfs（标准库 fs/io）；
+# - 其它平台（含 macOS）显式降级为「不支持」，见 platform/unsupported.rs。
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_ProcessStatus",
+  "Win32_System_Threading",
+] }

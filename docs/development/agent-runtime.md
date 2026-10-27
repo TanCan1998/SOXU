@@ -9,7 +9,12 @@
 | crate | 职责 | 不负责 |
 | --- | --- | --- |
 | `crates/pi-protocol` | `pi --mode rpc` 的 stdio NDJSON 线协议：命令编码、入站记录解码、单条记录上限、事件名常量 | 进程拉起、超时、取消、generation |
-| `crates/agent-runtime` | 子进程生命周期、管道分帧、request 关联、超时/取消/异常退出、generation 隔离、有界诊断 | 会话 JSONL 索引、Git、PTY、UI |
+| `crates/agent-runtime` | 子进程生命周期、管道分帧、request 关联、超时/取消/异常退出、generation 隔离、有界诊断、向资源监控暴露受管 PID | 会话 JSONL 索引、Git、PTY、UI、内存指标采集 |
+| `crates/resource-monitor` | 进程树内存采样、预算阈值、空闲释放请求（只产出指令，不终止进程） | 进程生命周期、会话持久化、UI |
+
+`resource-monitor` **不依赖** `agent-runtime`：本 crate 只暴露「runtime + PID + 状态」，
+由上层映射成监控 `Target`，避免监控模块反向耦合 Supervisor 内部结构。指标口径与策略见
+[内存预算文档](memory-budget.md)。
 
 依赖方向只有 `agent-runtime → pi-protocol`，两者都不依赖 Tauri，可独立测试。
 
@@ -24,12 +29,20 @@ let supervisor = PiSupervisor::new(SupervisorConfig::default());
 let mut handle = supervisor.start("session-01", &PiProgram::pi_rpc()).await?;
 handle.prompt("总结一下这个仓库").await?;
 handle.wait_settled(Duration::from_secs(120)).await?;
+// 进程树根 PID：资源监控按它采样整棵树（含 Pi 自己拉起的子进程）。
+println!("pid: {:?}", handle.pid());
 let exit = supervisor.stop(handle.identity().runtime_id.as_str()).await?;
 println!("ended: {:?} ({})", exit.code, exit.reason.as_str());
+
+// 所有受管进程的只读视图，供资源监控构造 Target。
+for process in supervisor.processes() {
+    println!("{} {:?} {:?}", process.identity.runtime_id, process.pid, process.state);
+}
 ```
 
-- `PiSupervisor`：一个实例管理本进程内所有受管 Pi 进程；`start` / `stop` / `shutdown` / `runtime_state` / `active_identities`。
-- `RuntimeHandle`：单个运行时的观察与命令入口；`request` / `get_state` / `prompt` / `cancel` / `recv` / `recv_timeout` / `wait_settled` / `take_backlog` / `wait_exit` / `stop` / `diagnostics`。
+- `PiSupervisor`：一个实例管理本进程内所有受管 Pi 进程；`start` / `stop` / `shutdown` / `runtime_state` / `active_identities` / `processes`。
+- `RuntimeHandle`：单个运行时的观察与命令入口；`request` / `get_state` / `prompt` / `cancel` / `recv` / `recv_timeout` / `wait_settled` / `take_backlog` / `wait_exit` / `stop` / `diagnostics` / `pid`。
+- `RuntimeProcess`：`identity` + `pid` + `state`，另有 `is_samplable()` / `is_idle()` / `may_be_busy()`。资源监控**只允许**释放 `is_idle()` 的运行时。
 - `drop(RuntimeHandle)` **不会**停止 agent（Pane 销毁不等于停止任务）；停止必须显式调用 `stop` 或 `shutdown`。
 - `SupervisorError` 是结构化枚举，`code()` 给 UI/日志稳定的短标识，`Display` 给人类读的说明。
 
@@ -137,10 +150,14 @@ cargo test -p soxu-pi-protocol -p soxu-agent-runtime
 | 状态一致与可重复启动 | `handshake_reports_idle_and_rejects_empty_session`、`shutdown_reclaims_every_runtime` |
 | 迟到事件按 generation 丢弃 | `late_events_of_a_replaced_generation_are_dropped`、`restarting_a_session_reclaims_the_previous_process` |
 | 两个独立会话不串线 | `independent_sessions_never_cross_wire_events` |
+| 资源监控集成点（PID 唯一、活动状态可靠） | `managed_runtimes_expose_distinct_samplable_pids` |
 | 异常事件与脱敏 | `malformed_records_and_extension_ui_requests_warn_but_keep_the_stream`、`stderr_diagnostics_are_bounded_and_redacted` |
 
 已验证环境（2026-10-27）：Windows 11 / PowerShell 7 / Rust 1.99.1 / Node 26.10.0，
 `cargo test -p soxu-pi-protocol -p soxu-agent-runtime` 全绿（31 个单测 + 13 个集成用例）。
+
+2026-11-05（TASK-004）：新增 `tests/process_identity.rs`（1 个集成用例，验证 PID 唯一、
+`Running` 不被误判为空闲、停止后从受管集合移除），`cargo test -p soxu-agent-runtime` 仍全绿。
 
 **未验证**：Linux/macOS 实机运行（CI 会在 ubuntu-24.04 上执行 `cargo test --workspace --locked`，但本机没有对应结果）；真实 `pi --mode rpc` 二进制的事件全集（夹具只模拟已确认的 `agent_start` / `agent_settled` / response 形态）。
 

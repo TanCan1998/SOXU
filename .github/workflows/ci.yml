@@ -102,7 +102,7 @@ jobs:
           version: '12.15.0'
           install: false
       - uses: actions/setup-node@v7
-        id: node_setup
+        id: node-cache
         with:
           node-version: '24'
           cache: pnpm
@@ -113,54 +113,66 @@ jobs:
           toolchain: 1.99.1
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-        id: cargo_cache
+        id: cargo-cache
         with:
           shared-key: ci-linux
+      # Cache downloaded packages only, never the installed system or package indexes.
+      # Refresh indexes on every run so APT still verifies current repository metadata.
       - name: Prepare APT cache key
-        id: apt_key
+        id: apt-key
         run: |
-          mkdir -p "$RUNNER_TEMP/soxu-apt-archives"
           echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
           echo "image=${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
-      - name: Restore APT package archives
-        id: apt_cache
-        uses: actions/cache/restore@v4
+          mkdir -p "$RUNNER_TEMP/apt-packages"
+      - name: Restore APT package cache
+        id: apt-cache
+        uses: actions/cache/restore@v5
         with:
-          path: ${{ runner.temp }}/soxu-apt-archives
-          key: apt-ubuntu-24.04-${{ runner.arch }}-${{ steps.apt_key.outputs.image }}-${{ steps.apt_key.outputs.week }}-v1
+          path: ${{ runner.temp }}/apt-packages
+          key: apt-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.apt-key.outputs.image }}-${{ steps.apt-key.outputs.week }}
           restore-keys: |
-            apt-ubuntu-24.04-${{ runner.arch }}-${{ steps.apt_key.outputs.image }}-
-      - name: Refresh APT indexes
+            apt-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.apt-key.outputs.image }}-
+      - name: Stage cached APT packages
+        run: |
+          sudo cp -n "$RUNNER_TEMP"/apt-packages/*.deb /var/cache/apt/archives/ 2>/dev/null || {
+            if compgen -G "$RUNNER_TEMP/apt-packages/*.deb" >/dev/null; then
+              echo "Failed to stage cached packages" >&2
+              exit 1
+            fi
+          }
+      - name: Update APT indexes
         run: sudo apt-get update
       - name: Install Linux Tauri prerequisites
         run: |
-          shopt -s nullglob
-          packages=("$RUNNER_TEMP"/soxu-apt-archives/*.deb)
-          if (( ${#packages[@]} )); then
-            sudo cp -n "${packages[@]}" /var/cache/apt/archives/
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf
+          sudo find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t "$RUNNER_TEMP/apt-packages" {} +
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/apt-packages"
+          if ! compgen -G "$RUNNER_TEMP/apt-packages/*.deb" >/dev/null; then
+            echo "::warning::APT package cache is empty after installation"
           fi
-          sudo apt-get install -y --no-install-recommends -o Binary::apt::APT::Keep-Downloaded-Packages=true libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf
-          find /var/cache/apt/archives -maxdepth 1 -name '*.deb' -exec cp -t "$RUNNER_TEMP/soxu-apt-archives" {} +
-      - name: Save APT package archives
-        if: steps.apt_cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+      - name: Save APT package cache
+        if: steps.apt-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
         with:
-          path: ${{ runner.temp }}/soxu-apt-archives
-          key: apt-ubuntu-24.04-${{ runner.arch }}-${{ steps.apt_key.outputs.image }}-${{ steps.apt_key.outputs.week }}-v1
-      - name: Report cache status
-        if: always()
+          path: ${{ runner.temp }}/apt-packages
+          key: ${{ steps.apt-cache.outputs.cache-primary-key }}
+      - name: Report cache and timing guidance
+        if: ${{ always() }}
         env:
-          NODE_CACHE: ${{ steps.node_setup.outputs.cache-hit }}
-          CARGO_CACHE: ${{ steps.cargo_cache.outputs.cache-hit }}
-          APT_CACHE: ${{ steps.apt_cache.outputs.cache-hit }}
+          NODE_HIT: ${{ steps.node-cache.outputs.cache-hit }}
+          CARGO_HIT: ${{ steps.cargo-cache.outputs.cache-hit }}
+          APT_HIT: ${{ steps.apt-cache.outputs.cache-hit }}
+          APT_MATCHED_KEY: ${{ steps.apt-cache.outputs.cache-matched-key }}
         run: |
           {
-            echo '### Rust / Tauri cache observations'
-            echo "- pnpm: ${NODE_CACHE:-not reported}"
-            echo "- Cargo: ${CARGO_CACHE:-not reported}"
-            echo "- APT: ${APT_CACHE:-miss or unavailable} (false means a restore-key match)"
-            echo '- See the individual step timestamps and post-job cache save in the log to compare elapsed time. Cache hits alone do not establish a speedup.'
-          } | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "### Rust / Tauri cache and timings"
+            echo "- pnpm cache hit: ${NODE_HIT:-unavailable}; see restore log for details."
+            echo "- Cargo exact cache hit: ${CARGO_HIT:-unavailable}; see restore log for fallback or miss."
+            echo "- APT cache hit: ${APT_HIT:-miss or unavailable}; matched key: ${APT_MATCHED_KEY:-none}."
+            echo "- Compare restore, APT update/install/save, Cargo test and post-job cache-save durations in the step logs."
+            echo "- Cache hits and size alone do not establish time saved; compare similar cold and warm runs, including cache overhead."
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Generate approved SOXU desktop icons
         run: pnpm icons:generate
       - name: Check Rust formatting

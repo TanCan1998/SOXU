@@ -12,6 +12,7 @@ import { loadRoleModels } from "./agent-models.mjs";
 import { localProgress } from "./status.mjs";
 import { prepareWorktreeRecovery } from "./worktree-sync.mjs";
 import { localTasks as getLocalTasks } from "./local-queue.mjs";
+import { cleanupMergedTasks } from "./merged-cleanup.mjs";
 
 const HELP = `SOXU Agent Loop
 
@@ -19,6 +20,7 @@ Usage:
   node automation/loop/src/cli.mjs [command] [options]
 
 Commands:
+  cleanup      Recheck merged Runner PRs and safely remove matching branches
   doctor       Check toolchain, model configuration and lockfiles (default)
   status       Show offline task status; add --json for machine-readable output
   models       Show Developer / Reviewer model routing
@@ -111,7 +113,9 @@ async function doctor() {
   console.log("  policy:", JSON.stringify({ maxConcurrentAgents:p.maxConcurrentAgents, timeouts:p.timeouts, autoMerge:p.autoMerge, autoRelease:p.autoRelease }));
   console.log("  paused or interrupted tasks:", (await listPaused()).map(x => `#${x.issue.number} (${x.status}: ${x.phase})`).join(", ") || "none");
 }
+async function cleanup() { try { return await cleanupMergedTasks(ROOT,{signal:controller.signal}); } catch { console.warn("Merged cleanup unavailable; retry on the next run."); return [{status:"error"}]; } }
 async function once() {
+  if (!local && !dryRun) await cleanup();
   if (!dryRun) await verifyLockfiles();
   const available = await issues();
   if (!available.length) { console.log("No eligible tasks"); return []; }
@@ -142,6 +146,7 @@ async function resume() {
 }
 const problematic = results => results.some(x => x.status === "paused" || x.status === "blocked");
 switch (command) {
+  case "cleanup": { if(local || dryRun) throw new Error("cleanup requires GitHub mode"); const results=await cleanup(); console.log(`Merged cleanup: ${results.filter(x=>x.status==="cleaned").length} cleaned, ${results.filter(x=>x.status==="preserved").length} preserved, ${results.filter(x=>["error","invalid-checkpoint"].includes(x.status)).length} errors; unmerged or locked tasks are retained.`); if(results.some(x=>["error","invalid-checkpoint"].includes(x.status))) process.exitCode=1; break; }
   case "doctor": await doctor(); break;
   case "status": {
     const snapshot = await localProgress(ROOT, id => readCheckpoint(id, undefined, local));
@@ -166,6 +171,7 @@ switch (command) {
   }
   case "seed-issues": await seedIssues(); break;
   case "resume": {
+    if (!local && !dryRun) await cleanup();
     const sentence = naturalSentence().replace(/(?:^|\s)--blocked(?=\s|$)/g, " ").trim();
     // Preserve legacy `--issue 123` and `resume` (all paused GitHub tasks).
     if (args.includes("--blocked") && sentence && !/^(?:--issue\s+)?#?\d+$/.test(sentence)) throw new Error("--blocked is supported only for explicit resume, not natural language");
@@ -173,6 +179,7 @@ switch (command) {
       const results = await recoverFromSentence(sentence, { policy: p, localOnly: local, githubOnly, dryRun, signal: controller.signal });
       if (problematic(results)) process.exitCode = 1;
     } else await resume();
+    if (!local && !dryRun) await cleanup();
     break;
   }
   case "say": {
@@ -180,10 +187,12 @@ switch (command) {
     if (!sentence) throw new Error('请提供一句话，例如：pnpm agent:say -- "继续 SOXU"');
     const results = await recoverFromSentence(sentence, { policy: p, localOnly: local, githubOnly, dryRun, signal: controller.signal });
     if (problematic(results)) process.exitCode = 1;
+    if (!local && !dryRun) await cleanup();
     break;
   }
   case "once": {
     const results = await once();
+    if (!local && !dryRun) await cleanup();
     if (!local && !dryRun && !problematic(results)) await processAuthorizedReleases(p);
     if (problematic(results)) process.exitCode = 1;
     break;
@@ -195,6 +204,7 @@ switch (command) {
     let handled = 0;
     console.log(`Watch enabled for at most ${p.maxContinuousHours}h, max ${p.maxIssuesPerWatch} attempted issues`);
     while (!controller.signal.aborted && Date.now() < stopAt && handled < p.maxIssuesPerWatch) {
+      await cleanup();
       const before = await issues();
       const batch = before.slice(0, Math.min(p.maxConcurrentAgents, p.maxIssuesPerWatch - handled));
       if (batch.length) {
@@ -203,21 +213,27 @@ switch (command) {
         if (problematic(results)) { console.error("Task paused or blocked; ending watch until explicit manual resume"); process.exitCode = 1; break; }
       }
       if (controller.signal.aborted) break;
+      await cleanup();
       await processAuthorizedReleases(p);
       if (Date.now() >= stopAt || handled >= p.maxIssuesPerWatch) break;
-      if (!await interruptibleWait(p.watchIntervalMinutes * 60000, controller.signal)) break;
+      const nextPoll=Math.min(stopAt,Date.now()+p.watchIntervalMinutes*60000);
+      while(!controller.signal.aborted && Date.now()<nextPoll) {
+        if(!await interruptibleWait(Math.min(60000,nextPoll-Date.now()),controller.signal)) break;
+        if(!controller.signal.aborted) await cleanup();
+      }
     }
     break;
   }
   case "loop": {
     if (!dryRun) await verifyLockfiles();
+    if (!local && !dryRun) await cleanup();
     for (let round = 0; round < p.maxRoundsPerInvocation; round++) {
       console.log(`SOXU loop round ${round + 1}/${p.maxRoundsPerInvocation}`);
       const available = await issues();
       if (!available.length) { console.log("No more ready issues"); if (!local && !dryRun) await processAuthorizedReleases(p); break; }
       const results = await once();
       if (problematic(results)) { process.exitCode = 1; console.log("Task paused/blocked; manual resume required. Stop to avoid wasting quota."); break; }
-      if (!local && !dryRun) await processAuthorizedReleases(p);
+      if (!local && !dryRun) {await cleanup();await processAuthorizedReleases(p);}
       if (dryRun) break;
     }
     break;

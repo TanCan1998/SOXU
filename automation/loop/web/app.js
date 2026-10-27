@@ -20,7 +20,8 @@ let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", rendered
 let agents = new Map(), lastAgentKey = "", streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
 let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null, lastIntakeKey = "", lastQueueKey = "";
 let lastRoadmapKey = "";
-let advisoryState = null, loadedReportKeys = {product:"",quality:""};
+let advisoryState = null, loadedReportKeys = {product:"",quality:""}, currentReports = {product:null,quality:null};
+let draftState = {items:[],busy:false}, editingDraft = null, selectedDrafts = new Set(), lastDraftKey = "";
 let modelSettings = null, modelDraft = null, modelCatalog = [], actualModels = new Map();
 
 function stored(storage, key) { try { return storage.getItem(key); } catch { return null; } }
@@ -181,6 +182,17 @@ function renderTasks(data) {
         link.href = remote.pr.url; link.target = "_blank"; link.rel = "noopener noreferrer";
         box.append(link, document.createTextNode(` · ${prState} · CI ${ciState}`));
       } else box.append(document.createTextNode(`PR #${remote.pr.number} ${prState} · CI ${ciState}`));
+      if (Array.isArray(remote.pr.activeChecks) && remote.pr.activeChecks.length) {
+        for (const check of remote.pr.activeChecks) {
+          const started = Date.parse(check.startedAt);
+          const elapsed = Number.isFinite(started) ? ` · 已运行 ${Math.max(0, Math.floor((Date.now() - started) / 60000))} 分钟` : "";
+          box.append(element("div", `CI 任务：${check.name}${elapsed}`, "task-detail"));
+          if (check.stepStatus === "available") {
+            const changed = check.stepObservedAt ? new Date(check.stepObservedAt).toLocaleString() : "未知";
+            box.append(element("div", `当前步骤：${check.step?.name || "暂无运行中步骤"} · 步骤状态最近变化：${changed}（非日志时间）`, "task-detail"));
+          } else box.append(element("div", "步骤状态不可用；实时日志请查看 GitHub", "task-detail"));
+        }
+      }
       if (remote.pr.state === "open") {
         const button = element("button", "合并并删除远程分支", "task-merge");
         button.disabled = Boolean(data.busy) || remote.pr.ci !== "success";
@@ -336,7 +348,8 @@ function render(data) {
     row.append(title,element("span",state,"queue-state"));queue.append(row);
     }
   }
-  renderIntake(data.intake);
+  renderDrafts(data.drafts, data.intake);
+  updateRunTimers();
   renderTasks(data);
   if (Array.isArray(data.taskModels)) actualModels = new Map(data.taskModels.map(m=>[m.taskId+":"+m.role,m]));
   if (data.modelInfo?.status === "ok") {modelSettings=data.modelInfo.settings;renderModelSummary(data.modelInfo);}
@@ -465,21 +478,46 @@ async function openStream(token) {
     }
   }
 }
-async function loadAdvisory(lane) {
-  const prefix=lane === "product" ? "product" : "quality", node=$(prefix+"Report");
+async function copyText(text) {
+  try {if (!text) throw new Error("empty"); await navigator.clipboard.writeText(text);notice("已复制到剪贴板。");}
+  catch {notice("复制失败，请检查浏览器剪贴板权限。 ");}
+}
+function copyButton(text, label) {
+  const button=element("button","⧉","icon-button"); button.type="button";
+  button.setAttribute("aria-label",label);button.setAttribute("title",label);
+  button.addEventListener("click",()=>void copyText(text));return button;
+}
+function reportParts(report) {
+  const parts=[{title:"摘要",text:report.summary}];
+  for(const f of report.findings) parts.push({title:f.title,text:f.recommendation+"\n置信度："+f.confidence+"\n证据："+(f.evidence.join("；") || "未提供")});
+  if(report.unknowns.length) parts.push({title:"待核实",text:report.unknowns.join("\n")});
+  return parts;
+}
+async function loadAdvisory(lane, selected=null) {
+  const node=$(lane+"Report"), list=$(lane+"Reports");
   node.replaceChildren(element("p","正在读取本地报告…","hint"));
   try {
-    const {report}=await api("/api/advisory-report?lane="+lane);
-    if (!report) {node.replaceChildren(element("p","暂无报告，请手动开始分析。","hint"));return;}
-    node.replaceChildren();
-    node.append(element("p", "未经核实的模型建议" + (report.createdAt ? " · " + new Date(report.createdAt).toLocaleString() : ""), "notice"));
-    const summary=element("div",undefined,"assessment-block");summary.append(element("strong","摘要"),element("p",report.summary));node.append(summary);
-    for (const finding of report.findings) {
-      const block=element("div",undefined,"assessment-block");
-      block.append(element("strong",finding.title),element("p",finding.recommendation),element("small","置信度："+finding.confidence+" · 证据："+(finding.evidence.join("；") || "未提供"),"hint"));node.append(block);
-    }
-    if (report.unknowns.length) {const block=element("div",undefined,"assessment-block");block.append(element("strong","待核实"),element("p",report.unknowns.join("\n")));node.append(block);}
-  } catch(error) {node.replaceChildren(element("p","报告读取失败："+error.message,"error-text"));}
+    const {reports}=await api("/api/advisory-reports?lane="+lane);
+    if (!Array.isArray(reports)) throw new Error("报告列表不可用");
+    list.replaceChildren();
+    for(const item of reports) {const option=element("option",new Date(item.modifiedAt).toLocaleString());option.value=item.name;list.append(option);}
+    const name=reports.some(x=>x.name===selected) ? selected : reports[0]?.name;
+    $(lane+"Clear").disabled=!reports.length;
+    $(lane+"Delete").disabled=$(lane+"Copy").disabled=!name;
+    if (!name) {currentReports[lane]=null;node.replaceChildren(element("p","暂无报告，请手动开始分析。","hint"));return;}
+    list.value=name;
+    const {report}=await api("/api/advisory-reports?lane="+lane+"&name="+encodeURIComponent(name));
+    currentReports[lane]=report;
+    node.replaceChildren();node.append(element("p","未经核实的模型建议"+(report.createdAt ? " · "+new Date(report.createdAt).toLocaleString() : ""),"notice"));
+    for(const part of reportParts(report)) {const block=element("div",undefined,"assessment-block");const head=element("div",undefined,"report-heading");head.append(element("strong",part.title),copyButton(part.title+"\n"+part.text,"复制"+part.title));block.append(head,element("p",part.text));node.append(block);}
+  } catch(error) {currentReports[lane]=null;node.replaceChildren(element("p","报告读取失败："+error.message,"error-text"));}
+}
+async function deleteAdvisory(lane, all) {
+  const name=all ? null : $(lane+"Reports").value;
+  if(!all && !name) return;
+  if(!confirm(all ? "确认清空此轨道的本地报告？" : "确认删除当前本地报告？")) return;
+  try {await api("/api/advisory-delete",{method:"POST",body:{lane,name}});await loadAdvisory(lane);await refresh();}
+  catch(error) {notice("删除报告失败："+error.message);}
 }
 async function openAdvisory(lane) {
   if (!connected) return notice("先连接本地控制台。");
@@ -492,6 +530,21 @@ async function startAdvisory(lane) {
   try {await api("/api/advisory-run",{method:"POST",body:{lane}});await refresh();}
   catch(error){$(lane+"RunState").textContent="分析启动失败："+error.message; }
 }
+function elapsedText(startedAt) {
+  const value=Date.parse(startedAt);if(!Number.isFinite(value)) return "耗时未知";
+  const seconds=Math.max(0,Math.floor((Date.now()-value)/1000));
+  return "已运行 "+Math.floor(seconds/60)+"分 "+String(seconds%60).padStart(2,"0")+"秒";
+}
+function updateRunTimers() {
+  const active=currentIntake?.status === "assessing";
+  const intake=$("intakeRunState");intake.dataset.running=String(active);
+  intake.textContent=active ? "正在评估 · "+elapsedText(currentIntake.startedAt) : "";
+  for(const lane of ["product","quality"]) {
+    const job=advisoryState?.active?.lane===lane ? advisoryState.active : null;
+    const state=$(lane+"RunState");state.dataset.running=String(Boolean(job));
+    if(job) state.textContent="正在分析 · "+elapsedText(job.startedAt)+(job.model?.provider ? " · "+job.model.provider+" / "+job.model.model : "");
+  }
+}
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
   const nextTheme = theme === "dark" ? "light" : "dark";
@@ -501,28 +554,49 @@ function setTheme(theme) {
   $("themeToggle").setAttribute("title", label);
   save(preferenceStorage, THEME_KEY, theme);
 }
-function renderIntake(intake) {
-  currentIntake = intake ?? null;
-  const key=JSON.stringify(intake ?? null);
-  if (key === lastIntakeKey) return;
-  lastIntakeKey=key;
-  const node = $("intakeResult"); node.replaceChildren();
-  const state = intake?.status;
-  $("assessIntake").disabled = ["assessing", "submitting", "unknown"].includes(state);
-  $("requirement").readOnly = ["assessing", "review", "submitting", "unknown"].includes(state);
-  if (intake?.requirement && ["assessing", "review", "submitting"].includes(state)) $("requirement").value = intake.requirement;
-  $("submitIntake").disabled = state !== "review";
-  $("clearIntake").hidden = state !== "unknown";
-  if (!intake) { $("intakeSummary").textContent = "尚未提交本次需求"; return; }
-  $("intakeSummary").textContent = (intake.model?.provider ? "模型 "+intake.model.provider+" / "+intake.model.model+" · " : "") + ({assessing:"Agent 正在评估",review:"评估完成，等待确认",submitting:"正在提交需求",submitted:"需求已提交",failed:"评估失败",unknown:"提交结果待核实"})[state] || "状态未知";
-  if (intake.assessment) for (const [key,label] of [["title","建议标题"],["feasibility","可行性"],["plan","实施安排"],["dependencies","前置依赖"],["acceptance","验收标准"],["unknowns","未知与待确认"]]) {
-    const block=element("div",undefined,"assessment-block"); block.append(element("strong",label),element("p",intake.assessment[key]));node.append(block);
-  }
-  if (intake.error) node.append(element("p",intake.error,"error-text"));
-  if (intake.url && /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(intake.url)) {
-    const link=element("a","在 GitHub 查看需求","pr-link");link.href=intake.url;link.target="_blank";link.rel="noopener noreferrer";node.append(link);
-  }
+function draftQuestions(a) {
+  const raw=String(a?.unknowns || "").split(/\n+/).map(x=>x.replace(/^\s*(?:[-*•]|\d+[.、])\s*/, "").trim()).filter(Boolean);
+  const supplied=Array.isArray(a?.questions) ? a.questions : [];
+  if(supplied.length===raw.length && raw.length) return supplied.map((q,i)=>({...q,text:raw[i]===q.text?q.text:raw[i]+" — "+q.text}));
+  return [...raw.map(text=>({text,options:[]})),...supplied];
 }
+function renderDrafts(data, legacy = null) {
+  draftState=data ?? {items:[],busy:false};
+  const items=draftState.items || []; const list=$("draftList");
+  const key=JSON.stringify(draftState)+JSON.stringify([...selectedDrafts])+JSON.stringify(legacy);
+  if(key!==lastDraftKey){lastDraftKey=key;list.replaceChildren();
+    if(legacy?.status === "unknown"){const row=element("div",undefined,"queue-item");row.append(element("span","旧版提交结果待核实：请先检查 GitHub。"));const b=element("button","已核实，解除旧锁定");b.addEventListener("click",async()=>{if(confirm("确认已检查 GitHub 中是否创建该需求？")){try{await api("/api/intake-clear",{method:"POST",body:{id:legacy.id}});await refresh();}catch(e){notice("解除锁定失败："+e.message);}}});row.append(b);list.append(row);}
+    for(const d of items){const row=element("div",undefined,"queue-item"), label=element("label"), box=element("input");box.type="checkbox";box.checked=selectedDrafts.has(d.id);box.disabled=d.status!=="review" || !Array.isArray(d.answers) || draftState.busy;box.addEventListener("change",()=>{if(box.checked)selectedDrafts.add(d.id);else selectedDrafts.delete(d.id);});label.append(box,document.createTextNode(" "+(d.assessment?.title || d.requirement.slice(0,60))+" · "+({draft:"草稿",review:d.answers?"可提交":"待确认",assessing:"评估中",submitting:"提交中",submitted:"已提交",unknown:"结果待核实"}[d.status]||d.status)));row.append(label);
+      for(const [text,action,disabled] of [["编辑",()=>openDraft(d),["unknown","submitted","submitting"].includes(d.status)],["上移",()=>draftAction("move",{id:d.id,direction:-1}),false],["下移",()=>draftAction("move",{id:d.id,direction:1}),false],["删除",()=>{if(confirm("删除这个草稿？"))void draftAction("remove",{id:d.id});},d.status==="unknown"]]){const b=element("button",text);b.disabled=disabled||draftState.busy;b.addEventListener("click",action);row.append(b);}
+      if(d.status==="unknown"){const b=element("button","核实结果");b.disabled=draftState.busy;b.addEventListener("click",async()=>{const created=confirm("请先在 GitHub 检查。确定已创建选择‘确定’；确认未创建选择‘取消’。");if(created){const url=prompt("输入已创建的 GitHub Issue 链接：");if(!url)return;await draftAction("resolve",{id:d.id,created:true,url});}else if(confirm("确认 GitHub 中没有创建该需求，允许重新提交？"))await draftAction("resolve",{id:d.id,created:false,url:null});});row.append(b);}
+      if(d.status==="submitted" && /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+$/.test(d.url || "")){const a=element("a","查看 Issue");a.href=d.url;a.target="_blank";a.rel="noopener noreferrer";row.append(a);}list.append(row);
+    }
+  }
+  const current=items.find(x=>x.id===editingDraft) || null;
+  currentIntake=current || items.find(x=>x.status==="assessing") || legacy;updateRunTimers();
+  $("intakeSummary").textContent=items.some(x=>x.status==="assessing") ? "Agent 正在评估 · "+elapsedText(items.find(x=>x.status==="assessing").startedAt) : items.length?`本地草稿 ${items.length} 项`:"暂无草稿";
+  if(!$("intakeDialog").open) return;
+  const resultKey=JSON.stringify(current);if(resultKey===lastIntakeKey)return;lastIntakeKey=resultKey;
+  const node=$("intakeResult");node.replaceChildren();
+  $("assessIntake").disabled=draftState.busy;$("saveDraft").disabled=draftState.busy;
+  $("requirement").readOnly=draftState.busy;$("saveAnswers").disabled=current?.status!=="review"||draftState.busy;$("submitIntake").disabled=current?.status!=="review"||draftState.busy;
+  $("clearIntake").hidden=true;
+  if(!current)return;
+  if(current.error)node.append(element("p",current.error,"error-text"));
+  if(!current.assessment)return;
+  for(const [key,label] of [["title","建议标题"],["feasibility","可行性"],["plan","实施安排"],["dependencies","前置依赖"],["acceptance","验收标准"],["unknowns","未知与待确认"]]){
+    const details=element("details",undefined,"assessment-block");const summary=element("summary",label+(key==="feasibility" ? " · "+({feasible:"🟢 可行",conditional:"🟡 有条件可行",infeasible:"🔴 不可行",unknown:"⚪ 待确认"}[current.assessment.feasibilityStatus] || "⚪ 待确认") : ""));details.append(summary,element("p",(key==="dependencies"?"依赖项：":"")+current.assessment[key]));node.append(details);
+  }
+  const qs=draftQuestions(current.assessment);qs.forEach((q,i)=>{const field=element("fieldset",undefined,"assessment-block"),legend=element("legend",q.text);field.append(legend);for(const option of q.options){const label=element("label"),check=element("input");check.type="checkbox";check.value=option;check.checked=current.answers?.[i]?.selected?.includes(option)||false;label.append(check,document.createTextNode(" "+option));field.append(label);}const custom=element("textarea");custom.rows=2;custom.maxLength=400;custom.placeholder="补充或自填";custom.value=current.answers?.[i]?.custom||"";field.append(custom);node.append(field);field.addEventListener("input",updateAnswerButtons);field.addEventListener("change",updateAnswerButtons);});
+  updateAnswerButtons();
+  $("queueReady").checked=current.ready===true;$("intakeMilestone").value=current.milestone||"";
+}
+function openDraft(d){editingDraft=d?.id||null;$("requirement").value=d?.requirement||"";lastIntakeKey="";if(!$("intakeDialog").open)$("intakeDialog").showModal();renderDrafts(draftState);}
+async function draftAction(action,body){try{const result=await api("/api/drafts-"+action,{method:"POST",body});renderDrafts(result);return result;}catch(e){notice("操作失败："+e.message);return null;}}
+async function saveDraft(){const result=await draftAction("save",{id:editingDraft,requirement:$("requirement").value});if(result && !editingDraft)editingDraft=result.items.at(-1).id;lastIntakeKey="";if(result)renderDrafts(result);return result;}
+function updateAnswerButtons(){const complete=collectAnswers().every(a=>a.selected.length || a.custom.trim());$("saveAnswers").disabled=!complete || draftState.busy;$("submitIntake").disabled=!complete || draftState.busy;}
+function collectAnswers(){return [...$("intakeResult").querySelectorAll("fieldset")].map(field=>({selected:[...field.querySelectorAll('input:checked')].map(x=>x.value),custom:field.querySelector("textarea").value}));}
+async function saveDraftAnswers(){const result=await draftAction("answer",{id:editingDraft,answers:collectAnswers(),ready:$("queueReady").checked,milestone:$("intakeMilestone").value||null});return result;}
 async function mergePr(issue, pr) {
   if (!connected || !Number.isSafeInteger(issue) || !Number.isSafeInteger(pr.number)) return;
   if (!confirm(`合并 PR #${pr.number}「${pr.title}」并删除远程分支？将重新检查 PR、CI 和分支头。`)) return;
@@ -647,29 +721,19 @@ for (const lane of ["product","quality"]) {
   $("open"+cap).addEventListener("click",()=>void openAdvisory(lane));
   $("close"+cap).addEventListener("click",()=>$(lane+"Dialog").close());
   $("run"+cap).addEventListener("click",()=>void startAdvisory(lane));
+  $(lane+"Reports").addEventListener("change",()=>void loadAdvisory(lane,$(lane+"Reports").value));
+  $(lane+"Copy").addEventListener("click",()=>{const report=currentReports[lane];if(report) void copyText(reportParts(report).map(p=>p.title+"\n"+p.text).join("\n\n"));});
+  $(lane+"Delete").addEventListener("click",()=>void deleteAdvisory(lane,false));
+  $(lane+"Clear").addEventListener("click",()=>void deleteAdvisory(lane,true));
 }
 $("themeToggle").addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
-$("openIntake").addEventListener("click", () => { if (!connected) return notice("先连接本地控制台。"); $("intakeDialog").showModal(); });
-$("closeIntake").addEventListener("click", () => $("intakeDialog").close());
-$("assessIntake").addEventListener("click", async () => {
-  if (!confirm("评估会调用一次模型并可能产生费用，继续？")) return;
-  $("queueReady").checked=false;
-  try { const result=await api("/api/intake-assess",{method:"POST",body:{requirement:$("requirement").value}});renderIntake(result); }
-  catch(error){$("intakeResult").textContent="评估启动失败："+error.message;}
-});
-$("clearIntake").addEventListener("click", async () => {
-  if (!currentIntake || !confirm("请先检查 GitHub 是否已有此需求。确认已核实提交结果，解除锁定？")) return;
-  try {await api("/api/intake-clear",{method:"POST",body:{id:currentIntake.id}});renderIntake(null);}
-  catch(error){notice("解除锁定失败："+error.message);}
-});
-$("submitIntake").addEventListener("click", async () => {
-  if (!currentIntake || currentIntake.status !== "review") return;
-  const ready=Boolean($("queueReady").checked);
-  if (!confirm(ready ? "确认提交并加入可执行队列？请确保前置依赖已完成。" : "确认创建 GitHub 需求并标记为阻塞，等待人工核对依赖？")) return;
-  $("submitIntake").disabled=true;
-  try {const result=await api("/api/intake-submit",{method:"POST",body:{id:currentIntake.id,ready,milestone:$("intakeMilestone").value || null}});renderIntake(result);}
-  catch(error){$("intakeResult").textContent=error.message === "potential-secret" ? "检测到疑似密钥，未提交。请删除敏感内容后重新评估。" : "提交结果可能不确定，请先检查 GitHub，避免重复提交。";}
-});
+$("openIntake").addEventListener("click",()=>{if(!connected)return notice("先连接本地控制台。");openDraft(null);});
+$("closeIntake").addEventListener("click",()=>$("intakeDialog").close());
+$("saveDraft").addEventListener("click",async()=>{if(await saveDraft()){$("intakeDialog").close();notice("草稿已保存。");}});
+$("assessIntake").addEventListener("click",async()=>{if(!confirm("评估会调用一次模型并可能产生费用，继续？"))return;const d=draftState.items.find(x=>x.id===editingDraft);if(!d||d.requirement!==$("requirement").value.trim()){if(!await saveDraft())return;}await draftAction("assess",{id:editingDraft});});
+$("saveAnswers").addEventListener("click",async()=>{if(await saveDraftAnswers())notice("确认结果已保存。");});
+$("submitIntake").addEventListener("click",async()=>{if(!confirm("确认提交该需求？"))return;if(!await saveDraftAnswers())return;await draftAction("batch",{ids:[editingDraft]});});
+$("batchDrafts").addEventListener("click",async()=>{const ids=[...selectedDrafts];if(!ids.length)return notice("请先选择已完成确认的草稿。");if(!confirm(`确认按队列顺序提交 ${ids.length} 项需求？`))return;const result=await draftAction("batch",{ids});if(result){selectedDrafts.clear();lastDraftKey="";renderDrafts(result);}});
 (function initializePreferences() {
   showPage(stored(preferenceStorage,PAGE_KEY) || "Overview");
   const theme = stored(preferenceStorage,THEME_KEY);
@@ -683,6 +747,7 @@ $("submitIntake").addEventListener("click", async () => {
   $("logFilter").value = logFilter;
   $("followLogs").checked = followLogs;
 })();
+$("copyLogs").addEventListener("click",()=>void copyText(visibleLogs().map(row=>new Date(row.time).toLocaleTimeString()+" "+row.message).join("\n")));
 $("logLimit").addEventListener("change", () => {
   const selected = Number($("logLimit").value);
   if (!LOG_LIMITS.has(selected)) return;
@@ -728,7 +793,7 @@ $("stop").addEventListener("click", async () => {
 });
 $("refresh").addEventListener("click", () => void refresh());
 setInterval(() => void refresh(), 15000);
-setInterval(() => { if (!document.hidden) updateElapsed(); }, 1000);
+setInterval(() => { if (!document.hidden) {updateElapsed();updateRunTimers();} }, 1000);
 window.addEventListener("pagehide", stopStream);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
