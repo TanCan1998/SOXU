@@ -49,6 +49,10 @@ function stopTree(child, hard = false) {
   }
 }
 
+export function piArgv(modelSelection, readOnly = false) {
+  return ["--mode", "rpc", ...(readOnly ? ["--no-tools", "--no-extensions", "--no-mcp", "--no-session"] : []), ...modelArgs(modelSelection)];
+}
+
 export function resolvePiTimeouts({ timeoutMs, timeouts = {} } = {}) {
   const hardMs = timeoutMs ?? (timeouts.piHardMinutes ?? 35) * 60000;
   const startupMs = Math.min(hardMs, (timeouts.piStartupSeconds ?? 90) * 1000);
@@ -63,12 +67,12 @@ export function resolvePiTimeouts({ timeoutMs, timeouts = {} } = {}) {
  * the idle window but never the hard deadline. Quota/network errors are returned
  * to the coordinator; this function never automatically replays a paid prompt.
  */
-export async function runPi({ cwd, prompt, timeoutMs, timeouts, onEvent = () => {}, signal, modelSelection } = {}) {
+export async function runPi({ cwd, prompt, timeoutMs, timeouts, onEvent = () => {}, signal, modelSelection, readOnly = false } = {}) {
   const budgets = resolvePiTimeouts({ timeoutMs, timeouts });
   const binary = process.env.SOXU_PI_BIN || "pi";
   const win = process.platform === "win32";
   if (win && !/^[a-zA-Z0-9_-]+$/.test(binary)) throw new Error("SOXU_PI_BIN on Windows must be a safe executable name");
-  const argv = ["--mode", "rpc", ...modelArgs(modelSelection)];
+  const argv = piArgv(modelSelection, readOnly);
   // Windows .cmd resolution requires cmd.exe; identifiers are strictly validated above.
   const child = spawn(win ? "cmd.exe" : binary, win ? ["/d", "/s", "/c", `${binary} ${argv.join(" ")}`] : argv, {
     cwd, env: safeEnvironment(), windowsHide: true, detached: !win, stdio: ["pipe", "pipe", "pipe"]

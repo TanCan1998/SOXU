@@ -10,6 +10,13 @@
 5. `agents/policies/model-selection.md`、`agents/policies/observability.md`
 6. 当前 GitHub Issue 或 `tasks/backlog/TASK-*.md` 的验收标准
 
+## 三轨开发与复盘规则
+
+- 开始改动前，先读根目录 `LESSONS.md`；仅有真实证据支持的经验可以进入复盘记录。
+- Development Loop 按现有 Issue/Worktree/Reviewer 门禁执行；Product/Quality Loop 仅输出 `.soxu/advisory/` 下待核实建议，不修改 Issue、PRD、受保护策略或发布设置。
+- 相同教训须在至少 **3 个不同日期**有记录才可以提出规则晋升申请；普通 Agent 不得自动修改 `agents/policies/`，晋升需维护者明确批准。
+- 新增轨道须显式人工执行，不自动定期付费调用；Product/Quality 不拥有任何 Pi 工具权限。详见 `docs/development/three-lane-agent-loop.md`。
+
 ## 不可违反的约束
 - Pi 负责模型、工具、Skills、Extensions 和会话读写；SOXU 负责窗口、运行时管理、索引、任务组织、UI、Git/终端。不要重新实现 Pi Agent 内核。
 - 以持久化 `sessionId` 为中心建模；`runtimeId + generation` 是临时执行身份，迟到事件必须按 generation 丢弃。

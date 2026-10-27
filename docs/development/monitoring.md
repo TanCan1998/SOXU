@@ -29,3 +29,8 @@ pnpm agent:loop           # 有界多轮开发
 **计划项（尚未实现）**：`pnpm agent:logs`、`pnpm agent:dashboard`，后续统一展示里程碑完成率、活跃 Agent、模型成本、Worktree 与 CI。
 
 进度统计和错误日志要遵守 [`observability.md`](../../agents/policies/observability.md)，不泄漏 token、完整凭据或敏感会话内容。
+
+
+## 产品/质量 Loop 本地建议（显式触发）
+
+运行 `pnpm agent:product -- --dry-run` 和 `pnpm agent:quality -- --dry-run` 预览要分析的证据；仅明确运行非 dry-run 命令才请求模型。结果位于 `.soxu/advisory/product/`、`.soxu/advisory/quality/`，不显示成 GitHub 或 CI 已完成状态。`pnpm agent:lessons` 无模型调用，只检查核实后的跨日经验是否满足**建议晋升**阈值。详见 [`three-lane-agent-loop.md`](three-lane-agent-loop.md)。

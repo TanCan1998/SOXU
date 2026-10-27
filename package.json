@@ -16,6 +16,18 @@
     "test:loop": "node --test automation/loop/tests/*.test.mjs",
     "agent:release": "node scripts/release.mjs",
     "mirror:atomgit": "node scripts/mirror.mjs",
-    "agent": "node automation/loop/src/cli.mjs"
+    "agent": "node automation/loop/src/cli.mjs",
+    "agent:doctor": "node automation/loop/src/cli.mjs doctor",
+    "agent:status": "node automation/loop/src/cli.mjs status",
+    "agent:models": "node automation/loop/src/cli.mjs models",
+    "agent:seed": "node automation/loop/src/cli.mjs seed-issues",
+    "agent:once": "node automation/loop/src/cli.mjs once",
+    "agent:loop": "node automation/loop/src/cli.mjs loop",
+    "agent:watch": "node automation/loop/src/cli.mjs watch",
+    "agent:resume": "node automation/loop/src/cli.mjs resume",
+    "agent:say": "node automation/loop/src/cli.mjs say",
+    "agent:product": "node automation/loop/src/advisory-cli.mjs product",
+    "agent:quality": "node automation/loop/src/advisory-cli.mjs quality",
+    "agent:lessons": "node automation/loop/src/advisory-cli.mjs lessons"
   }
 }
