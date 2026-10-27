@@ -4,7 +4,7 @@
 
 > A lightweight cross-platform desktop workspace for Pi Agent, focused on projects, sessions, concurrent agents, resource efficiency, and reliable recovery.
 
-**Status: pre-launch / engineering prototype.** This repository contains an early Tauri + Vue desktop skeleton and a Node.js development Agent Loop. **The finished SOXU desktop product does not exist yet.** Historical ZIP labels (such as v1.3) identify bootstrap iterations, not released SOXU application versions.
+**Status: in development; not released.** The repository contains a Tauri + Vue desktop project, Pi RPC supervisor and project/session catalog code, and a Node.js development Agent Loop. **The finished SOXU desktop product does not exist yet.** Historical ZIP labels (such as v1.3) identify bootstrap iterations, not released SOXU application versions.
 
 ## Local Agent Web dashboard
 
@@ -13,7 +13,7 @@ shown in the terminal. View checkpoint progress and bounded runner logs, or expl
 stop, and resume Agent Loop tasks. The dashboard uses authenticated SSE for incremental coordinator logs and Developer/Reviewer activity, with a 15-second HTTP calibration fallback. Show the most recent 50 logs by default (configurable: 20/50/100/200), filter by source and toggle auto-follow. Activity shows only status, tool name and elapsed time—never prompts or raw model/tool content. After successful authentication, the token is held in per-tab `sessionStorage` so reloads reconnect automatically; restarting the dashboard requires a fresh token. No PiDeck dependency or external-process takeover.
 See the [dashboard guide](docs/development/dashboard.md).
 
-The dashboard supports V3 light and dark themes and the project roadmap (automatically updated from classified issues and GitHub status, without claiming milestone acceptance). A requirement can be assessed by a read-only Agent before the user confirms creation of a GitHub Issue and chooses whether dependencies are ready for execution. Product and Quality each have a dialog for explicitly starting a one-shot read-only analysis and viewing the latest unverified report. Dashboard pages switch without reloading, and local model pools apply only to new tasks; resumed tasks retain their checkpointed selection.
+The dashboard can display associated PR and check status and lets the user explicitly trigger a merge. The dashboard supports V3 light and dark themes and the project roadmap (automatically updated from classified issues and GitHub status, without claiming milestone acceptance). A requirement can be assessed by a read-only Agent before the user confirms creation of a GitHub Issue and chooses whether dependencies are ready for execution. Product and Quality each have a dialog for explicitly starting a one-shot read-only analysis and viewing the latest unverified report. Dashboard pages switch without reloading, and local model pools apply only to new tasks; resumed tasks retain their checkpointed selection.
 
 ## Product goals
 
@@ -37,7 +37,7 @@ See the [product requirements](docs/product/prd.md) for acceptance criteria P-01
 
 - Git, GitHub CLI (`gh`), Pi CLI, Rust/Cargo, Windows PowerShell, and the platform prerequisites for Tauri.
 - **Node.js >=24** (the development machine already has Node 26).
-- The owner-approved baseline uses **pnpm 12.15.0, Rust 1.99.1 / Edition 2024, Tauri 2, Vue 3.5.44, Vite 8.3.5, TypeScript 6.0.3, Pinia 4, and Vue Router 5**. See [the approved toolchain](docs/development/approved-toolchain.md). **Dependency lockfiles still need to be generated in an environment with network access and Rust/pnpm installed.**
+- The owner-approved baseline uses **pnpm 12.15.0, Rust 1.99.1 / Edition 2024, Tauri 2, Vue 3.5.44, Vite 8.3.5, TypeScript 6.0.3, Pinia 4, and Vue Router 5**. See [the approved toolchain](docs/development/approved-toolchain.md). The repository contains `pnpm-lock.yaml` and `Cargo.lock`; installation and builds still need validation on the target environment.
 - You must separately authorize Pi model providers/quotas; SOXU will not silently switch to a paid model.
 
 ```powershell
@@ -45,8 +45,8 @@ cd D:\Projects\SOXU   # Example path; adjust to your local checkout
 node --version
 pnpm --version
 pi --version
-pnpm install               # Resolves dependency graph and generates pnpm-lock.yaml
-cargo generate-lockfile      # Generates Cargo.lock
+pnpm install --frozen-lockfile # Install from the committed lockfile
+node scripts/setup-git-hooks.mjs # Install commit hooks
 pnpm agent:models      # Show model routing; no paid inference
 pnpm agent:doctor      # Inspect tools, Git, and paused runs
 ```
@@ -78,7 +78,7 @@ Use SOXU's local dashboard (`pnpm agent:dashboard`) for task status and explicit
 
 TASK frontmatter priorities and dependency IDs are now enforced. TASK-001/002 may run first; dependent tasks wait for a closed predecessor Issue **and a corresponding PR actually merged into `main`**. A legacy TASK-006 may still carry `agent:blocked` from the older seed; inspect before manually changing it to `agent:waiting`. Agent execution stops before paid calls when pnpm/Cargo lockfiles are absent, while `--dry-run` remains available. See [Task queue rules](tasks/README.md).
 
-`agent:status` reports local checkpoints. `agent:dashboard` provides a local browser view, bounded coordinator logs, and explicitly triggered commands; it does not query live GitHub state. A separate `agent:logs` CLI is not implemented.
+`agent:status` reports local backlog and checkpoints. The dashboard can also display GitHub task, PR and check status and offers an explicit merge action; remote status depends on GitHub connectivity and permissions. A separate `agent:logs` CLI is not implemented.
 
 ## Choose Developer and Reviewer models
 
@@ -110,7 +110,7 @@ Reports stay in git-ignored `.soxu/advisory/`. See [`LESSONS.md`](LESSONS.md) an
 
 ## Safety and acceptance gates
 
-Each task uses its own Git Worktree. Developer agents cannot push, merge, tag, release, edit protected governance files, or access personal credentials. The Runner validates the same Git tree that was tested and reviewed; GitHub branch protection/CI controls PR merging. Quota failures, network failures, and timeouts pause instead of triggering unlimited paid retries.
+Each task uses its own Git Worktree. Developer agents cannot push, merge, tag, release, edit protected governance files, or access personal credentials. The Runner validates the same Git tree that was tested and reviewed; GitHub branch protection and checks control PR merging. Current policy disables automatic merging and release; the dashboard offers an explicit merge action. Quota failures, network failures, and timeouts pause instead of triggering unlimited paid retries.
 
 Start with [`AGENTS.md`](AGENTS.md), then review the [Agent Loop guide](docs/development/agent-loop.md), [coding conventions](agents/policies/coding-standards.md), [testing/definition of done](agents/policies/testing.md), and [security rules](agents/policies/security.md).
 
@@ -122,7 +122,7 @@ The owner has approved a **ChatGPT-inspired, conversation-first layout** without
 
 ## Dependency locks and CI gate
 
-Direct dependency versions are pinned, Node.js requires `>=24` (local Node 26 is supported). Because this build environment cannot reach npm/Cargo registries and lacks Rust, **`pnpm-lock.yaml` and `Cargo.lock` have not been generated**. On a prepared Windows machine, resolve and commit both, then run `pnpm install --frozen-lockfile`. CI intentionally fails without frozen lockfiles. See the [toolchain verification guide](docs/development/approved-toolchain.md).
+The repository includes `pnpm-lock.yaml` and `Cargo.lock`. Use `pnpm install --frozen-lockfile` and Cargo's `--locked` option to use the committed resolution. Update the relevant lockfile with dependency changes; committed lockfiles do not establish that target-platform builds or acceptance have passed. See the [approved toolchain](docs/development/approved-toolchain.md); its historical statement that lockfiles have not been generated is outdated.
 
 ## Repository layout
 
@@ -139,7 +139,7 @@ Direct dependency versions are pinned, Node.js requires `>=24` (local Node 26 is
 
 ## Approval and remaining prerequisites
 
-The owner has approved the dependency version baseline, UI direction, and Developer/Reviewer model IDs. **Actual model provider access, account spending limits, dependency lockfile generation, and production signing/release permissions have not been verified or authorized.** The bootstrap is not a production release.
+The owner has approved the dependency version baseline, UI direction, and Developer/Reviewer model IDs. **Actual model provider access, account spending limits, target-platform build verification, and production signing/release permissions have not been verified or authorized.** The bootstrap is not a production release.
 
 The repository `LICENSE` governs SOXU; third-party sources and dependencies retain their own licenses.
 
