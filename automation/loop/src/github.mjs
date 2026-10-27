@@ -59,7 +59,7 @@ export async function branchProtectionEnabled() {
       (v.required_status_checks?.checks ?? []).some(x => x.context === "quality");
   } catch { return false; }
 }
-export async function autoMerge(prUrl) { await gh(["pr", "merge", prUrl, "--auto", "--squash", "--delete-branch"], ROOT); }
+export async function autoMerge(prUrl) { await gh(["pr", "merge", prUrl, "--auto", "--squash"], ROOT); }
 export async function seedIssues() {
   for (const name of LABELS) await gh(["label", "create", name, "--color", name === "agent:blocked" ? "b60205" : "287a61", "--force"], ROOT);
   const existing = JSON.parse(await gh(["issue", "list", "--state", "all", "--limit", "300", "--json", "title"], ROOT));

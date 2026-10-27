@@ -54,6 +54,9 @@ if (command === "help" || command === "-h" || command === "--help" || args.inclu
 const local = args.includes("--local"), githubOnly = args.includes("--github"), dryRun = args.includes("--dry-run");
 if (local && githubOnly) throw new Error("--local and --github cannot be combined");
 const p = await loadPolicy();
+// Only a dashboard-owned child receives an explicit, session-scoped override.
+if (typeof process.send === "function" && ["0", "1"].includes(process.env.SOXU_DASHBOARD_AUTO_MERGE))
+  p.autoMerge = process.env.SOXU_DASHBOARD_AUTO_MERGE === "1";
 
 function naturalSentence() {
   const ignored = new Set(["--dry-run", "--local", "--github"]);
