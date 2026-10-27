@@ -1,5 +1,6 @@
 ---
 id: TASK-004
+milestone: M2
 priority: P1
 dependencies: [TASK-001]
 ---

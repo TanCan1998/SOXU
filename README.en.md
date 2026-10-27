@@ -13,7 +13,7 @@ shown in the terminal. View checkpoint progress and bounded runner logs, or expl
 stop, and resume Agent Loop tasks. The dashboard uses authenticated SSE for incremental coordinator logs and Developer/Reviewer activity, with a 15-second HTTP calibration fallback. Show the most recent 50 logs by default (configurable: 20/50/100/200), filter by source and toggle auto-follow. Activity shows only status, tool name and elapsed time—never prompts or raw model/tool content. After successful authentication, the token is held in per-tab `sessionStorage` so reloads reconnect automatically; restarting the dashboard requires a fresh token. No PiDeck dependency or external-process takeover.
 See the [dashboard guide](docs/development/dashboard.md).
 
-The dashboard supports V3 light and dark themes and the project roadmap (the maintainer selects the current phase locally in the browser). A requirement can be assessed by a read-only Agent before the user confirms creation of a GitHub Issue and chooses whether dependencies are ready for execution.
+The dashboard supports V3 light and dark themes and the project roadmap (automatically updated from classified issues and GitHub status, without claiming milestone acceptance). A requirement can be assessed by a read-only Agent before the user confirms creation of a GitHub Issue and chooses whether dependencies are ready for execution. Product and Quality each have a dialog for explicitly starting a one-shot read-only analysis and viewing the latest unverified report. Dashboard pages switch without reloading, and local model pools apply only to new tasks; resumed tasks retain their checkpointed selection.
 
 ## Product goals
 
