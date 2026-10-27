@@ -6,7 +6,7 @@ const LOG_FILTER_KEY = "soxu.dashboard.logFilter.v1";
 const FOLLOW_KEY = "soxu.dashboard.followLogs.v1";
 const LOG_LIMITS = new Set([20, 50, 100, 200]);
 const preferenceStorage = typeof localStorage === "undefined" ? { getItem: () => null, setItem: () => {} } : localStorage;
-const stateLabels = { running: "进行中", paused: "已暂停", blocked: "已阻塞", pending: "等待", done: "完成" };
+const stateLabels = { running: "进行中", paused: "已暂停", blocked: "已阻塞", pending: "等待", done: "本地已结束" };
 const phaseLabels = {
   worktree:"准备工作树", install:"安装依赖", develop:"开发", checks:"执行检查", review:"代码审查",
   postConflictInstall:"冲突后安装", recoveryInstall:"恢复时安装依赖", finalChecks:"最终检查", commit:"提交", push:"推送",
@@ -135,7 +135,7 @@ function renderLogs(force = false) {
 }
 function renderTasks(data) {
   const tasks = data.tasks || [];
-  const key = JSON.stringify([tasks, data.busy]);
+  const key = JSON.stringify([tasks, data.busy, data.github]);
   if (lastTaskKey === key) return;
   lastTaskKey = key;
   const node = $("tasks");
@@ -154,6 +154,16 @@ function renderTasks(data) {
       button.addEventListener("click", () => void resumeBlocked(task.id));
       card.append(button);
     }
+    const taskId = "TASK-" + String(task.id).padStart(3,"0");
+    const remote = data.github?.status === "ok" ? data.github.tasks?.[taskId] : null;
+    const details = [];
+    if (remote?.pr) {
+      const prState = {open:"待合并",merged:"已合并",closed:"已关闭"}[remote.pr.state] ?? "未知";
+      const ciState = {pending:"运行中",success:"通过",failure:"失败",unknown:"未知"}[remote.pr.ci] ?? "未知";
+      details.push(`PR #${remote.pr.number} ${prState} · CI ${ciState}`);
+    } else if (task.status === "done") details.push("本地执行结束；PR 状态待核实");
+    if (task.status === "pending" && remote?.missing?.length) details.push("等待依赖合并：" + remote.missing.join("、"));
+    if (details.length) card.append(element("div", details.join(" · "), "task-detail"));
     node.append(card);
   }
   if (!tasks.length) node.append(element("div", "暂无任务", "empty"));
@@ -203,6 +213,8 @@ function render(data) {
   $("updated").textContent = "更新于 " + new Date(data.generatedAt).toLocaleTimeString();
   for (const button of document.querySelectorAll("[data-command]")) button.disabled = data.busy;
   $("stop").disabled = !data.runner || data.runner.stopping;
+  $("githubStatus").textContent = data.github?.status === "ok" ? "GitHub PR / CI 状态已更新 · " + new Date(data.github.updatedAt).toLocaleTimeString()
+    : data.github?.status === "unavailable" ? "GitHub 状态不可用：请检查 gh 登录和网络；任务与 CI 状态未知" : "GitHub 状态加载中";
   renderTasks(data);
   if (Array.isArray(data.agents)) {
     agents = new Map(data.agents.map(a => [a.taskId + ":" + a.role, a]));

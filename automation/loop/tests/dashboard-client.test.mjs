@@ -41,7 +41,7 @@ function page({ storage = new Map(), handler = () => response(), hidden = false,
   const ids = [
     "token", "connect", "notice", "connection", "dot", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
-    "logLimit", "logFilter", "followLogs", "logCount", "agentCards",
+    "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus",
   ];
   const elements = Object.fromEntries(ids.map(id => [id, node()]));
   const actions = ["once", "resume", "loop", "watch"].map(command => {
@@ -205,4 +205,12 @@ test("blocked task button starts only that task and respects busy state", async 
   assert.deepEqual(JSON.parse(request.options.body),{command:"resume-blocked",issue:1});
   snapshot.busy=true; app.elements.refresh.dispatch("click"); await tick();
   assert.equal(app.elements.tasks.children[0].children.find(x=>x.dataset.resumeIssue === "1").disabled,true);
+});
+
+test("task cards distinguish local completion, pending CI and dependencies", async () => {
+  const snapshot={...STATUS, tasks:[{id:1,title:"One",status:"done"},{id:2,title:"Two",status:"pending"}], github:{status:"ok",updatedAt:"2026-10-27T00:00:00Z",tasks:{"TASK-001":{pr:{number:21,state:"open",ci:"pending"}},"TASK-002":{missing:["TASK-001"]}}}};
+  const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
+  app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
+  assert.match(app.elements.tasks.children[0].children.at(-1).textContent,/PR #21 待合并 · CI 运行中/);
+  assert.match(app.elements.tasks.children[1].children.at(-1).textContent,/等待依赖合并：TASK-001/);
 });

@@ -8,6 +8,7 @@ import { ROOT } from "./config.mjs";
 import { readCheckpoint } from "./checkpoint.mjs";
 import { localProgress } from "./status.mjs";
 import { safeActivity } from "./dashboard-activity.mjs";
+import { readGithubStatus } from "./dashboard-github.mjs";
 
 export const DASHBOARD_PORT = 47321;
 const COMMANDS = new Set(["once", "resume", "loop", "watch"]);
@@ -53,7 +54,7 @@ async function liveExternalLocks(root) {
 
 /** Owns only jobs explicitly launched from this web process. It cannot seize external Pi processes. */
 export class DashboardCoordinator extends EventEmitter {
-  constructor({ root = ROOT, spawn = fork } = {}) {
+  constructor({ root = ROOT, spawn = fork, githubStatus = readGithubStatus } = {}) {
     super();
     this.root = root;
     this.spawn = spawn;
@@ -65,6 +66,10 @@ export class DashboardCoordinator extends EventEmitter {
     this.instanceId = randomBytes(8).toString("hex");
     this.agents = new Map();
     this.phases = new Map();
+    this.githubStatus = githubStatus;
+    this.github = {status:"loading", updatedAt:null, tasks:{}};
+    this.githubNext = 0;
+    this.githubPending = null;
   }
   push(message, stream = "system") {
     const line = { seq: ++this.serial, time: new Date().toISOString(), stream, message: cleanLine(message) };
@@ -90,7 +95,17 @@ export class DashboardCoordinator extends EventEmitter {
       this.emit("dashboard:event", { type: "status", data: {} });
     }
   }
+  refreshGithub() {
+    if (this.githubPending || Date.now() < this.githubNext) return;
+    this.githubNext = Date.now() + 60000;
+    this.githubPending = Promise.resolve().then(() => this.githubStatus(this.root)).then(tasks => {
+      this.github = {status:"ok", updatedAt:new Date().toISOString(), tasks};
+    }).catch(() => {
+      this.github = {status:"unavailable", updatedAt:null, tasks:{}};
+    }).finally(() => { this.githubPending = null; this.emit("dashboard:event", {type:"status",data:{}}); });
+  }
   async snapshot() {
+    this.refreshGithub();
     const [progress, externalLocks] = await Promise.all([
       localProgress(this.root, id => readCheckpoint(id, join(this.root, ".soxu", "checkpoints"))),
       liveExternalLocks(this.root),
@@ -101,6 +116,7 @@ export class DashboardCoordinator extends EventEmitter {
       agents: [...this.agents.values()],
       generatedAt: new Date().toISOString(),
       source: "local-checkpoints",
+      github: this.github,
       isLive: false,
       tasks: GROUPS.flatMap(status => progress[status].map(item => ({
         id: item.id, title: cleanLine(item.title ?? item.name).slice(0, 160),

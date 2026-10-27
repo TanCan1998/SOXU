@@ -77,3 +77,5 @@ M0～M4 和可量化 P-01～P-08 标准见 [PRD](../product/prd.md)。新项目�
 ## 三轨 Loop / Magpie 开发机制借鉴
 
 现有开发 Loop 不变；另外两个自愿启动的 Product/Quality 轨道分别产生未核实的建议报告。其只读 Pi RPC 参数、证据输入、成本边界、复盘/晋升审批规则见 [`three-lane-agent-loop.md`](three-lane-agent-loop.md)。`autoMerge=false` 与 `autoRelease=false` 仍然生效，不能把上面的理论性自动合并描述当成当前已启用能力。
+
+WebUI 每 60 秒在后台只读查询 GitHub Issue 与 PR 检查状态，展示 PR 是否待合并、CI 状态和未满足的依赖；本地执行结束不代表代码已合并。查询依赖 `gh` 登录及网络；不可用时页面标记 GitHub 状态未知，调度判断仍由原有队列逻辑负责。

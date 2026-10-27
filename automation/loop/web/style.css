@@ -2,3 +2,5 @@
 .agent-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}.agent-card{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:13px;border:1px solid #364354;border-radius:10px;background:#1c232d}.agent-state{color:#81bdff;font-size:12px}.agent-elapsed{color:#9cabc0;font-size:11px;margin-left:auto}.log-settings{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px;color:#aab3c5;font-size:12px}.log-settings select{background:#222936;border:1px solid #394153;color:#f7f8ff;border-radius:7px;padding:6px}.follow-label{display:inline-flex;align-items:center;gap:5px}.log-settings .subtle{margin-left:auto}@media(max-width:520px){.logs{height:290px}.log-settings{gap:6px}}
 
 .task-resume{font-size:11px;padding:7px 10px}@media(max-width:850px){.task-resume{grid-column:2/4;justify-self:start}}
+
+.task-detail{grid-column:2/-1;color:#aebcd2;font-size:12px;overflow-wrap:anywhere}
