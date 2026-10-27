@@ -88,6 +88,20 @@ pnpm agent:models
 
 长期配置文件是 [`automation/agent-models.json`](automation/agent-models.json)。无需将 API Key 放在此文件；详情见 [模型配置说明](docs/development/models.md)。
 
+## 三轨开发、产品与质量复盘（显式启动）
+
+开发 Loop 保留既有 Issue → Worktree → Review → PR 流程。新增**显式启动、单轮、只生成本地建议**的 Product/Quality 分析，参考 Magpie 的质量反馈闭环；不在后台常驻，不自动创建 Issue、修改受保护规则或发布。
+
+```powershell
+pnpm agent:product -- --dry-run  # 离线预览，不使用模型
+pnpm agent:quality -- --dry-run
+pnpm agent:lessons -- --json    # 按不同日期统计复盘证据
+pnpm agent:product              # 显式触发一次付费模型分析
+pnpm agent:quality              # 显式触发一次付费模型分析
+```
+
+报告存放 `.soxu/advisory/`（不提交 Git），经验记录模板见 [`LESSONS.md`](LESSONS.md)。只有至少三个不同日期的同类真实证据才能**建议**晋升规范，维护者仍须审批。参见 [三轨 Loop 设计](docs/development/three-lane-agent-loop.md)。
+
 ## 自主权限及质量门禁
 
 每个 Issue 拥有隔离 Worktree；开发角色不能主动 push/merge/tag/release，不得修改安全规则、模型治理配置或私密资料。Runner 对测试/审查后的 Git tree 做一致性校验，PR 要通过 CI 才允许自动合并。额度、网络、超时发生时优先暂停，避免无限重试与浪费。

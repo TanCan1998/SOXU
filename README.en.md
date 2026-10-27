@@ -81,6 +81,20 @@ pnpm agent:models
 
 Permanent routing is defined in [`automation/agent-models.json`](automation/agent-models.json). **Do not store API keys in this file.** See the [model configuration guide](docs/development/models.md) for thinking levels, command precedence, and quota/retry policy.
 
+## Three development, product, and quality lanes (opt-in)
+
+The existing Issue → Worktree → Review → PR development lane remains unchanged. Product and Quality lanes run only when explicitly invoked, make a single **read-only, tool-free Pi analysis request**, and save unverified local proposals. They do not run background services, modify governance files, create Issues, merge, or release.
+
+```powershell
+pnpm agent:product -- --dry-run  # Offline preview; no model request
+pnpm agent:quality -- --dry-run
+pnpm agent:lessons -- --json    # Count distinct evidence dates
+pnpm agent:product              # Explicit paid analysis call
+pnpm agent:quality              # Explicit paid analysis call
+```
+
+Reports stay in git-ignored `.soxu/advisory/`. See [`LESSONS.md`](LESSONS.md) and [the three-lane design](docs/development/three-lane-agent-loop.md). Three distinct dates of corroborated recurrence merely qualify a lesson for **manual** policy-promotion review; protected policies never change automatically.
+
 ## Safety and acceptance gates
 
 Each task uses its own Git Worktree. Developer agents cannot push, merge, tag, release, edit protected governance files, or access personal credentials. The Runner validates the same Git tree that was tested and reviewed; GitHub branch protection/CI controls PR merging. Quota failures, network failures, and timeouts pause instead of triggering unlimited paid retries.
