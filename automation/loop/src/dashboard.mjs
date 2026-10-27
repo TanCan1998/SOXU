@@ -330,7 +330,7 @@ export function createDashboardServer({ root = ROOT, token, coordinator = new Da
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "DENY");
     response.setHeader("Referrer-Policy", "no-referrer");
-    response.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+    response.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
     const peer = request.socket.remoteAddress;
     if (request.headers.host !== `127.0.0.1:${port}` || (peer !== "127.0.0.1" && peer !== "::ffff:127.0.0.1")) {
       return reply(403, { error: "invalid-host" });
