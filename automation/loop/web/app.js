@@ -17,7 +17,7 @@ const phaseLabels = {
 const activityLabels = { waiting:"等待模型", generating:"生成中", tool:"执行工具", completed:"已完成", failed:"失败" };
 let connected = false, requestInFlight = false;
 let instanceId = null, latestSequence = 0, logs = [], lastTaskKey = "", renderedLogKey = "";
-let agents = new Map(), streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
+let agents = new Map(), lastAgentKey = "", streamController = null, streamToken = null, reconnectTimer = null, retries = 0;
 let logLimit = 50, logFilter = "all", followLogs = true, currentIntake = null, lastIntakeKey = "", lastQueueKey = "";
 
 function stored(storage, key) { try { return storage.getItem(key); } catch { return null; } }
@@ -79,6 +79,7 @@ function resetInstance(next) {
   latestSequence = 0;
   logs = [];
   agents.clear();
+  lastAgentKey = "";
   lastTaskKey = "";
   renderedLogKey = "";
   lastIntakeKey = ""; lastQueueKey = "";
@@ -185,9 +186,12 @@ function renderTasks(data) {
   if (!tasks.length) node.append(element("div", "暂无任务", "empty"));
 }
 function renderAgents() {
+  const entries = [...agents.values()].sort((a,b) => a.taskId - b.taskId || a.role.localeCompare(b.role));
+  const key = JSON.stringify(entries);
+  if (key === lastAgentKey) return;
+  lastAgentKey = key;
   const node = $("agentCards");
   node.replaceChildren();
-  const entries = [...agents.values()].sort((a,b) => a.taskId - b.taskId || a.role.localeCompare(b.role));
   for (const activity of entries) {
     const item = element("article", undefined, "agent-card");
     const role = activity.role === "developer" ? "Developer" : "Reviewer";
@@ -301,7 +305,7 @@ async function refresh() {
     render(data);
     save(sessionStorage, TOKEN_STORAGE_KEY, token);
     if (!wasConnected) notice("连接成功；页面将实时更新，刷新后自动恢复。");
-    if (!streamController) void openStream(token);
+    if (!streamController && !reconnectTimer) void openStream(token);
   } catch (error) {
     if (token !== tokenInput.value.trim()) return;
     if (error.status === 401) {
@@ -351,6 +355,7 @@ async function openStream(token) {
   const controller = new AbortController();
   streamController = controller;
   streamToken = token;
+  let reader = null;
   try {
     const response = await fetch("/api/events", {
       headers: { "X-SOXU-Control-Token": token },
@@ -364,7 +369,7 @@ async function openStream(token) {
     if (!response.body?.getReader) return; // Keep periodic HTTP calibration in limited environments.
     retries = 0;
     const decoder = new TextDecoder();
-    const reader = response.body.getReader();
+    reader = response.body.getReader();
     let buffer = "";
     while (!controller.signal.aborted) {
       const result = await reader.read();
@@ -384,10 +389,18 @@ async function openStream(token) {
       return;
     }
   } finally {
+    // Close the response even when framing fails or the body is unsupported.
+    // Otherwise a reconnect can leave the previous SSE request alive indefinitely.
+    const reconnect = !controller.signal.aborted;
+    controller.abort();
+    if (reader) {
+      try { void Promise.resolve(reader.cancel()).catch(() => {}); } catch {}
+      try { reader.releaseLock(); } catch {}
+    }
     if (streamController !== controller) return;
     streamController = null;
     streamToken = null;
-    if (!controller.signal.aborted && token === tokenInput.value.trim() && connected) {
+    if (reconnect && token === tokenInput.value.trim() && connected) {
       retries = Math.min(retries + 1, 5);
       const wait = Math.min(15000, 750 * 2 ** retries) + Math.floor(Math.random() * 300);
       reconnectTimer = setTimeout(() => {
@@ -541,6 +554,7 @@ $("stop").addEventListener("click", async () => {
 $("refresh").addEventListener("click", () => void refresh());
 setInterval(() => void refresh(), 15000);
 setInterval(() => { if (!document.hidden) updateElapsed(); }, 1000);
+window.addEventListener("pagehide", stopStream);
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     void refresh();
