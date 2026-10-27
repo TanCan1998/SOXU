@@ -40,7 +40,7 @@ function node() {
 }
 function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map(), streamSupport = false } = {}) {
   const ids = [
-    "token", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
+    "token", "tokenLabel", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
     "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake",
   ];
@@ -86,6 +86,9 @@ test("authenticated token survives same-tab reload and reconnects automatically"
   first.elements.connect.dispatch("click");
   await tick();
   assert.equal(first.elements.connection.textContent, "本机已连接");
+  assert.equal(first.elements.token.hidden, true);
+  assert.equal(first.elements.tokenLabel.hidden, true);
+  assert.equal(first.elements.connect.textContent, "重新连接");
   assert.equal(storage.get(TOKEN_STORAGE_KEY), TOKEN);
 
   const reloaded = page({ storage });
@@ -303,6 +306,7 @@ test("model picker groups providers, pins and saves selected global model",async
   assert.equal(app.elements.modelDialog.open,true);assert.equal(app.elements.modelGroups.children.length,2);
   let group=app.elements.modelGroups.children[0],row=group.children[1],input=row.children[0].children[0];
   input.checked=true;input.dispatch("change");row.children[1].dispatch("click");
+  assert.match(app.elements.modelGroups.children[0].children[0].textContent,/已收藏/);
   app.elements.saveModels.dispatch("click");await tick();
   const body=JSON.parse(app.requests.find(x=>x.path==="/api/model-settings").options.body);
   assert.deepEqual(body.global,[{provider:"magpie",model:"a"}]);assert.deepEqual(body.favorites,[{provider:"magpie",model:"a"}]);
