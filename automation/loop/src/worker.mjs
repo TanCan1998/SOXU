@@ -95,6 +95,7 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
     const devRole = await readFile(join(ROOT, "agents/roles/developer.md"), "utf8");
     const reviewRole = await readFile(join(ROOT, "agents/roles/reviewer.md"), "utf8");
     const checkpoint = async phase => { state.phase = phase; await writeCheckpoint(state); };
+    const unresolved = async () => Boolean(await git(["ls-files", "--unmerged"], wt.directory));
     const verifyCommittedHead = async () => {
       const head = await git(["rev-parse", "HEAD"], wt.directory);
       const parent = await git(["rev-parse", "HEAD^"], wt.directory);
@@ -111,10 +112,37 @@ export async function processIssue(issue, { policy, local = false, dryRun = fals
         case "develop": {
           console.log(`Pi Developer model: ${roleModels.developer.provider ?? "Pi default"}/${roleModels.developer.model ?? "inherited"}`);
           const dev = await runPi({ cwd: wt.directory, timeouts: policy.timeouts, modelSelection: roleModels.developer,
-            prompt: promptFor("Developer", mainDocs + "\n" + devRole, issue, state.feedback, resume || state.attempt > 0), signal });
+            prompt: promptFor("Developer", mainDocs + "\n" + devRole, issue,
+              state.mergeConflict ? [
+                "MANDATORY MAIN INTEGRATION: Git HEAD has been safely fast-forwarded to latest origin/main.",
+                "Existing task edits are preserved in an immutable Git stash backup:",
+                state.mergeConflict.stashSha,
+                "Resolve EVERY existing conflict and recover prior useful task changes, prioritizing latest main behavior.",
+                "Inspect git status, git ls-files -u and git stash show -p (stash SHA above).",
+                "Do NOT delete the stash, reset Git HEAD, discard task progress, push or modify protected paths.",
+                "When finished, resolve unmerged index entries, implement the task and run relevant tests.",
+                state.feedback ?? "",
+              ].join("\n") : state.feedback,
+              resume || state.attempt > 0), signal });
           console.log(`Developer completed attempt ${state.attempt + 1}, response ${dev.text.length} chars`);
-          await checkpoint("checks"); break;
+          if (state.mergeConflict && await unresolved()) {
+            if ((state.conflictFixAttempts ?? 0) >= policy.maxRetries)
+              throw new Error("Pi Developer left unresolved Git conflicts after bounded autonomous attempts; backup retained for recovery.");
+            state.conflictFixAttempts = (state.conflictFixAttempts ?? 0) + 1;
+            state.feedback = "Git still reports unmerged files. Re-read latest origin/main, resolve all conflicts, and stage the resolved paths.";
+            await checkpoint("develop"); break;
+          }
+          await checkpoint(state.mergeConflict ? "postConflictInstall" : "checks"); break;
         }
+        case "postConflictInstall":
+          // Package manifests may have been conflicted, so install only AFTER Pi resolves them.
+          if (await unresolved()) throw new Error("Unmerged index remains after Developer resolution");
+          await run("pnpm", ["install", "--no-frozen-lockfile", "--ignore-scripts"], {
+            cwd: wt.directory, timeoutMs: policy.timeouts.installMinutes * 60000, signal,
+          });
+          // Preserve syncBackup in checkpoint. Review still runs after checks.
+          delete state.mergeConflict;
+          await checkpoint("checks"); break;
         case "checks":
           await inspectChanges(wt.directory, state.base, policy);
           await runChecks(wt.directory, policy, signal);

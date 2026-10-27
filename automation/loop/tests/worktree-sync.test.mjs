@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { inspectWorktrees } from "../src/worktree-sync.mjs";
+import { inspectWorktrees, prepareWorktreeRecovery } from "../src/worktree-sync.mjs";
 import { readCheckpoint, writeCheckpoint } from "../src/checkpoint.mjs";
 import { ROOT } from "../src/config.mjs";
 
@@ -51,14 +51,18 @@ test("clean paused worktree syncs with new main and updates base", async () => {
     assert.equal(await git(f.wt, "rev-parse", "HEAD"), saved.base);
   } finally { await rm(f.outer, { recursive:true, force:true }); }
 });
-test("dirty task worktree is not modified", async () => {
+test("dirty task edits survive nonconflicting main fast-forward with saved stash backup", async () => {
   const f = await fixture();
   try {
     await writeFile(join(f.wt, "untracked.txt"), "irreplaceable");
-    assert.equal((await inspectWorktrees({ root:f.root, sync:true }))[0].reason, "uncommitted-task-changes");
-    assert.equal(await git(f.wt, "rev-parse", "HEAD"), f.old);
-    assert.equal((await readCheckpoint(1, f.dir)).base, f.old);
+    assert.equal((await inspectWorktrees({ root:f.root, sync:true }))[0].reason, "synced");
+    const state = await readCheckpoint(1, f.dir);
+    assert.equal(state.base, await git(f.root, "rev-parse", "origin/main"));
+    assert.equal(state.phase, "install");
+    assert.match(state.syncBackup.sha, /^[a-f0-9]{40,64}$/);
+    assert.equal(await git(f.wt, "rev-parse", "HEAD"), state.base);
     assert.equal(await readFile(join(f.wt, "untracked.txt"), "utf8"), "irreplaceable");
+    assert.match(await git(f.wt, "stash", "show", "-p", "--include-untracked", state.syncBackup.sha), /irreplaceable/);
   } finally { await rm(f.outer, { recursive:true, force:true }); }
 });
 test("active lock and reviewed checkpoint block synchronization", async () => {
@@ -96,9 +100,77 @@ test("explicit selection cannot update unrelated task checkpoints",async()=>{
   }finally{await rm(f.outer,{recursive:true,force:true});}
 });
 
+
+test("conflicting task edits are backed up and delegated to autonomous Developer", async () => {
+  const f = await fixture();
+  try {
+    await writeFile(join(f.wt, "file.txt"), "task implementation\n");
+    await git(f.wt, "add", "file.txt");
+    const rows = await inspectWorktrees({ root:f.root, sync:true });
+    assert.equal(rows[0].reason, "synced-conflicts");
+    const state = await readCheckpoint(1, f.dir);
+    assert.equal(state.base, await git(f.root, "rev-parse", "origin/main"));
+    assert.equal(await git(f.wt, "rev-parse", "HEAD"), state.base);
+    assert.equal(state.phase, "develop");
+    assert.ok(state.mergeConflict?.stashSha);
+    assert.match(await git(f.wt, "stash", "show", "-p", state.mergeConflict.stashSha), /task implementation/);
+    assert.match(state.feedback, /Resolve worktree\/main conflicts/);
+    // A second recovery must not replay the stash or destroy preserved conflict state.
+    const eligible = await prepareWorktreeRecovery([{issue:{number:1},local:false}],{root:f.root});
+    assert.equal(eligible.blocked.length,0);
+    assert.equal(eligible.eligible.length,1);
+    assert.equal((await readCheckpoint(1,f.dir)).mergeConflict.stashSha,state.mergeConflict.stashSha);
+  } finally { await rm(f.outer,{recursive:true,force:true}); }
+});
+test("interrupted stash creation is replayed from its recorded marker", async () => {
+  const f = await fixture();
+  try {
+    await writeFile(join(f.wt, "restorable.txt"), "saved progress");
+    const marker="soxu-main-sync-1-test-replay";
+    await writeCheckpoint({...f.state,syncPending:{mode:"dirty",from:f.old,to:await git(f.root,"rev-parse","origin/main"),marker}},f.dir);
+    await git(f.wt,"stash","push","--include-untracked","-m",marker);
+    const rows=await inspectWorktrees({root:f.root,sync:true});
+    assert.equal(rows[0].reason,"synced");
+    assert.equal(await readFile(join(f.wt,"restorable.txt"),"utf8"),"saved progress");
+    assert.equal((await readCheckpoint(1,f.dir)).syncPending,undefined);
+  } finally { await rm(f.outer,{recursive:true,force:true}); }
+});
+test("crash after stash apply preserves current worktree and asks Developer to verify backup", async () => {
+  const f = await fixture();
+  try {
+    await writeFile(join(f.wt,"working.txt"),"old work");
+    const marker="soxu-main-sync-1-verify-after-apply";
+    const target=await git(f.root,"rev-parse","origin/main");
+    await writeCheckpoint({...f.state,syncPending:{mode:"dirty",from:f.old,to:target,marker}},f.dir);
+    await git(f.wt,"stash","push","--include-untracked","-m",marker);
+    await git(f.wt,"merge","--ff-only",target);
+    const sha=(await git(f.wt,"stash","list","--format=%H")).split("\n")[0];
+    await git(f.wt,"stash","apply","--index",sha);
+    const result=await inspectWorktrees({root:f.root,sync:true});
+    assert.equal(result[0].reason,"synced-conflicts");
+    assert.equal(await readFile(join(f.wt,"working.txt"),"utf8"),"old work");
+    assert.equal((await readCheckpoint(1,f.dir)).mergeConflict.stashSha,sha);
+  } finally { await rm(f.outer,{recursive:true,force:true}); }
+});
+
 test("worktree CLI has shebang at byte zero and compiles as Node ESM", async () => {
   const filename = join(ROOT, "automation", "loop", "src", "worktree-sync-cli.mjs");
   const content = await readFile(filename, "utf8");
   assert.ok(content.startsWith("#!/usr/bin/env node\n"), "shebang must be first line without leading newline or BOM");
   await run(process.execPath, ["--check", filename], { cwd: ROOT, timeout: 10000 });
+});
+
+test("checkpoint at review/postConflictInstall may resume when already on latest main",async()=>{
+  const f=await fixture();
+  try{
+    await git(f.wt,"merge","--ff-only","origin/main");
+    const base=await git(f.wt,"rev-parse","HEAD");
+    for(const phase of ["review","postConflictInstall"]){
+      await writeCheckpoint({...f.state,base,phase,testedTree:phase==="review"?"reviewed-tree":null},f.dir);
+      const rows=await inspectWorktrees({root:f.root});
+      assert.equal(rows[0].reason,"up-to-date");
+      const recovered=await prepareWorktreeRecovery([{issue:{number:1},local:false}],{root:f.root});
+      assert.equal(recovered.blocked.length,0);
+    }
+  }finally{await rm(f.outer,{recursive:true,force:true});}
 });
