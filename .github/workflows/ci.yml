@@ -51,17 +51,18 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
             rust:
-              - '.github/workflows/**'
+              # Compile native code only when its sources, manifest, or CI recipe change.
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/release.yml'
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'rust-toolchain.toml'
               - 'crates/**'
-              - 'apps/desktop/src-tauri/**'
-              - 'apps/desktop/assets/**'
-              - 'apps/desktop/package.json'
-              - 'scripts/**'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
+              - 'apps/desktop/src-tauri/Cargo.toml'
+              - 'apps/desktop/src-tauri/build.rs'
+              - 'apps/desktop/src-tauri/tauri.conf.json'
+              - 'apps/desktop/src-tauri/capabilities/**'
+              - 'apps/desktop/src-tauri/src/**'
 
   quality:
     name: quality (${{ matrix.node }})
