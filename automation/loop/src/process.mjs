@@ -49,7 +49,12 @@ export async function run(bin, args, { cwd, timeoutMs = 90_000, env = process.en
     child.on("close", code => {
       if (interrupted) complete(new LoopFailure("interrupted", `${bin} was interrupted; subprocess tree terminated`));
       else if (timedOut) complete(new LoopFailure("timeout", `${bin} exceeded ${Math.round(timeoutMs/1000)}s; subprocess tree terminated`));
-      else if (code !== 0 && !allowFailure) complete(classifyFailure(new Error(`${bin} ${args.join(" ")} exit=${code}\n${stderr.slice(-3000)}`)));
+      else if (code !== 0 && !allowFailure) {
+        const details = [stdout.slice(-4500), stderr.slice(-4500)].filter(Boolean).join("\n");
+        const error = classifyFailure(new Error(`${bin} ${args.join(" ")} exit=${code}\n${details}`));
+        error.exitCode = code;
+        complete(error);
+      }
       else complete(null, { code, stdout, stderr });
     });
     if (signal?.aborted) onAbort();

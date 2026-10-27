@@ -19,7 +19,7 @@ export function isRecoverable(failure) {
   return ["quota", "network", "timeout", "interrupted"].includes(classifyFailure(failure).kind);
 }
 /** Issue comments and local files must not leak credentials or full API responses. */
-export function safeFailureMessage(err) {
+export function safeFailureMessage(err, limit = 700) {
   const message = classifyFailure(err).message;
-  return message.replace(/(?:ghp_[a-z\d]{15,}|github_pat_[a-z\d_]{15,}|sk-[a-z\d_-]{15,}|Bearer\s+\S+|(?:api[_-]?key|token|secret)\s*[:=]\s*\S+)/gi, "[redacted]").slice(0, 700);
+  return message.replace(/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|$)/gi, "[redacted]").replace(/(?:ghp_[a-z\d]{15,}|github_pat_[a-z\d_]{15,}|sk-[a-z\d_-]{15,}|Bearer\s+\S+|(?:api[_-]?key|token|secret|password)\s*[:=]\s*\S+)/gi, "[redacted]").slice(0, Math.min(Math.max(limit, 0), 10000));
 }
