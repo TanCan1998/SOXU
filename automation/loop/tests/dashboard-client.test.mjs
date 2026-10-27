@@ -116,7 +116,7 @@ test("temporary network errors retain the token and allow reconnection", async (
   } });
   await tick();
   assert.equal(storage.get(TOKEN_STORAGE_KEY), TOKEN);
-  assert.equal(view.elements.connection.textContent, "未连接");
+  assert.equal(view.elements.connection.textContent, "连接中断");
   available = true;
   view.elements.refresh.dispatch("click");
   await tick();
