@@ -13,6 +13,8 @@
 首次验证成功后，页面在当前标签页的 `sessionStorage` 中暂存令牌；刷新自动重连，控制台重启导致令牌失效时需重新输入。
 监控通过经过认证的 SSE 通道实时接收日志和 Developer/Reviewer 活动信息，并以 15 秒 HTTP 校准兜底。日志默认显示最新 50 条，可切换 20/50/100/200 条以及过滤来源和自动滚动；实时活动只展示状态、工具名称和耗时，不包含提示词、模型回复和工具参数。不依赖 PiDeck、不接管其他终端的 Pi 进程。完整说明见 [Dashboard 操作手册](docs/development/dashboard.md)。
 
+控制台提供 V3 深浅主题和项目路线图（当前阶段由维护者在本机浏览器标注）；需求可先经只读 Agent 评估，确认后创建 GitHub Issue，是否进入可执行队列由用户核对依赖后决定。
+
 ## 产品目标
 
 SOXU 是使用 Rust + Tauri + Vue + TypeScript + Vite 从零开发的 Pi Agent 桌面端，参考 PiDeck 的体验，但不复制其代码。MVP 着重：
