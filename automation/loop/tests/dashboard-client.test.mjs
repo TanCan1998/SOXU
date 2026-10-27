@@ -21,9 +21,9 @@ function response(status = 200) {
   };
 }
 function node() {
-  const listeners = new Map(), children = [];
+  const listeners = new Map(), children = [], attributes = {};
   const result = {
-    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "", style: {}, replacements:0, setAttribute() {},
+    value: "", textContent: "", disabled: false, checked: false, dataset: {}, className: "", style: {}, replacements:0, setAttribute(name, value) { attributes[name] = String(value); }, getAttribute(name) { return attributes[name] ?? null; },
     scrollTop: 0, scrollHeight: 0, clientHeight: 100,
     classList: { add() {}, remove() {}, contains(value) { return result.className.split(" ").includes(value); } },
     showModal() {result.open=true;}, close() {result.open=false;},
@@ -40,7 +40,7 @@ function node() {
 }
 function page({ storage = new Map(), handler = () => response(), hidden = false, preferences = new Map(), streamSupport = false } = {}) {
   const ids = [
-    "token", "tokenLabel", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
+    "milestoneDialog", "milestoneTitle", "milestoneDetails", "closeMilestone", "token", "tokenLabel", "authPanel", "authNotice", "connect", "notice", "connection", "dot", "globalRun", "running", "pending", "done",
     "total", "badge", "runner", "updated", "stop", "tasks", "logs", "refresh",
     "navOverview", "navExecution", "navMonitor", "navRequirements", "navLanes", "navModels", "pageOverview", "pageExecution", "pageMonitor", "pageRequirements", "pageLanes", "pageModels", "modelSummary", "openModels", "closeModels", "reloadModels", "saveModels", "modelScope", "modelSearch", "modelInherit", "modelDialog", "modelGroups", "modelMessage", "logLimit", "logFilter", "followLogs", "logCount", "agentCards", "githubStatus", "autoMerge", "projectPhaseTitle", "projectPhaseDetail", "projectPhaseCount", "roadmapCards", "developmentLane", "productLane", "qualityLane", "lessonsStatus", "openProduct", "openQuality", "productDialog", "qualityDialog", "closeProduct", "closeQuality", "runProduct", "runQuality", "productRunState", "qualityRunState", "productReport", "qualityReport", "projectProgress", "projectProgressFill", "themeToggle", "openIntake", "intakeDialog", "intakeSummary", "queueList", "closeIntake", "requirement", "assessIntake", "intakeResult", "queueReady", "intakeMilestone", "submitIntake", "clearIntake",
   ];
@@ -86,9 +86,7 @@ test("authenticated token survives same-tab reload and reconnects automatically"
   first.elements.connect.dispatch("click");
   await tick();
   assert.equal(first.elements.connection.textContent, "本机已连接");
-  assert.equal(first.elements.token.hidden, true);
-  assert.equal(first.elements.tokenLabel.hidden, true);
-  assert.equal(first.elements.connect.textContent, "重新连接");
+  assert.equal(first.elements.authPanel.hidden, true);
   assert.equal(storage.get(TOKEN_STORAGE_KEY), TOKEN);
 
   const reloaded = page({ storage });
@@ -107,6 +105,7 @@ test("rejecting a token clears only the matching stored session", async () => {
   assert.equal(storage.has(TOKEN_STORAGE_KEY), false);
   assert.equal(reloaded.elements.token.value, "");
   assert.equal(reloaded.elements.connection.textContent, "未连接");
+  assert.equal(reloaded.elements.authPanel.hidden, false);
   assert.match(reloaded.elements.notice.textContent, /令牌已失效/);
   assert.ok(reloaded.actions.every(button => button.disabled));
 
@@ -127,10 +126,12 @@ test("temporary network errors retain the token and allow reconnection", async (
   await tick();
   assert.equal(storage.get(TOKEN_STORAGE_KEY), TOKEN);
   assert.equal(view.elements.connection.textContent, "连接中断");
+  assert.equal(view.elements.authPanel.hidden, false);
   available = true;
   view.elements.refresh.dispatch("click");
   await tick();
   assert.equal(view.elements.connection.textContent, "本机已连接");
+  assert.equal(view.elements.authPanel.hidden, true);
 });
 
 test("hidden-page reload restores the token when the page becomes visible", async () => {
@@ -232,20 +233,29 @@ test("PR title links to GitHub and merge sends the selected issue and PR", async
 test("theme preference survives reload", async()=>{
   const preferences=new Map();const first=page({preferences});
   assert.equal(first.document.documentElement.dataset.theme,"dark");
+  assert.equal(first.elements.themeToggle.dataset.nextTheme,"light");
+  assert.equal(first.elements.themeToggle.getAttribute("aria-label"),"切换到浅色主题");
   first.elements.themeToggle.dispatch("click");
+  assert.equal(first.elements.themeToggle.dataset.nextTheme,"dark");
+  assert.equal(first.elements.themeToggle.getAttribute("aria-label"),"切换到深色主题");
   assert.equal(first.document.documentElement.dataset.theme,"light");
   const reloaded=page({preferences});
   assert.equal(reloaded.document.documentElement.dataset.theme,"light");
 });
 
 test("project milestones derive dynamic task counts and live evidence",async()=>{
-  const stages=[{id:"M0",total:0,merged:0,paused:0,unknown:0,issues:[]},{id:"M1",total:3,merged:2,paused:0,unknown:0,issues:[1,2,3]},{id:"M2",total:1,merged:0,paused:1,unknown:0,issues:[4]}];
+  const stages=[{id:"M0",total:0,merged:0,paused:0,unknown:0,issues:[]},{id:"M1",total:3,merged:2,paused:0,unknown:0,issues:[1,2,3],items:[{number:1,title:"任务一",state:"CLOSED",url:"https://github.com/TanCan1998/SOXU/issues/1",labels:[],merged:true}]},{id:"M2",total:1,merged:0,paused:1,unknown:0,issues:[4]}];
   const snapshot={...STATUS,runner:{command:"once",startedAt:"2026-10-27T00:00:00Z"},taskPhases:[{taskId:3,status:"running"}],github:{status:"ok",updatedAt:"2026-10-27T00:00:00Z",tasks:{__roadmap:{stages,unclassified:2,limited:false}}}};
   const app=page({handler:()=>({ok:true,status:200,json:async()=>snapshot})});
   app.elements.token.value=TOKEN;app.elements.connect.dispatch("click");await tick();
   assert.equal(app.elements.projectPhaseTitle.textContent,"1 个里程碑正在推进");
   assert.equal(app.elements.projectPhaseCount.textContent,"2 / 4 项已合入");
   assert.equal(app.elements.roadmapCards.children[1].dataset.status,"running");
+  app.elements.roadmapCards.children[1].dispatch("click");
+  assert.equal(app.elements.milestoneDialog.open,true);
+  assert.equal(app.elements.milestoneTitle.textContent,"M1 · 产品原型");
+  assert.equal(app.elements.milestoneDetails.children[0].children[0].textContent,"#1 任务一");
+  app.elements.closeMilestone.dispatch("click"); assert.equal(app.elements.milestoneDialog.open,false);
   assert.equal(app.elements.roadmapCards.children[2].dataset.status,"paused");
   snapshot.github={status:"unavailable"};app.elements.refresh.dispatch("click");await tick();
   assert.equal(app.elements.projectPhaseTitle.textContent,"项目里程碑状态待核实");
@@ -323,4 +333,18 @@ test("large model catalog limits rendered rows and keeps search available",async
   assert.match(app.elements.modelGroups.children[1].textContent,/前 300/);
   app.elements.modelSearch.value="model-399";app.elements.modelSearch.dispatch("input");
   assert.equal(app.elements.modelGroups.children[0].children.length,2);
+});
+
+test("auto merge switch reflects server state and sends explicit changes", async () => {
+  let enabled=false;
+  const view=page({handler: (path, options) => {
+    if (path === "/api/auto-merge") { enabled=JSON.parse(options.body).enabled; return response(); }
+    return {ok:true,status:200,async json(){return {...STATUS,autoMergeEnabled:enabled};}};
+  }});
+  view.elements.token.value=TOKEN; view.elements.connect.dispatch("click"); await tick();
+  assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"false");
+  view.elements.autoMerge.dispatch("click"); await tick(); await tick();
+  assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"true");
+  view.elements.autoMerge.dispatch("click"); await tick(); await tick();
+  assert.equal(view.elements.autoMerge.getAttribute("aria-checked"),"false");
 });
