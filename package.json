@@ -14,6 +14,8 @@
     "tauri:build": "pnpm --filter @soxu/desktop tauri build",
     "check": "pnpm --filter @soxu/desktop check && pnpm --filter @soxu/desktop test && pnpm test:scripts",
     "test:scripts": "node --test scripts/tests/*.test.mjs",
+    "agent:doctor": "node scripts/agent-doctor.mjs",
+    "smoke:rpc": "node scripts/m1-pi-rpc-smoke.mjs",
     "release:readiness": "node scripts/check-release-readiness.mjs",
     "agent:release": "node scripts/release.mjs",
     "mirror:atomgit": "node scripts/mirror.mjs"

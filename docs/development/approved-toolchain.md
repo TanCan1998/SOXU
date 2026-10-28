@@ -1,6 +1,6 @@
 # SOXU 已批准技术基线 · 2026-10-26
 
-> **决定已批准，不等于已安装/编译验收。** 本工程为全新项目，旧 v1.x ZIP 的原型依赖不构成兼容性约束。直接依赖使用精确版本；`pnpm-lock.yaml` 与 `Cargo.lock` 必须在可联网的正式开发环境生成并提交，才能启用冻结锁文件 CI。
+> **决定已批准，不等于已安装/编译验收。** 本工程为全新项目，旧 v1.x ZIP 的原型依赖不构成兼容性约束。直接依赖使用精确版本；`pnpm-lock.yaml` 与 `Cargo.lock` 已在可联网的正式开发环境生成并提交，CI 使用冻结/锁定模式。实际取证见 [M0 退出证据与 M1 Windows 冒烟](m0-m1-exit-evidence.md)。
 
 | 类别 | 技术 | 批准版本 |
 | --- | --- | --- |
@@ -53,7 +53,11 @@ pnpm tauri:dev
 
 确认后同时 `git add pnpm-lock.yaml Cargo.lock`，提交 PR，CI 使用 `pnpm install --frozen-lockfile`；Cargo CI 使用 `cargo test --workspace --locked` 与 `cargo check --workspace --locked`，不允许在 CI 默默更新版本。CI 不使用 `--no-frozen-lockfile` 自动篡改依赖解析结果。
 
-**当前环境局限：** 本轮离线沙盒只有 Node 22，无 pnpm 12/Rust，且 registry 网络查询失败，所以没法合法生成两份锁文件；它们在当前工程包中**不存在**。现有 Node 回归测试可独立运行，但不代表 Node 26/Vue/Tauri 编译成功。
+**锁文件现状（2026-10-28 复验）：** 两份锁文件都已入库并通过
+`pnpm install --frozen-lockfile` 与 `cargo metadata --locked --offline`；
+`pnpm agent:doctor` 会核对它们的存在、大小与 `rust-toolchain.toml` 的 channel。
+早先离线沙盒（只有 Node 22、无 pnpm 12/Rust）无法生成锁文件的限制已不再适用，
+但"锁文件一致"不等于"Node 26/Vue/Tauri 编译成功"，编译验收另见证据文档。
 
 ## 依赖更新规则
 

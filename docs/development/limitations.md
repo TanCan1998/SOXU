@@ -18,4 +18,8 @@
   （`.github/workflows/` 为受保护路径，需维护者批准后单独改动）。
 - 自动化需单机 Coordinator，异常中断不会强制回收全部 agent 子孙进程。AtomGit 自动同步优先交给平台自身配置。
 - 治理路径 guard、提示词规范和移除明文 token **不能替代 OS 沙箱**，生产使用请隔离执行账户。
-- 初期没有确定上游依赖锁文件；首次安装需要生成并提交 pnpm-lock.yaml、Cargo.lock，CI 后续切换 frozen/locked 以保证可复现。
+- 依赖可复现：`pnpm-lock.yaml`、`Cargo.lock` 已入库，CI 使用 `--frozen-lockfile` / `--locked`；
+  `pnpm agent:doctor` 可离线核对它们与批准版本（见 [M0 退出证据与 M1 Windows 冒烟](m0-m1-exit-evidence.md)）。
+- Windows 启动与 Pi RPC 冒烟（P-02 协议层）已在实机跑过并留有原始报告，但
+  **应用级**会话恢复（Tauri 窗口重启、前端状态还原）与 macOS/Linux 冒烟仍未验证；
+  `pnpm smoke:rpc` 会真实调用模型，未接入 CI。
