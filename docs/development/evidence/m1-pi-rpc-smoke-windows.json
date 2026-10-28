@@ -1,0 +1,159 @@
+{
+  "kind": "soxu-m1-pi-rpc-smoke",
+  "startedAt": "2026-10-28T19:32:32.866Z",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v26.10.0",
+    "piCommand": "pi",
+    "piVersion": "1.4.0",
+    "model": "auto/deepseek-v4.1-flash",
+    "thinkingLevel": "low",
+    "sessionId": "faeaf7f2-2cac-4a7f-92e2-d23e1698801f"
+  },
+  "phases": {
+    "state": {
+      "success": true,
+      "sessionId": "faeaf7f2-2cac-4a7f-92e2-d23e1698801f",
+      "sessionFile": "~\\AppData\\Local\\Temp\\soxu-m1-smoke-2B1CMu\\sessions\\2026-10-28T19-32-33-625Z_faeaf7f2-2cac-4a7f-92e2-d23e1698801f.jsonl",
+      "model": "auto/deepseek-v4.1-flash",
+      "messageCount": 0
+    },
+    "run": {
+      "conversation": {
+        "total": 3,
+        "userMessages": 1,
+        "assistantMessages": 1,
+        "distinctPrompts": 1,
+        "markerReplies": 1,
+        "duplicatePrompts": [],
+        "lastAssistantText": "SOXU-SMOKE-OK"
+      }
+    },
+    "abort": {
+      "prompt": {
+        "success": true,
+        "command": "prompt",
+        "error": null,
+        "disposition": "started"
+      },
+      "response": {
+        "success": true,
+        "command": "abort",
+        "error": null,
+        "disposition": null
+      },
+      "isStreaming": false
+    },
+    "shutdown": {
+      "code": 0,
+      "signal": null,
+      "forced": false,
+      "parseErrors": [],
+      "stderrTail": "Warning: No project session found with id 'faeaf7f2-2cac-4a7f-92e2-d23e1698801f'; creating a new session with that id.\n"
+    },
+    "resume": {
+      "sessionId": "faeaf7f2-2cac-4a7f-92e2-d23e1698801f",
+      "messageCount": 5,
+      "before": {
+        "total": 5,
+        "userMessages": 2,
+        "assistantMessages": 1,
+        "distinctPrompts": 2,
+        "markerReplies": 1,
+        "duplicatePrompts": [],
+        "lastAssistantText": "SOXU-SMOKE-OK"
+      },
+      "after": {
+        "total": 5,
+        "userMessages": 2,
+        "assistantMessages": 1,
+        "distinctPrompts": 2,
+        "markerReplies": 1,
+        "duplicatePrompts": [],
+        "lastAssistantText": "SOXU-SMOKE-OK"
+      }
+    }
+  },
+  "checks": [
+    {
+      "id": "pi-version",
+      "title": "pi 可执行文件可运行",
+      "status": "pass",
+      "detail": "1.4.0"
+    },
+    {
+      "id": "handshake",
+      "title": "get_state 返回 sessionId 与 sessionFile",
+      "status": "pass",
+      "detail": ""
+    },
+    {
+      "id": "prompt-accepted",
+      "title": "prompt 被 Pi 接收（success 与 disposition）",
+      "status": "pass",
+      "detail": "{\"success\":true,\"command\":\"prompt\",\"error\":null,\"disposition\":\"started\"}"
+    },
+    {
+      "id": "settled",
+      "title": "整轮以 agent_settled 结束且期间有流式事件",
+      "status": "pass",
+      "detail": "message_update=11, agent_settled=1"
+    },
+    {
+      "id": "assistant-reply",
+      "title": "助手回复含冒烟标记，且只出现一次",
+      "status": "pass",
+      "detail": "markerReplies=1"
+    },
+    {
+      "id": "abort",
+      "title": "运行中 abort 成功并能回到非流式状态",
+      "status": "pass",
+      "detail": "{\"prompt\":{\"success\":true,\"command\":\"prompt\",\"error\":null,\"disposition\":\"started\"},\"response\":{\"success\":true,\"command\":\"abort\",\"error\":null,\"disposition\":null},\"isStreaming\":false}"
+    },
+    {
+      "id": "shutdown",
+      "title": "关闭 stdin 后进程自行退出（未强制结束）",
+      "status": "pass",
+      "detail": "{\"code\":0,\"forced\":false}"
+    },
+    {
+      "id": "resume-session",
+      "title": "重启后仍指向同一 sessionId",
+      "status": "pass",
+      "detail": "faeaf7f2-2cac-4a7f-92e2-d23e1698801f"
+    },
+    {
+      "id": "messages-persisted",
+      "title": "重启后历史消息不丢（含冒烟标记回复）",
+      "status": "pass",
+      "detail": "before=5, after=5"
+    },
+    {
+      "id": "no-duplicate-execution",
+      "title": "同一提示未被重复执行（消息数不变、无重复提示）",
+      "status": "pass",
+      "detail": "before=5, after=5, duplicates=0"
+    },
+    {
+      "id": "record-parse",
+      "title": "全部 stdout 记录均可解析（无失步）",
+      "status": "pass",
+      "detail": ""
+    }
+  ],
+  "limits": [
+    "只覆盖 Pi RPC 层：不验证 Tauri 窗口重启、WebView 交互与多 Agent 并发。",
+    "会调用真实模型（1~2 次提示），可能产生费用；失败不自动重试。"
+  ],
+  "finishedAt": "2026-10-28T19:32:35.822Z",
+  "durationMs": 2959,
+  "tempRoot": "(removed)",
+  "summary": {
+    "total": 11,
+    "passed": 11,
+    "failed": 0
+  },
+  "verdict": "pass"
+}

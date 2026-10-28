@@ -1,0 +1,70 @@
+{
+  "kind": "soxu-agent-doctor",
+  "generatedAt": "2026-10-28T19:32:32.745Z",
+  "platform": "win32",
+  "node": {
+    "raw": "v26.10.0",
+    "execPath": "D:\\Environment\\nvm\\installs\\v26.10.0\\node.exe"
+  },
+  "checks": [
+    {
+      "id": "tool:node",
+      "title": "Node.js 版本符合批准基线 >=24",
+      "status": "pass",
+      "detail": "实际 26.10.0"
+    },
+    {
+      "id": "tool:pnpm",
+      "title": "pnpm 版本符合批准基线 12.15.0",
+      "status": "pass",
+      "detail": "实际 12.15.0"
+    },
+    {
+      "id": "tool:rustc",
+      "title": "Rust (rustc) 版本符合批准基线 1.99.1",
+      "status": "pass",
+      "detail": "实际 1.99.1"
+    },
+    {
+      "id": "tool:cargo",
+      "title": "Cargo 版本符合批准基线 1.99.1",
+      "status": "pass",
+      "detail": "实际 1.99.1"
+    },
+    {
+      "id": "tool:pi",
+      "title": "Pi Agent 可执行",
+      "status": "pass",
+      "detail": "实际 1.4.0"
+    },
+    {
+      "id": "file:pnpm-lock.yaml",
+      "title": "pnpm 锁文件 存在且非占位（≥ 1024 字节）",
+      "status": "pass",
+      "detail": "实际 64826 字节"
+    },
+    {
+      "id": "file:Cargo.lock",
+      "title": "Cargo 锁文件 存在且非占位（≥ 1024 字节）",
+      "status": "pass",
+      "detail": "实际 105170 字节"
+    },
+    {
+      "id": "file:rust-toolchain.toml",
+      "title": "rust-toolchain.toml 的 toolchain channel 符合批准基线",
+      "status": "pass",
+      "detail": "channel=1.99.1"
+    }
+  ],
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0
+  },
+  "verdict": "pass",
+  "environment": {
+    "arch": "x64",
+    "cwd": "F:\\workplace\\pi\\soxu-worktrees\\github-issue-41-m0-issue-41-m1-windows",
+    "nodeExecPath": "D:\\Environment\\nvm\\installs\\v26.10.0\\node.exe"
+  }
+}
