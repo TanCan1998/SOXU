@@ -37,6 +37,7 @@
   "autoRelease": false,
   "releaseChannel": "prerelease",
   "releaseBranch": "main",
+  "integrationBranch": "dev",
   "mirrorMode": "atomgit-pull-preferred",
   "watchIntervalMinutes": 10,
   "maxContinuousHours": 8,
