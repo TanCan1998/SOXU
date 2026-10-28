@@ -125,7 +125,7 @@ node ../soxu-agent-loop/automation/loop/src/advisory-cli.mjs quality            
 
 ## 界面方案
 
-UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其品牌、代码和资产）。桌面端已从本地交互原型推进到**多会话工作区**：项目与会话列表来自真实的 Pi 会话索引（只读，不移动或删除文件），会话 Tab 支持历史分页、完整正文按需加载、Pi RPC 流式输出、取消与停止，右侧检查器展示真实运行时状态；未连接或状态未知时显式显示未知，不提供伪造数据。WebView 实机渲染、macOS/Linux 与真实 Pi 事件全集仍待验证。详细规范见 [UI/UX 基线](docs/design/gpt-inspired-ui.md) 与 [多会话工作区实现说明](docs/development/multi-session-workspace.md)。
+UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其品牌、代码和资产）。桌面端已从本地交互原型推进到**多会话工作区**：项目与会话列表来自真实的 Pi 会话索引（只读，不移动或删除文件），会话 Tab 支持历史分页、完整正文按需加载、Pi RPC 流式输出、取消与停止，右侧检查器展示真实运行时状态与重试次数（网络中断/超时最多自动重试 2 次，次数持久化且重启不重置；429、鉴权失败与主动取消不重试，重试等待中点停止会立即中止，并明示重试可能产生模型费用）；未连接或状态未知时显式显示未知，不提供伪造数据。WebView 实机渲染、macOS/Linux 与真实 Pi 事件全集仍待验证。详细规范见 [UI/UX 基线](docs/design/gpt-inspired-ui.md) 与 [多会话工作区实现说明](docs/development/multi-session-workspace.md)。
 
 ## 依赖锁文件与 CI 门禁
 

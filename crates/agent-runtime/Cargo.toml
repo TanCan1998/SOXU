@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 soxu-pi-protocol = { path = "../pi-protocol" }
+# 重试预算快照需要 derive；serde 已通过 serde_json 在依赖图中，这里只启用 derive 特性。
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = [
   "rt",

@@ -6,6 +6,7 @@
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use soxu_agent_runtime::retry::RetryStatus;
 use soxu_session_index::{EntryKind, MessageRole};
 
 /// 项目条目：只包含目录引用与会话摘要，不含会话正文。
@@ -99,6 +100,8 @@ pub struct RuntimeStarted {
     pub runtime_id: String,
     pub generation: u64,
     pub state: String,
+    /// 本次启动用掉/还剩多少自动重试额度；持久化后重启不会重置。
+    pub retry: RetryStatus,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -117,6 +120,8 @@ pub struct RuntimeStatus {
     pub generation: u64,
     pub state: String,
     pub exit: Option<RuntimeExit>,
+    /// 重试预算快照；没有记录时为 None（控制台显示「未发生重试」）。
+    pub retry: Option<RetryStatus>,
 }
 
 /// 工作树集合：一次枚举返回视图、失效记录与清理令牌。

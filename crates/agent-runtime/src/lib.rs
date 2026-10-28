@@ -9,7 +9,8 @@
 //!
 //! 模块分工：`supervisor` 负责进程拉起、状态、停止与回收；`handle` 是上层使用的
 //! 单运行时命令/事件接口；`connection` 是三条管道任务；`frame` 是 NDJSON 分帧；
-//! `process` 只暴露「runtime + PID + 状态」给资源监控。
+//! `process` 只暴露「runtime + PID + 状态」给资源监控；`retry` 是网络超时的
+//! 有界重试预算与「结果不确定」的副作用防护（纯逻辑，不做 IO）。
 
 mod connection;
 mod handle;
@@ -20,6 +21,7 @@ pub mod error;
 pub mod frame;
 pub mod identity;
 pub mod process;
+pub mod retry;
 pub mod shared;
 pub mod state;
 pub mod supervisor;
@@ -30,6 +32,11 @@ pub use frame::{DEFAULT_MAX_FRAME_BYTES, FrameError, LineFramer};
 pub use handle::RuntimeHandle;
 pub use identity::RuntimeIdentity;
 pub use process::RuntimeProcess;
+pub use retry::{
+    COST_NOTICE, FailureKind, FailureSignal, ReplayDecision, RetryCancel, RetryLedger, RetryPolicy,
+    RetrySnapshot, RetryStateError, RetryStatus, SideEffectLedger, classify, classify_error,
+    start_with_retry, start_with_retry_cancellable,
+};
 pub use shared::{ExitInfo, ExitReason, RuntimeDiagnostics, SupervisorEvent};
 pub use state::{IllegalTransition, RuntimeState};
 pub use supervisor::PiSupervisor;

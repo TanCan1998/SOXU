@@ -10,6 +10,7 @@ mod events;
 mod watch;
 // 适配层对集成测试开放：测试直接调用真实 catalog/runtime 封装，而不是复制实现。
 pub mod dto;
+pub mod retry_store;
 pub mod session_runtime;
 pub mod state;
 pub mod workspace;

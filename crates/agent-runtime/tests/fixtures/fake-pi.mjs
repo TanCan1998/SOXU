@@ -11,10 +11,21 @@
 //   noreply   get_state 正常，prompt/abort 永不回复
 //   garbage   首条命令前写一行坏 JSON 与一条扩展 UI 请求
 //   noisy     启动即写 120 行带密钥形态的 stderr
+//   mute      启动即静默，任何命令都不回复（模拟握手超时）
+//
+// 可选第 4 个参数 logPath：把「启动 / 收到命令」追加写入该文件，
+// 让有界重试的用例可以精确统计实际尝试次数，而不必依赖计时。
+import { appendFileSync } from "node:fs";
 import process from "node:process";
 import readline from "node:readline";
 
-const [mode = "ok", label = "default"] = process.argv.slice(2);
+const [mode = "ok", label = "default", logPath] = process.argv.slice(2);
+
+// 只有显式给了 logPath 才写文件；正常用例不产生任何磁盘副作用。
+const note = (text) => {
+  if (logPath) appendFileSync(logPath, text + String.fromCharCode(10));
+};
+note("start");
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // 让出一轮事件循环：每次 write 都是独立系统调用，足以把一条记录拆到多次读取里。
@@ -68,6 +79,10 @@ async function handleCommand(line) {
   }
   const { type, id } = command;
   if (typeof id !== "string") return;
+
+  note("command " + type);
+  // mute：永远不回复，用握手超时模拟网络中断。
+  if (mode === "mute") return;
 
   if (mode === "garbage" && !sentGarbage) {
     sentGarbage = true;
