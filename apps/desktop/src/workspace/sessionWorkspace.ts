@@ -57,7 +57,7 @@ export function createTab(meta: SessionMeta): SessionTab {
     error: null,
     messages: [],
     history: { loaded: 0, total: 0, next: null, loading: false },
-    runtime: { runtimeId: null, generation: 0, state: "idle", exitReason: null },
+    runtime: { runtimeId: null, generation: 0, state: "idle", exitReason: null, retry: null },
     draft: "",
     diagnostics: [],
   };
@@ -187,6 +187,8 @@ export class WorkspaceSession {
         generation: started.generation,
         state: started.state,
         exitReason: null,
+        // 预算来自后端持久化记录：重启或多入口启动都不会被重置。
+        retry: started.retry ?? null,
       };
       tab.error = null;
       if (tab.status === "idle" || tab.status === "error") tab.status = "ready";
@@ -255,6 +257,7 @@ export class WorkspaceSession {
       generation: tab.runtime.generation,
       state: "exited",
       exitReason: "requested",
+      retry: tab.runtime.retry,
     };
     tab.status = "idle";
     finalizeStreaming(tab);
@@ -323,6 +326,7 @@ export class WorkspaceSession {
           generation: tab.runtime.generation,
           state: "exited",
           exitReason: event.reason,
+          retry: tab.runtime.retry,
         };
         if (event.reason === "requested_abort" || (event.code ?? 0) === 0) {
           tab.status = "idle";

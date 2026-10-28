@@ -12,6 +12,7 @@ import type {
   HistoryPage,
   ProjectId,
   ProjectSummary,
+  RetryStatus,
   RuntimeEvent,
   RuntimeStarted,
   RuntimeStatus,
@@ -91,6 +92,8 @@ export class FakeBridge implements WorkspaceBridge {
   cancelError: string | null = null;
   historyGate: Promise<void> | null = null;
   status: RuntimeStatus | null = null;
+  /** 后端下发的重试预算快照；测试按需注入，默认没有（旧后端行为）。 */
+  retry: RetryStatus | null = null;
   worktreeRoot = "F:/work/project";
   worktreeList: WorktreeSummary[] = [];
   staleWorktrees: string[] = [];
@@ -172,6 +175,7 @@ export class FakeBridge implements WorkspaceBridge {
       runtimeId: `${sessionId}#1`,
       generation: 1,
       state: "idle",
+      retry: this.retry,
     };
     this.status = { ...started, exit: null };
     return started;

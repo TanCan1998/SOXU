@@ -46,6 +46,10 @@ pub enum SupervisorError {
     Protocol(String),
     /// 运行时在静默等待中结束（例如 agent 异常退出）。
     RuntimeEnded { runtime_id: String },
+    /// 有界重试预算已耗尽：不得自动继续，必须暂停并等人工恢复。
+    RetryBudgetExhausted { attempts: u32, last: String },
+    /// 用户在重试窗口内中止：立即停止重试，不得再拉起子进程。
+    RetryCancelled { attempts: u32 },
     /// 进程在预算内既没有退出也没有被回收。
     ShutdownTimeout { runtime_id: String },
     /// 等待退出通知超时。
@@ -70,6 +74,8 @@ impl SupervisorError {
             Self::IllegalTransition(_) => "illegal_transition",
             Self::Protocol(_) => "protocol",
             Self::RuntimeEnded { .. } => "runtime_ended",
+            Self::RetryBudgetExhausted { .. } => "retry_budget_exhausted",
+            Self::RetryCancelled { .. } => "retry_cancelled",
             Self::ShutdownTimeout { .. } => "shutdown_timeout",
             Self::ExitTimeout { .. } => "exit_timeout",
         }
@@ -137,6 +143,14 @@ impl std::fmt::Display for SupervisorError {
                     "runtime {runtime_id} ended before the awaited event"
                 )
             }
+            Self::RetryBudgetExhausted { attempts, last } => write!(
+                formatter,
+                "retry budget exhausted after {attempts} automatic retries (last failure: {last})"
+            ),
+            Self::RetryCancelled { attempts } => write!(
+                formatter,
+                "retry cancelled by the user after {attempts} automatic retries"
+            ),
             Self::ShutdownTimeout { runtime_id } => {
                 write!(formatter, "runtime {runtime_id} did not shut down in time")
             }

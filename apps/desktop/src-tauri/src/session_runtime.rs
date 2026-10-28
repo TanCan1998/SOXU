@@ -2,11 +2,16 @@
 //!
 //! 每个 sessionId 至多一个驱动任务。启动流程串行化（`start_guard`），
 //! 因此并发点击不会拉起两个 Pi 进程，也不会出现双写同一 JSONL 的运行时。
+//!
+//! 启动阶段接入了**有界重试**（`soxu_agent_runtime::retry`）：只有握手超时/瞬时
+//! 传输故障会自动重试，次数写入 `retry/` 下的持久化预算，进程重启也不会重置。
+//! 429/额度、鉴权失败与用户中止不重试，直接报错并把预算钉死等人工恢复。
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use soxu_agent_runtime::PiProgram;
+use soxu_agent_runtime::retry::{RetryPolicy, start_with_retry_cancellable};
 use soxu_session_index::SessionId;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, oneshot};
@@ -21,6 +26,9 @@ use crate::state::{AppState, RunHandle};
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(120);
 /// 停止运行的回收预算；超时后仍会走 supervisor 的强制终止路径。
 const STOP_TIMEOUT: Duration = Duration::from_secs(15);
+/// 启动阶段的有界重试策略：最多 2 次、500ms 起指数退避、单次不超过 8 秒。
+/// 保持常量，避免不同入口（手动启动 / 恢复）用不同预算绕过限制。
+const RETRY_POLICY: RetryPolicy = RetryPolicy::conservative();
 
 pub async fn start(
     app: &AppHandle,
@@ -50,15 +58,33 @@ pub async fn start(
             runtime_id,
             generation,
             state: status.state,
+            // 复用在跑的运行时：预算以磁盘记录为准，不在这里清零。
+            retry: state.retry.load(session_id, RETRY_POLICY).status(),
         });
     }
     state.runs.lock().await.remove(session_id);
 
-    let handle = state
-        .supervisor
-        .start(session_id, &PiProgram::pi_rpc())
-        .await
-        .map_err(|error| error.to_string())?;
+    // 预算先读盘再启动：上一次未成功的重试次数不会因为重启而清零。
+    let mut ledger = state.retry.load(session_id, RETRY_POLICY);
+    // 登记取消句柄再启动：用户在重试退避窗口里点「停止」也能立刻收手，
+    // 不必等退避睡满、更不会多拉起一次子进程。
+    let cancel = state.begin_pending_start(session_id);
+    let started = start_with_retry_cancellable(
+        &state.supervisor,
+        session_id,
+        &PiProgram::pi_rpc(),
+        &mut ledger,
+        &cancel,
+    )
+    .await;
+    state.finish_pending_start(session_id);
+    let handle = started.map_err(|error| {
+        // 失败也要落盘：耗尽/取消状态必须在重启后仍然可见（不会绕过预算）。
+        state.retry.save(session_id, &ledger);
+        error.to_string()
+    })?;
+    state.retry.save(session_id, &ledger);
+    let retry = ledger.status();
     let identity = handle.identity().clone();
     if !state.gate.begin(session_id, identity.generation) {
         let mut handle = handle;
@@ -115,6 +141,7 @@ pub async fn start(
         runtime_id: identity.runtime_id,
         generation: identity.generation,
         state: status.state,
+        retry,
     })
 }
 
@@ -135,6 +162,10 @@ pub async fn prompt(state: &AppState, session_id: &str, text: &str) -> Result<()
 }
 
 pub async fn cancel(state: &AppState, session_id: &str) -> Result<(), String> {
+    // 启动还没完成（例如正在重试退避）：取消重试窗口，视作已中止。
+    if state.cancel_pending_start(session_id) {
+        return Ok(());
+    }
     let control = sender(state, session_id).await?;
     let (reply_tx, reply_rx) = oneshot::channel();
     control
@@ -145,7 +176,16 @@ pub async fn cancel(state: &AppState, session_id: &str) -> Result<(), String> {
 }
 
 pub async fn stop(state: &AppState, session_id: &str) -> Result<(), String> {
+    // 启动中的会话也要能停：先取消重试退避窗口，再与启动流程串行。
+    // 串行是必要的——否则「启动刚成功、runs 还没登记」的空档会把停止变成空操作，
+    // 留下一个用户以为已经停掉、实际仍在跑的运行时。取消之后启动会立刻收手，
+    // 所以这里等 start_guard 是有界的，不会卡住整个退避窗口。
+    state.cancel_pending_start(session_id);
+    let serialized = state.start_guard.lock().await;
     let run = state.runs.lock().await.remove(session_id);
+    // 取出句柄即可释放启动闸门：后续回收只作用于这个 runtimeId，
+    // 不应该让「再点一次启动」白等一次停止握手。
+    drop(serialized);
     let Some(run) = run else {
         return Ok(()); // 停止是幂等的：没有运行中的 Agent 也算成功。
     };
@@ -180,6 +220,7 @@ pub async fn status(state: &AppState, session_id: &str) -> Option<RuntimeStatus>
             "exited".to_owned()
         },
         exit: status.exit,
+        retry: state.retry.status(session_id, RETRY_POLICY),
     })
 }
 

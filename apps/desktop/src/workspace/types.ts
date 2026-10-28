@@ -91,11 +91,29 @@ export interface EntryText {
   clipped: boolean;
 }
 
+/**
+ * 有界重试预算的只读快照（Rust `retry::RetryStatus` 的镜像）。
+ *
+ * `exhausted` 为真时后端不会再自动重试：只能人工处理网络/额度后再启动。
+ * `costNotice` 由后端下发，界面必须原样展示——重试会再次产生模型费用。
+ */
+export interface RetryStatus {
+  attempts: number;
+  maxAttempts: number;
+  remaining: number;
+  exhausted: boolean;
+  lastFailure: string | null;
+  nextDelayMs: number | null;
+  costNotice: string;
+}
+
 export interface RuntimeStarted {
   sessionId: SessionId;
   runtimeId: string;
   generation: number;
   state: string;
+  /** 本次启动的重试预算快照；旧后端可能不返回。 */
+  retry?: RetryStatus | null;
 }
 
 export interface RuntimeStatus {
@@ -104,6 +122,7 @@ export interface RuntimeStatus {
   generation: number;
   state: string;
   exit: { code: number | null; reason: string } | null;
+  retry?: RetryStatus | null;
 }
 
 export type RuntimeEventBody =
@@ -302,6 +321,8 @@ export interface TabRuntime {
   generation: number;
   state: string;
   exitReason: string | null;
+  /** 最近一次启动的重试预算；停止后保留，便于查看用掉了几次重试。 */
+  retry: RetryStatus | null;
 }
 
 export interface SessionTab {

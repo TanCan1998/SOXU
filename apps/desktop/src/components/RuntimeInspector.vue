@@ -19,6 +19,12 @@ const emit = defineEmits<{
 }>();
 
 const diagnostics = computed(() => [...(props.tab?.diagnostics ?? [])].reverse().slice(0, 8));
+const retry = computed(() => props.tab?.runtime.retry ?? null);
+const retryText = computed(() => {
+  const status = retry.value;
+  if (!status) return "未发生重试";
+  return `${status.attempts} / ${status.maxAttempts}`;
+});
 const historyText = computed(() => {
   const history = props.tab?.history;
   if (!history) return "—";
@@ -88,6 +94,28 @@ const historyText = computed(() => {
         </button>
       </div>
       <div v-else class="card"><p class="note">未打开会话。左侧选择会话后这里显示真实运行时状态。</p></div>
+
+      <p class="label">重试预算</p>
+      <div class="card">
+        <div class="row sub">
+          <span>已重试 / 上限</span>
+          <strong>{{ retryText }}</strong>
+        </div>
+        <div v-if="retry" class="row sub">
+          <span>状态</span>
+          <strong>{{ retry.exhausted ? "已耗尽 · 需人工恢复" : "可继续" }}</strong>
+        </div>
+        <div v-if="retry?.lastFailure" class="row sub">
+          <span>最近失败</span>
+          <strong>{{ retry.lastFailure }}</strong>
+        </div>
+        <p v-if="retry" class="note">
+          {{ retry.costNotice }}
+        </p>
+        <p v-else class="note">
+          只有网络中断与超时会自动有界重试；429、鉴权失败和主动取消不会重试。
+        </p>
+      </div>
 
       <p class="label">诊断</p>
       <div class="card">
