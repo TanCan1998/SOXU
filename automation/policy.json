@@ -33,7 +33,7 @@
       "timeoutMinutes": 12
     }
   ],
-  "autoMerge": false,
+  "autoMerge": true,
   "autoRelease": false,
   "releaseChannel": "prerelease",
   "releaseBranch": "main",
