@@ -10,8 +10,8 @@ use serde::Serialize;
 use crate::entry::EntryPage;
 use crate::error::{CatalogError, ErrorCode, Result};
 use crate::identity::{
-    ProjectId, RuntimeId, RuntimeLink, SessionId, SessionIdentity, WorktreeId, normalize_path,
-    now_ms, strip_verbatim,
+    ProjectId, RuntimeId, RuntimeLink, SessionId, SessionIdentity, WorktreeId, is_within,
+    normalize_path, now_ms, strip_verbatim,
 };
 use crate::index::{SessionLog, SessionPage};
 use crate::records::{
@@ -67,6 +67,9 @@ pub struct SyncReport {
     pub rebuilds: Vec<RebuildNote>,
     /// 会话头部 cwd 与工作树路径不一致的提示（不阻断索引，供人工核对）。
     pub cwd_mismatch: Vec<String>,
+    /// 越出会话根目录、被拒绝索引的候选文件（P-08：符号链接 / 目录联接指向外部）。
+    /// 拒绝是可见的：文件原样留在磁盘上，只记入报告。
+    pub rejected_paths: Vec<String>,
     pub warnings: usize,
 }
 
@@ -292,8 +295,17 @@ impl ProjectCatalog {
     }
 
     /// 扫描项目所有工作树对应的 Pi 会话目录，增量更新索引。
+    ///
+    /// 隐式扫描是安全边界：只接受解析后仍位于会话根目录内的 `.jsonl`。
+    /// 指向根目录之外的符号链接 / 目录联接会被列入 `SyncReport::rejected_paths`，
+    /// 既不读取也不登记；确需索引非默认布局的文件时由调用方显式
+    /// [`Self::attach_session_file`]（用户主动选择，不是自动扫描）。
     pub fn sync(&mut self, project: &ProjectId) -> Result<SyncReport> {
         let sessions_root = self.sessions_root_required()?.to_path_buf();
+        // 根目录只在本次扫描解析一次；无法解析时宁可全部拒绝，也不放宽边界。
+        let resolved_root = fs::canonicalize(&sessions_root)
+            .map(|value| strip_verbatim(&value))
+            .ok();
         let worktrees: Vec<WorktreeRecord> = self
             .project(project)
             .ok_or_else(|| {
@@ -341,6 +353,12 @@ impl ProjectCatalog {
             // 排序保证多平台扫描顺序稳定，报告可复现。
             paths.sort();
             for path in paths {
+                if !session_file_inside(resolved_root.as_deref(), &path) {
+                    report
+                        .rejected_paths
+                        .push(path.to_string_lossy().to_string());
+                    continue;
+                }
                 report.scanned_files += 1;
                 match self.upsert_session(project, &worktree.id, &path) {
                     Ok(upsert) => {
@@ -772,5 +790,54 @@ impl ProjectCatalog {
             }
         }
         record.updated_at_ms = now_ms();
+    }
+}
+
+/// 隐式扫描的路径守门：`file` 解析后仍须落在已解析的会话根目录内。
+///
+/// 两边都先 `canonicalize`，所以符号链接、目录联接、`..` 都无法伪造包含关系；
+/// 根目录无法解析、文件无法解析（并发删除）时一律拒绝——拒绝比误读安全。
+fn session_file_inside(resolved_root: Option<&Path>, file: &Path) -> bool {
+    let Some(root) = resolved_root else {
+        return false;
+    };
+    // 两侧统一去掉 Windows 的 verbatim 前缀，否则真实的子路径会被误判为越界。
+    let root = strip_verbatim(root);
+    match fs::canonicalize(file) {
+        Ok(resolved) => is_within(&root, &strip_verbatim(&resolved)),
+        Err(_) => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn session_file_guard_rejects_escaping_paths() {
+        let root = std::env::temp_dir().join(format!("soxu-guard-{}-root", std::process::id()));
+        let inside = root.join("--project--").join("a.jsonl");
+        let outside = std::env::temp_dir()
+            .join(format!("soxu-guard-{}-outside", std::process::id()))
+            .join("b.jsonl");
+        fs::create_dir_all(root.join("--project--")).expect("建目录");
+        fs::write(&inside, "{}\n").expect("写文件");
+        fs::create_dir_all(outside.parent().expect("父目录")).expect("建目录");
+        fs::write(&outside, "{}\n").expect("写文件");
+
+        let resolved = fs::canonicalize(&root).expect("解析根目录");
+        assert!(session_file_inside(Some(&resolved), &inside));
+        // 兄弟目录前缀相同不算包含关系。
+        assert!(!session_file_inside(Some(&resolved), &outside));
+        // 根目录未知时不放行任何文件。
+        assert!(!session_file_inside(None, &inside));
+        // 不存在的文件（扫描期间被删除）也不放行，交给上层跳过。
+        assert!(!session_file_inside(
+            Some(&resolved),
+            &root.join("gone.jsonl")
+        ));
+
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(outside.parent().expect("父目录"));
     }
 }
