@@ -1,0 +1,1058 @@
+{
+  "generatedAt": "2026-10-29T20:44:24.876Z",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "browser": "Edg/156.0.4314.50",
+  "url": "http://127.0.0.1:1434/tokens.html",
+  "light": {
+    "theme": "light",
+    "values": {
+      "--surface": "#ffffff",
+      "--bg-sidebar": "#f7f7f8",
+      "--bg-panel": "#ffffff",
+      "--bg-raised": "#f2f2f3",
+      "--bg-hover": "#ececed",
+      "--bg-active": "#e3e3e5",
+      "--border": "#e5e5e7",
+      "--border-strong": "#d4d4d8",
+      "--fg": "#1a1a1a",
+      "--fg-muted": "#6b6b70",
+      "--fg-subtle": "#9a9aa0",
+      "--code-bg": "#f6f6f7",
+      "--inset": "inset 0 1px 0 rgb(255 255 255 / 70%)",
+      "--glass": "rgb(255 255 255 / 72%)",
+      "--glass-border": "rgb(0 0 0 / 6%)",
+      "--shadow-pop-value": "0 10px 28px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 5%)",
+      "--accent": "#3a83f7",
+      "--accent-hover": "#2f70d8",
+      "--ok": "#10a37f",
+      "--warn": "#d97706",
+      "--danger": "#dc2626",
+      "--r-sm": "7px",
+      "--r-md": "9px",
+      "--r-lg": "13px",
+      "--fs-micro": "11.5px",
+      "--fs-caption": "12.5px",
+      "--fs-chat": "16px",
+      "--ease": "cubic-bezier(0.2, 0, 0, 1)",
+      "--ease-spring-value": "cubic-bezier(0.34, 1.42, 0.64, 1)",
+      "--shadow-modal": "0 28px 72px rgb(0 0 0 / 30%)",
+      "--font-ui": "\"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\",\n    \"Microsoft YaHei UI\", \"Microsoft YaHei\", \"PingFang SC\", \"Noto Sans CJK SC\", sans-serif",
+      "--font-code": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\",\n    \"Microsoft YaHei UI\", \"PingFang SC\", monospace"
+    },
+    "bodyBg": "rgb(252, 252, 252)"
+  },
+  "utilityLight": {
+    "backgroundColor": "rgb(242, 242, 243)",
+    "color": "rgb(26, 26, 26)",
+    "borderColor": "rgb(229, 229, 231)",
+    "borderRadius": "13px",
+    "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.12) 0px 10px 28px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+    "fontSize": "16px",
+    "lineHeight": "26.88px",
+    "fontFamily": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", \"Microsoft YaHei UI\", \"PingFang SC\", monospace",
+    "easing": {
+      "ease-spring": "cubic-bezier(0.34, 1.42, 0.64, 1)",
+      "ease-standard": "cubic-bezier(0.2, 0, 0, 1)"
+    }
+  },
+  "transition": {
+    "origin": {
+      "x": 1198.25,
+      "y": 45
+    },
+    "midTransition": {
+      "supported": true,
+      "hasClass": true,
+      "originX": "1198px",
+      "originY": "45px",
+      "radius": "1472px",
+      "duration": "420ms"
+    }
+  },
+  "dark": {
+    "theme": "dark",
+    "values": {
+      "--surface": "#212121",
+      "--bg-sidebar": "#191919",
+      "--bg-panel": "#212121",
+      "--bg-raised": "#2f2f2f",
+      "--bg-hover": "#2a2a2a",
+      "--bg-active": "#353535",
+      "--border": "#383838",
+      "--border-strong": "#4a4a4a",
+      "--fg": "#ececec",
+      "--fg-muted": "#a0a0a5",
+      "--fg-subtle": "#6e6e73",
+      "--code-bg": "#1a1a1a",
+      "--inset": "inset 0 1px 0 rgb(255 255 255 / 4.5%)",
+      "--glass": "rgb(28 28 28 / 68%)",
+      "--glass-border": "rgb(255 255 255 / 7%)",
+      "--shadow-pop-value": "0 10px 28px rgb(0 0 0 / 46%), 0 1px 2px rgb(0 0 0 / 30%)",
+      "--accent": "#3a83f7",
+      "--accent-hover": "#2f70d8",
+      "--ok": "#10a37f",
+      "--warn": "#d97706",
+      "--danger": "#dc2626",
+      "--r-sm": "7px",
+      "--r-md": "9px",
+      "--r-lg": "13px",
+      "--fs-micro": "11.5px",
+      "--fs-caption": "12.5px",
+      "--fs-chat": "16px",
+      "--ease": "cubic-bezier(0.2, 0, 0, 1)",
+      "--ease-spring-value": "cubic-bezier(0.34, 1.42, 0.64, 1)",
+      "--shadow-modal": "0 28px 72px rgb(0 0 0 / 30%)",
+      "--font-ui": "\"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\",\n    \"Microsoft YaHei UI\", \"Microsoft YaHei\", \"PingFang SC\", \"Noto Sans CJK SC\", sans-serif",
+      "--font-code": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\",\n    \"Microsoft YaHei UI\", \"PingFang SC\", monospace"
+    },
+    "bodyBg": "rgb(25, 23, 23)"
+  },
+  "utilityDark": {
+    "backgroundColor": "rgb(47, 47, 47)",
+    "color": "rgb(236, 236, 236)",
+    "borderColor": "rgb(56, 56, 56)",
+    "borderRadius": "13px",
+    "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.46) 0px 10px 28px 0px, rgba(0, 0, 0, 0.3) 0px 1px 2px 0px",
+    "fontSize": "16px",
+    "lineHeight": "26.88px",
+    "fontFamily": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", \"Microsoft YaHei UI\", \"PingFang SC\", monospace",
+    "easing": {
+      "ease-spring": "cubic-bezier(0.34, 1.42, 0.64, 1)",
+      "ease-standard": "cubic-bezier(0.2, 0, 0, 1)"
+    }
+  },
+  "layout": {
+    "before": {
+      "rects": {
+        "head": [
+          32,
+          28,
+          1216,
+          91
+        ],
+        "utility": [
+          32,
+          193,
+          1216,
+          361.88
+        ],
+        "表面": [
+          32,
+          582.88,
+          1216,
+          150
+        ],
+        "文本与描边": [
+          32,
+          760.88,
+          1216,
+          279
+        ],
+        "强调与语义": [
+          32,
+          1067.88,
+          1216,
+          165
+        ],
+        "字号": [
+          32,
+          1260.88,
+          1216,
+          279
+        ],
+        "圆角": [
+          32,
+          1567.88,
+          1216,
+          150
+        ],
+        "阴影": [
+          32,
+          1745.88,
+          1216,
+          165
+        ],
+        "动效": [
+          32,
+          1938.88,
+          1216,
+          150
+        ]
+      },
+      "scrollHeight": 2145,
+      "clientHeight": 900,
+      "scrollWidth": 1280,
+      "clientWidth": 1280
+    },
+    "after": {
+      "rects": {
+        "head": [
+          32,
+          28,
+          1216,
+          91
+        ],
+        "utility": [
+          32,
+          193,
+          1216,
+          361.88
+        ],
+        "表面": [
+          32,
+          582.88,
+          1216,
+          150
+        ],
+        "文本与描边": [
+          32,
+          760.88,
+          1216,
+          279
+        ],
+        "强调与语义": [
+          32,
+          1067.88,
+          1216,
+          165
+        ],
+        "字号": [
+          32,
+          1260.88,
+          1216,
+          279
+        ],
+        "圆角": [
+          32,
+          1567.88,
+          1216,
+          150
+        ],
+        "阴影": [
+          32,
+          1745.88,
+          1216,
+          165
+        ],
+        "动效": [
+          32,
+          1938.88,
+          1216,
+          150
+        ]
+      },
+      "scrollHeight": 2145,
+      "clientHeight": 900,
+      "scrollWidth": 1280,
+      "clientWidth": 1280
+    },
+    "diff": {
+      "maxShift": 0,
+      "changed": [],
+      "scrollHeightDelta": 0,
+      "scrollWidthDelta": 0
+    }
+  },
+  "backToLight": {
+    "theme": "light",
+    "values": {
+      "--surface": "#ffffff",
+      "--bg-sidebar": "#f7f7f8",
+      "--bg-panel": "#ffffff",
+      "--bg-raised": "#f2f2f3",
+      "--bg-hover": "#ececed",
+      "--bg-active": "#e3e3e5",
+      "--border": "#e5e5e7",
+      "--border-strong": "#d4d4d8",
+      "--fg": "#1a1a1a",
+      "--fg-muted": "#6b6b70",
+      "--fg-subtle": "#9a9aa0",
+      "--code-bg": "#f6f6f7",
+      "--inset": "inset 0 1px 0 rgb(255 255 255 / 70%)",
+      "--glass": "rgb(255 255 255 / 72%)",
+      "--glass-border": "rgb(0 0 0 / 6%)",
+      "--shadow-pop-value": "0 10px 28px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 5%)",
+      "--accent": "#3a83f7",
+      "--accent-hover": "#2f70d8",
+      "--ok": "#10a37f",
+      "--warn": "#d97706",
+      "--danger": "#dc2626",
+      "--r-sm": "7px",
+      "--r-md": "9px",
+      "--r-lg": "13px",
+      "--fs-micro": "11.5px",
+      "--fs-caption": "12.5px",
+      "--fs-chat": "16px",
+      "--ease": "cubic-bezier(0.2, 0, 0, 1)",
+      "--ease-spring-value": "cubic-bezier(0.34, 1.42, 0.64, 1)",
+      "--shadow-modal": "0 28px 72px rgb(0 0 0 / 30%)",
+      "--font-ui": "\"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\",\n    \"Microsoft YaHei UI\", \"Microsoft YaHei\", \"PingFang SC\", \"Noto Sans CJK SC\", sans-serif",
+      "--font-code": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\",\n    \"Microsoft YaHei UI\", \"PingFang SC\", monospace"
+    },
+    "bodyBg": "rgb(252, 252, 252)"
+  },
+  "layoutBack": {
+    "maxShift": 0,
+    "changed": [],
+    "scrollHeightDelta": 0,
+    "scrollWidthDelta": 0
+  },
+  "shots": [
+    {
+      "name": "01-light-tokens.png",
+      "bytes": 61986,
+      "sha256": "2abd5fa6065b23132959aed56d5b35e7497027c880c2090ad67aa5f4de16a0ee"
+    },
+    {
+      "name": "02-light-to-dark-reveal-early.png",
+      "bytes": 113699,
+      "sha256": "1b58b403c5fc2a3749d71ed6e27be82464ebd7bfad59dcd173274ca01393734f"
+    },
+    {
+      "name": "03-light-to-dark-reveal-late.png",
+      "bytes": 168970,
+      "sha256": "4ec0cc73514719add5ae033159ced94f2f011d3a9df59ae0adb9c582ab807674"
+    },
+    {
+      "name": "04-dark-tokens.png",
+      "bytes": 62781,
+      "sha256": "e913b3fe5e7d2c2d1e40cd656f7680127419952b4abcf1160a9c0ff5956858ee"
+    },
+    {
+      "name": "05-light-tokens-full.png",
+      "bytes": 132802,
+      "sha256": "7854ec7d40f01a40d564314fc0db099d79aa42f02fa7ea1372df8f7319212b1e",
+      "pageHeight": 2145
+    },
+    {
+      "name": "06-dark-tokens-full.png",
+      "bytes": 127190,
+      "sha256": "fc602799ec5b5d7427d16518e3425bf41581713203110f1f10b97809da157a5f",
+      "pageHeight": 2145
+    }
+  ],
+  "pageErrors": [],
+  "checks": [
+    {
+      "name": "浅色：<html data-theme> 为 light",
+      "passed": true,
+      "detail": "light"
+    },
+    {
+      "name": "浅色 --surface = #ffffff",
+      "passed": true,
+      "detail": "#ffffff"
+    },
+    {
+      "name": "浅色 --bg-sidebar = #f7f7f8",
+      "passed": true,
+      "detail": "#f7f7f8"
+    },
+    {
+      "name": "浅色 --bg-raised = #f2f2f3",
+      "passed": true,
+      "detail": "#f2f2f3"
+    },
+    {
+      "name": "浅色 --border = #e5e5e7",
+      "passed": true,
+      "detail": "#e5e5e7"
+    },
+    {
+      "name": "浅色 --fg = #1a1a1a",
+      "passed": true,
+      "detail": "#1a1a1a"
+    },
+    {
+      "name": "浅色 --danger = #dc2626",
+      "passed": true,
+      "detail": "#dc2626"
+    },
+    {
+      "name": "--accent = #3a83f7",
+      "passed": true,
+      "detail": "#3a83f7"
+    },
+    {
+      "name": "--r-sm = 7px",
+      "passed": true,
+      "detail": "7px"
+    },
+    {
+      "name": "--r-md = 9px",
+      "passed": true,
+      "detail": "9px"
+    },
+    {
+      "name": "--r-lg = 13px",
+      "passed": true,
+      "detail": "13px"
+    },
+    {
+      "name": "--fs-micro = 11.5px",
+      "passed": true,
+      "detail": "11.5px"
+    },
+    {
+      "name": "--fs-caption = 12.5px",
+      "passed": true,
+      "detail": "12.5px"
+    },
+    {
+      "name": "--fs-chat = 16px",
+      "passed": true,
+      "detail": "16px"
+    },
+    {
+      "name": "浅色：--surface 有值",
+      "passed": true,
+      "detail": "#ffffff"
+    },
+    {
+      "name": "浅色：--bg-sidebar 有值",
+      "passed": true,
+      "detail": "#f7f7f8"
+    },
+    {
+      "name": "浅色：--bg-panel 有值",
+      "passed": true,
+      "detail": "#ffffff"
+    },
+    {
+      "name": "浅色：--bg-raised 有值",
+      "passed": true,
+      "detail": "#f2f2f3"
+    },
+    {
+      "name": "浅色：--bg-hover 有值",
+      "passed": true,
+      "detail": "#ececed"
+    },
+    {
+      "name": "浅色：--bg-active 有值",
+      "passed": true,
+      "detail": "#e3e3e5"
+    },
+    {
+      "name": "浅色：--border 有值",
+      "passed": true,
+      "detail": "#e5e5e7"
+    },
+    {
+      "name": "浅色：--border-strong 有值",
+      "passed": true,
+      "detail": "#d4d4d8"
+    },
+    {
+      "name": "浅色：--fg 有值",
+      "passed": true,
+      "detail": "#1a1a1a"
+    },
+    {
+      "name": "浅色：--fg-muted 有值",
+      "passed": true,
+      "detail": "#6b6b70"
+    },
+    {
+      "name": "浅色：--fg-subtle 有值",
+      "passed": true,
+      "detail": "#9a9aa0"
+    },
+    {
+      "name": "浅色：--code-bg 有值",
+      "passed": true,
+      "detail": "#f6f6f7"
+    },
+    {
+      "name": "浅色：--inset 有值",
+      "passed": true,
+      "detail": "inset 0 1px 0 rgb(255 255 255 / 70%)"
+    },
+    {
+      "name": "浅色：--glass 有值",
+      "passed": true,
+      "detail": "rgb(255 255 255 / 72%)"
+    },
+    {
+      "name": "浅色：--glass-border 有值",
+      "passed": true,
+      "detail": "rgb(0 0 0 / 6%)"
+    },
+    {
+      "name": "浅色：--shadow-pop-value 有值",
+      "passed": true,
+      "detail": "0 10px 28px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 5%)"
+    },
+    {
+      "name": "浅色：--accent 有值",
+      "passed": true,
+      "detail": "#3a83f7"
+    },
+    {
+      "name": "浅色：--accent-hover 有值",
+      "passed": true,
+      "detail": "#2f70d8"
+    },
+    {
+      "name": "浅色：--ok 有值",
+      "passed": true,
+      "detail": "#10a37f"
+    },
+    {
+      "name": "浅色：--warn 有值",
+      "passed": true,
+      "detail": "#d97706"
+    },
+    {
+      "name": "浅色：--danger 有值",
+      "passed": true,
+      "detail": "#dc2626"
+    },
+    {
+      "name": "浅色：--r-sm 有值",
+      "passed": true,
+      "detail": "7px"
+    },
+    {
+      "name": "浅色：--r-md 有值",
+      "passed": true,
+      "detail": "9px"
+    },
+    {
+      "name": "浅色：--r-lg 有值",
+      "passed": true,
+      "detail": "13px"
+    },
+    {
+      "name": "浅色：--fs-micro 有值",
+      "passed": true,
+      "detail": "11.5px"
+    },
+    {
+      "name": "浅色：--fs-caption 有值",
+      "passed": true,
+      "detail": "12.5px"
+    },
+    {
+      "name": "浅色：--fs-chat 有值",
+      "passed": true,
+      "detail": "16px"
+    },
+    {
+      "name": "浅色：--ease 有值",
+      "passed": true,
+      "detail": "cubic-bezier(0.2, 0, 0, 1)"
+    },
+    {
+      "name": "浅色：--ease-spring-value 有值",
+      "passed": true,
+      "detail": "cubic-bezier(0.34, 1.42, 0.64, 1)"
+    },
+    {
+      "name": "浅色：--shadow-modal 有值",
+      "passed": true,
+      "detail": "0 28px 72px rgb(0 0 0 / 30%)"
+    },
+    {
+      "name": "浅色：--font-ui 有值",
+      "passed": true,
+      "detail": "\"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\",\n    \"Microsoft YaHei UI\", \"Microsoft YaHei\", \"PingFang SC\", \"Noto Sans CJK SC\", sans-serif"
+    },
+    {
+      "name": "浅色：--font-code 有值",
+      "passed": true,
+      "detail": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\",\n    \"Microsoft YaHei UI\", \"PingFang SC\", monospace"
+    },
+    {
+      "name": "@theme：bg-bg-raised 生成背景色",
+      "passed": true,
+      "detail": "rgb(242, 242, 243)"
+    },
+    {
+      "name": "@theme：text-fg 生成文字色",
+      "passed": true,
+      "detail": "rgb(26, 26, 26)"
+    },
+    {
+      "name": "@theme：border-border 生成描边色",
+      "passed": true,
+      "detail": "rgb(229, 229, 231)"
+    },
+    {
+      "name": "@theme：rounded-lg = 13px",
+      "passed": true,
+      "detail": "13px"
+    },
+    {
+      "name": "@theme：shadow-pop 生成阴影",
+      "passed": true,
+      "detail": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.12) 0px 10px 28px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px"
+    },
+    {
+      "name": "@theme：text-chat = 16px",
+      "passed": true,
+      "detail": "16px"
+    },
+    {
+      "name": "@theme：text-chat 带出 --lh-chat 行高 26.88px",
+      "passed": true,
+      "detail": "26.88px"
+    },
+    {
+      "name": "@theme：font-mono 用项目等宽栈",
+      "passed": true,
+      "detail": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", \"Microsoft YaHei UI\", \"PingFang SC\", monospace"
+    },
+    {
+      "name": "@theme：ease-spring 生成弹簧缓动",
+      "passed": true,
+      "detail": {
+        "ease-spring": "cubic-bezier(0.34, 1.42, 0.64, 1)",
+        "ease-standard": "cubic-bezier(0.2, 0, 0, 1)"
+      }
+    },
+    {
+      "name": "@theme：ease-standard 指向原型 --ease",
+      "passed": true,
+      "detail": {
+        "ease-spring": "cubic-bezier(0.34, 1.42, 0.64, 1)",
+        "ease-standard": "cubic-bezier(0.2, 0, 0, 1)"
+      }
+    },
+    {
+      "name": "切换：浏览器支持 startViewTransition",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "切换：过渡期间 <html> 挂上过渡类名",
+      "passed": true,
+      "detail": true
+    },
+    {
+      "name": "切换：圆心写在点击位置上",
+      "passed": true,
+      "detail": {
+        "origin": {
+          "x": 1198.25,
+          "y": 45
+        },
+        "probe": {
+          "supported": true,
+          "hasClass": true,
+          "originX": "1198px",
+          "originY": "45px",
+          "radius": "1472px",
+          "duration": "420ms"
+        }
+      }
+    },
+    {
+      "name": "切换：扩散半径 > 0",
+      "passed": true,
+      "detail": "1472px"
+    },
+    {
+      "name": "切换：扩散逐帧推进（两帧过渡截图不同）",
+      "passed": true,
+      "detail": {
+        "early": "1b58b403c5fc2a3749d71ed6e27be82464ebd7bfad59dcd173274ca01393734f",
+        "late": "4ec0cc73514719add5ae033159ced94f2f011d3a9df59ae0adb9c582ab807674"
+      }
+    },
+    {
+      "name": "切换：过渡帧既不是纯浅色也不是纯深色",
+      "passed": true,
+      "detail": {
+        "early": "1b58b403c5fc2a3749d71ed6e27be82464ebd7bfad59dcd173274ca01393734f",
+        "light": "2abd5fa6065b23132959aed56d5b35e7497027c880c2090ad67aa5f4de16a0ee"
+      }
+    },
+    {
+      "name": "深色：<html data-theme> 为 dark",
+      "passed": true,
+      "detail": "dark"
+    },
+    {
+      "name": "深色 --surface = #212121",
+      "passed": true,
+      "detail": "#212121"
+    },
+    {
+      "name": "深色 --bg-sidebar = #191919",
+      "passed": true,
+      "detail": "#191919"
+    },
+    {
+      "name": "深色 --bg-raised = #2f2f2f",
+      "passed": true,
+      "detail": "#2f2f2f"
+    },
+    {
+      "name": "深色 --border = #383838",
+      "passed": true,
+      "detail": "#383838"
+    },
+    {
+      "name": "深色 --fg = #ececec",
+      "passed": true,
+      "detail": "#ececec"
+    },
+    {
+      "name": "深色 --danger = #dc2626",
+      "passed": true,
+      "detail": "#dc2626"
+    },
+    {
+      "name": "深色：--surface 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#ffffff",
+        "dark": "#212121"
+      }
+    },
+    {
+      "name": "深色：--bg-sidebar 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#f7f7f8",
+        "dark": "#191919"
+      }
+    },
+    {
+      "name": "深色：--bg-panel 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#ffffff",
+        "dark": "#212121"
+      }
+    },
+    {
+      "name": "深色：--bg-raised 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#f2f2f3",
+        "dark": "#2f2f2f"
+      }
+    },
+    {
+      "name": "深色：--bg-hover 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#ececed",
+        "dark": "#2a2a2a"
+      }
+    },
+    {
+      "name": "深色：--bg-active 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#e3e3e5",
+        "dark": "#353535"
+      }
+    },
+    {
+      "name": "深色：--border 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#e5e5e7",
+        "dark": "#383838"
+      }
+    },
+    {
+      "name": "深色：--border-strong 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#d4d4d8",
+        "dark": "#4a4a4a"
+      }
+    },
+    {
+      "name": "深色：--fg 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#1a1a1a",
+        "dark": "#ececec"
+      }
+    },
+    {
+      "name": "深色：--fg-muted 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#6b6b70",
+        "dark": "#a0a0a5"
+      }
+    },
+    {
+      "name": "深色：--fg-subtle 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#9a9aa0",
+        "dark": "#6e6e73"
+      }
+    },
+    {
+      "name": "深色：--code-bg 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "#f6f6f7",
+        "dark": "#1a1a1a"
+      }
+    },
+    {
+      "name": "深色：--inset 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "inset 0 1px 0 rgb(255 255 255 / 70%)",
+        "dark": "inset 0 1px 0 rgb(255 255 255 / 4.5%)"
+      }
+    },
+    {
+      "name": "深色：--glass 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "rgb(255 255 255 / 72%)",
+        "dark": "rgb(28 28 28 / 68%)"
+      }
+    },
+    {
+      "name": "深色：--glass-border 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "rgb(0 0 0 / 6%)",
+        "dark": "rgb(255 255 255 / 7%)"
+      }
+    },
+    {
+      "name": "深色：--shadow-pop-value 与浅色不同",
+      "passed": true,
+      "detail": {
+        "light": "0 10px 28px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 5%)",
+        "dark": "0 10px 28px rgb(0 0 0 / 46%), 0 1px 2px rgb(0 0 0 / 30%)"
+      }
+    },
+    {
+      "name": "深色：--accent 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "#3a83f7",
+        "dark": "#3a83f7"
+      }
+    },
+    {
+      "name": "深色：--accent-hover 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "#2f70d8",
+        "dark": "#2f70d8"
+      }
+    },
+    {
+      "name": "深色：--ok 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "#10a37f",
+        "dark": "#10a37f"
+      }
+    },
+    {
+      "name": "深色：--warn 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "#d97706",
+        "dark": "#d97706"
+      }
+    },
+    {
+      "name": "深色：--danger 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "#dc2626",
+        "dark": "#dc2626"
+      }
+    },
+    {
+      "name": "深色：--r-sm 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "7px",
+        "dark": "7px"
+      }
+    },
+    {
+      "name": "深色：--r-md 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "9px",
+        "dark": "9px"
+      }
+    },
+    {
+      "name": "深色：--r-lg 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "13px",
+        "dark": "13px"
+      }
+    },
+    {
+      "name": "深色：--fs-micro 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "11.5px",
+        "dark": "11.5px"
+      }
+    },
+    {
+      "name": "深色：--fs-caption 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "12.5px",
+        "dark": "12.5px"
+      }
+    },
+    {
+      "name": "深色：--fs-chat 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "16px",
+        "dark": "16px"
+      }
+    },
+    {
+      "name": "深色：--ease 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "cubic-bezier(0.2, 0, 0, 1)",
+        "dark": "cubic-bezier(0.2, 0, 0, 1)"
+      }
+    },
+    {
+      "name": "深色：--ease-spring-value 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "cubic-bezier(0.34, 1.42, 0.64, 1)",
+        "dark": "cubic-bezier(0.34, 1.42, 0.64, 1)"
+      }
+    },
+    {
+      "name": "深色：--shadow-modal 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "0 28px 72px rgb(0 0 0 / 30%)",
+        "dark": "0 28px 72px rgb(0 0 0 / 30%)"
+      }
+    },
+    {
+      "name": "深色：--font-ui 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "\"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\",\n    \"Microsoft YaHei UI\", \"Microsoft YaHei\", \"PingFang SC\", \"Noto Sans CJK SC\", sans-serif",
+        "dark": "\"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI Variable Text\", \"Segoe UI\",\n    \"Microsoft YaHei UI\", \"Microsoft YaHei\", \"PingFang SC\", \"Noto Sans CJK SC\", sans-serif"
+      }
+    },
+    {
+      "name": "深色：--font-code 与浅色一致（主题无关）",
+      "passed": true,
+      "detail": {
+        "light": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\",\n    \"Microsoft YaHei UI\", \"PingFang SC\", monospace",
+        "dark": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\",\n    \"Microsoft YaHei UI\", \"PingFang SC\", monospace"
+      }
+    },
+    {
+      "name": "深色：bg-bg-raised 工具类跟着换色",
+      "passed": true,
+      "detail": "rgb(47, 47, 47)"
+    },
+    {
+      "name": "深色：shadow-pop 工具类跟着换成深色阴影",
+      "passed": true,
+      "detail": {
+        "light": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.12) 0px 10px 28px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px",
+        "dark": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.46) 0px 10px 28px 0px, rgba(0, 0, 0, 0.3) 0px 1px 2px 0px"
+      }
+    },
+    {
+      "name": "切换：没有元素发生位移或尺寸变化",
+      "passed": true,
+      "detail": {
+        "maxShift": 0,
+        "changed": [],
+        "scrollHeightDelta": 0,
+        "scrollWidthDelta": 0
+      }
+    },
+    {
+      "name": "切换：文档滚动高度不变",
+      "passed": true,
+      "detail": {
+        "maxShift": 0,
+        "changed": [],
+        "scrollHeightDelta": 0,
+        "scrollWidthDelta": 0
+      }
+    },
+    {
+      "name": "切换：文档滚动宽度不变",
+      "passed": true,
+      "detail": {
+        "maxShift": 0,
+        "changed": [],
+        "scrollHeightDelta": 0,
+        "scrollWidthDelta": 0
+      }
+    },
+    {
+      "name": "深色截图与浅色截图字节不同（主题真的换了）",
+      "passed": true,
+      "detail": {
+        "light": "2abd5fa6065b23132959aed56d5b35e7497027c880c2090ad67aa5f4de16a0ee",
+        "dark": "e913b3fe5e7d2c2d1e40cd656f7680127419952b4abcf1160a9c0ff5956858ee"
+      }
+    },
+    {
+      "name": "深色截图与过渡帧不同",
+      "passed": true,
+      "detail": {
+        "late": "4ec0cc73514719add5ae033159ced94f2f011d3a9df59ae0adb9c582ab807674",
+        "dark": "e913b3fe5e7d2c2d1e40cd656f7680127419952b4abcf1160a9c0ff5956858ee"
+      }
+    },
+    {
+      "name": "切回浅色：--surface 恢复 #ffffff",
+      "passed": true,
+      "detail": "#ffffff"
+    },
+    {
+      "name": "切回浅色：布局仍然零位移",
+      "passed": true,
+      "detail": {
+        "maxShift": 0,
+        "changed": [],
+        "scrollHeightDelta": 0,
+        "scrollWidthDelta": 0
+      }
+    },
+    {
+      "name": "整页截图高度大于视口（确实拍到了整页）",
+      "passed": true,
+      "detail": 2145
+    },
+    {
+      "name": "整页截图：深浅两页字节不同",
+      "passed": true,
+      "detail": {
+        "light": "7854ec7d40f01a40d564314fc0db099d79aa42f02fa7ea1372df8f7319212b1e",
+        "dark": "fc602799ec5b5d7427d16518e3425bf41581713203110f1f10b97809da157a5f"
+      }
+    },
+    {
+      "name": "页面没有运行期异常",
+      "passed": true,
+      "detail": []
+    }
+  ]
+}

@@ -2,6 +2,9 @@ import { createApp, h } from "vue";
 import { createPinia } from "pinia";
 import { TooltipProvider } from "reka-ui";
 import App from "./App.vue";
+// V4 设计 token 必须先于 base.css：tokens.css 只做声明（变量 + @theme），不写任何选择器样式，
+// 先加载它就等于「先备好变量，再由 base.css 消费」，顺序反过来会让首帧拿不到 --soxu-* 之外的变量。
+import "./styles/tokens.css";
 import "./styles/base.css";
 import { TOOLTIP_DELAY_MS, TOOLTIP_SKIP_DELAY_MS } from "./components/tooltipConfig.ts";
 import { applyDocumentAppearance, resolveInitialAppearance } from "./theme/appearance.ts";
