@@ -193,3 +193,97 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * 主题切换：从点击位置圆形扩散 + 边缘发光涟漪。
+ *
+ * 几何量（--soxu-theme-x/y/r）、时长与缓动由 src/theme/themeTransition.ts 写到 :root 内联样式；
+ * 这里的默认值只保证单独引用 CSS 时不会失控，不是第二份配置。
+ */
+
+:root {
+  --soxu-theme-x: 50%;
+  --soxu-theme-y: 50%;
+  --soxu-theme-r: 150vmax;
+  --soxu-theme-duration: 420ms;
+  --soxu-theme-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --soxu-theme-glow-delay: 30ms;
+  --soxu-theme-glow-duration: 390ms;
+}
+
+html.soxu-theme-transition::view-transition-old(root),
+html.soxu-theme-transition::view-transition-new(root) {
+  /* 关掉默认交叉淡入淡出：两层同时半透明会透出 body 底色，深色→浅色看起来就是闪白 */
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html.soxu-theme-transition::view-transition-old(root) {
+  /* 旧快照保持不透明，新快照在它上面揭开，任何一帧都有一层完整画面 */
+  opacity: 1;
+}
+
+html.soxu-theme-transition::view-transition-new(root) {
+  animation: soxu-theme-reveal var(--soxu-theme-duration) var(--soxu-theme-easing) both;
+}
+
+@keyframes soxu-theme-reveal {
+  from {
+    clip-path: circle(0 at var(--soxu-theme-x) var(--soxu-theme-y));
+  }
+  to {
+    clip-path: circle(var(--soxu-theme-r) at var(--soxu-theme-x) var(--soxu-theme-y));
+  }
+}
+
+/*
+ * 发光涟漪节点：position: fixed + popover 进入 top layer。
+ *
+ * 注意：View Transitions 的快照画在 top layer 的最上层，popover 也压不过"旧快照"，
+ * 只有落在已经揭开的新区域里才可见。所以光晕动画整体延后 --soxu-theme-glow-delay，
+ * 保证它一直追在扩散边缘内侧；动画结束由 JS 移除节点。
+ */
+.soxu-theme-glow {
+  position: fixed;
+  /* 抵消 popover 的 UA 样式（inset: 0 + margin: auto），否则光晕盒子会被拉到视口中央 */
+  inset: auto;
+  left: var(--soxu-theme-x);
+  top: var(--soxu-theme-y);
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 12px 1px color-mix(in srgb, var(--soxu-accent) 72%, transparent),
+    0 0 40px 8px color-mix(in srgb, var(--soxu-accent) 30%, transparent);
+  animation: soxu-theme-glow-expand var(--soxu-theme-glow-duration) var(--soxu-theme-easing)
+    var(--soxu-theme-glow-delay) forwards;
+}
+
+.soxu-theme-glow::backdrop {
+  background: transparent;
+}
+
+/* 宽度按扩散半径线性放大，缓动与 clip-path 一致，光晕才贴在扩散边缘上 */
+@keyframes soxu-theme-glow-expand {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 0.9;
+  }
+
+  65% {
+    opacity: 0.55;
+  }
+
+  100% {
+    width: calc(var(--soxu-theme-r) * 2);
+    height: calc(var(--soxu-theme-r) * 2);
+    opacity: 0;
+  }
+}

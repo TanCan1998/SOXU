@@ -9,6 +9,7 @@ import SettingsDialog from "./components/SettingsDialog.vue";
 import WorktreeDialog from "./components/WorktreeDialog.vue";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
+import { runThemeTransition, type ThemeName } from "./theme/themeTransition.ts";
 import type { CreateWorktreeInput, SessionId, WorktreeId } from "./workspace/types.ts";
 
 const store = useWorkspaceStore();
@@ -19,7 +20,7 @@ const settingsOpen = ref(false);
 /** 工作树面板观察的项目；null 表示面板关闭。 */
 const worktreeProjectId = ref<string | null>(null);
 const rootPath = ref("");
-const theme = ref<"light" | "dark">(initialTheme());
+const theme = ref<ThemeName>(initialTheme());
 
 const activeTab = computed(() => store.activeTab);
 const worktreeProject = computed(
@@ -31,7 +32,7 @@ const lastSession = computed(() =>
   [...store.sessionList].sort((left, right) => right.updatedAtMs - left.updatedAtMs)[0] ?? null,
 );
 
-function initialTheme(): "light" | "dark" {
+function initialTheme(): ThemeName {
   const stored = typeof localStorage === "undefined" ? null : localStorage.getItem("soxu.theme");
   if (stored === "light" || stored === "dark") return stored;
   const prefersDark =
@@ -42,6 +43,24 @@ function initialTheme(): "light" | "dark" {
 watch(theme, (value) => {
   if (typeof localStorage !== "undefined") localStorage.setItem("soxu.theme", value);
 });
+
+/**
+ * 主题切换统一入口：有点击坐标就从按钮位置圆形扩散，没有坐标（设置对话框）从视口中心扩散。
+ * 动画降级、发光涟漪和清理都由 runThemeTransition 负责，这里只改响应式状态。
+ */
+async function setTheme(next: ThemeName, event?: MouseEvent): Promise<void> {
+  if (next === theme.value) return;
+  await runThemeTransition({
+    origin: event ? { clientX: event.clientX, clientY: event.clientY } : null,
+    commit: () => {
+      theme.value = next;
+    },
+  });
+}
+
+function toggleTheme(event?: MouseEvent) {
+  void setTheme(theme.value === "light" ? "dark" : "light", event);
+}
 
 function openSession(payload: {
   sessionId: SessionId;
@@ -221,7 +240,7 @@ onUnmounted(() => {
       @refresh-project="(id: string) => void store.refreshProject(id)"
       @open-worktrees="openWorktrees"
       @open-settings="settingsOpen = true"
-      @toggle-theme="theme = theme === 'light' ? 'dark' : 'light'"
+      @toggle-theme="toggleTheme"
     />
 
     <div class="main-column">
@@ -358,7 +377,7 @@ onUnmounted(() => {
       :info="info"
       :bridge-available="store.bridgeAvailable"
       @close="settingsOpen = false"
-      @update:theme="theme = $event"
+      @update:theme="(value: ThemeName) => void setTheme(value)"
     />
   </div>
 </template>
