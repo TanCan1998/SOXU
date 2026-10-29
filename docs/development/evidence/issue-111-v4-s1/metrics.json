@@ -1,0 +1,105 @@
+{
+  "generatedAt": "2026-10-29T20:50:55.143Z",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browser": "Edg/156.0.4314.50",
+  "shots": [
+    "01-light-messages.png",
+    "02-light-send-menu-idle.png",
+    "03-light-send-menu-busy.png",
+    "04-light-mode-bar.png",
+    "05-dark-mode-bar.png",
+    "06-light-message-actions.png"
+  ],
+  "render": {
+    "codeBlocks": 1,
+    "highlighted": 1,
+    "pending": 0,
+    "codeLang": "ts",
+    "shikiSpans": 17,
+    "tables": 1,
+    "quotes": 1,
+    "inlineCode": 3,
+    "foldedTools": 1,
+    "messageActions": 1,
+    "modeBar": null
+  },
+  "idleMenu": [
+    {
+      "mode": "steer",
+      "label": "加入当前",
+      "description": "Agent 空闲时消息直接发出，无需加入当前回合",
+      "disabled": true
+    },
+    {
+      "mode": "followUp",
+      "label": "排到下轮",
+      "description": "本轮结束后自动发送",
+      "disabled": false
+    },
+    {
+      "mode": "parallel",
+      "label": "并行发送",
+      "description": "独立会话后台处理，不打断当前输出",
+      "disabled": false
+    }
+  ],
+  "busyMenu": [
+    {
+      "mode": "steer",
+      "label": "加入当前",
+      "description": "追加到本轮对话",
+      "disabled": false
+    },
+    {
+      "mode": "followUp",
+      "label": "排到下轮",
+      "description": "本轮结束后自动发送",
+      "disabled": false
+    },
+    {
+      "mode": "parallel",
+      "label": "并行发送",
+      "description": "独立会话后台处理，不打断当前输出",
+      "disabled": false
+    }
+  ],
+  "modeBar": {
+    "codeBlocks": 1,
+    "highlighted": 1,
+    "pending": 0,
+    "codeLang": "ts",
+    "shikiSpans": 17,
+    "tables": 1,
+    "quotes": 1,
+    "inlineCode": 3,
+    "foldedTools": 1,
+    "messageActions": 1,
+    "modeBar": "下一条消息将 并行发送"
+  },
+  "dark": {
+    "theme": "dark",
+    "codeColor": "rgb(249, 117, 131)",
+    "modeBarBg": "rgb(35, 50, 75)"
+  },
+  "actions": {
+    "visible": 1,
+    "buttons": [
+      {
+        "label": "复制消息",
+        "disabled": false
+      },
+      {
+        "label": "重试（即将支持）",
+        "disabled": true
+      },
+      {
+        "label": "回退到这里（即将支持）",
+        "disabled": true
+      }
+    ]
+  },
+  "pageErrors": []
+}

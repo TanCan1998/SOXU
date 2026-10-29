@@ -253,3 +253,67 @@ pub struct WorktreeRemovalView {
     pub path: String,
     pub branch: Option<String>,
 }
+
+/// 发送投递方式（V4-S1，Issue #111）。
+///
+/// 三个内部名沿用 PiDeck（`docs/design/UIUX/V4/interaction-decisions.md` 第一节），
+/// 与前端 `SendMode` 一一对应。本切片只做参数管道：命令层接收并校验，
+/// 运行时语义（steer 注入 / followUp 排队 / parallel 并行会话）由后续切片实现。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PromptMode {
+    Steer,
+    FollowUp,
+    Parallel,
+}
+
+/// 思考强度（`send_prompt` 的可选参数）。同样是先接收、暂不改变行为。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ThinkingLevel {
+    Low,
+    Medium,
+    High,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{PromptMode, ThinkingLevel};
+
+    /// 前端传的就是这三个字符串（camelCase），拼错必须在反序列化阶段暴露。
+    #[test]
+    fn prompt_mode_accepts_the_three_ui_values() {
+        for (raw, expected) in [
+            ("\"steer\"", PromptMode::Steer),
+            ("\"followUp\"", PromptMode::FollowUp),
+            ("\"parallel\"", PromptMode::Parallel),
+        ] {
+            let parsed: PromptMode = serde_json::from_str(raw).expect(raw);
+            assert_eq!(parsed, expected);
+        }
+        assert!(serde_json::from_str::<PromptMode>("\"next\"").is_err());
+        assert!(serde_json::from_str::<PromptMode>("\"\"").is_err());
+    }
+
+    #[test]
+    fn thinking_level_accepts_low_medium_high() {
+        for (raw, expected) in [
+            ("\"low\"", ThinkingLevel::Low),
+            ("\"medium\"", ThinkingLevel::Medium),
+            ("\"high\"", ThinkingLevel::High),
+        ] {
+            let parsed: ThinkingLevel = serde_json::from_str(raw).expect(raw);
+            assert_eq!(parsed, expected);
+        }
+        assert!(serde_json::from_str::<ThinkingLevel>("\"max\"").is_err());
+    }
+
+    /// 可选参数：前端不传时必须是 None（旧客户端/默认投递不受影响）。
+    #[test]
+    fn optional_prompt_parameters_default_to_none() {
+        let mode: Option<PromptMode> = serde_json::from_str("null").expect("null");
+        assert!(mode.is_none());
+        let thinking: Option<ThinkingLevel> = serde_json::from_str("null").expect("null");
+        assert!(thinking.is_none());
+    }
+}

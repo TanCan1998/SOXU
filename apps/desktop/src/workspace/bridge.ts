@@ -20,6 +20,7 @@ import type {
   RuntimeStarted,
   RuntimeStatus,
   SessionId,
+  SendPromptOptions,
   SessionMode,
   TemporarySessionView,
   WorktreeDiffView,
@@ -57,8 +58,15 @@ export function createTauriBridge(): WorkspaceBridge {
       invoke<PromotedSession>("promote_session", { sessionId }),
     discardTemporarySession: (sessionId: SessionId) =>
       invoke<boolean>("discard_temporary_session", { sessionId }),
-    sendPrompt: (sessionId: SessionId, text: string) =>
-      invoke<void>("send_prompt", { sessionId, text }),
+    // mode / thinking 是可选参数：undefined 在 JSON 序列化时被丢掉，
+    // Rust 侧按 Option<T> 接收（缺省即 None），旧后端也不会因此报错。
+    sendPrompt: (sessionId: SessionId, text: string, options?: SendPromptOptions) =>
+      invoke<void>("send_prompt", {
+        sessionId,
+        text,
+        mode: options?.mode,
+        thinking: options?.thinking,
+      }),
     cancelRuntime: (sessionId: SessionId) => invoke<void>("cancel_session", { sessionId }),
     stopRuntime: (sessionId: SessionId) => invoke<void>("stop_session", { sessionId }),
     runtimeStatus: (sessionId: SessionId) =>

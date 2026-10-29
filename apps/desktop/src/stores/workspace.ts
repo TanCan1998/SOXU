@@ -14,6 +14,7 @@ import { WorktreeCatalog } from "../workspace/worktreeWorkspace.ts";
 import {
   createWorkspaceState,
   type CreateWorktreeInput,
+  type SendPromptOptions,
   type SessionId,
   type SessionMode,
   type WorktreeId,
@@ -115,8 +116,12 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return session.moveTab(fromIndex, toIndex);
   }
 
-  function send(sessionId: SessionId, text: string): Promise<void> {
-    return session.sendPrompt(sessionId, text);
+  function send(
+    sessionId: SessionId,
+    text: string,
+    options?: SendPromptOptions,
+  ): Promise<void> {
+    return session.sendPrompt(sessionId, text, options);
   }
 
   function cancel(sessionId: SessionId): Promise<void> {

@@ -3,6 +3,10 @@ import { nextTick, ref, watch } from "vue";
 import { X } from "@lucide/vue";
 import AppTooltip from "./AppTooltip.vue";
 import type { RuntimeInfo } from "../services/native.ts";
+import {
+  BUSY_DELIVERY_OPTIONS,
+  type BusySendDelivery,
+} from "../settings/busyDelivery.ts";
 // 外观档位只在 theme/appearance.ts 定义一次，这里只渲染数组，
 // 避免设置面板的「小/标准/大/特大」与保存逻辑各写一份而漂移。
 import {
@@ -17,6 +21,8 @@ const props = defineProps<{
   theme: "light" | "dark";
   fontSize: FontSizeName;
   fontFamily: FontFamilyName;
+  /** 设置 → 会话 → 忙碌时发送（V4-S1）。 */
+  busyDelivery: BusySendDelivery;
   info: RuntimeInfo | null;
   bridgeAvailable: boolean;
 }>();
@@ -26,6 +32,7 @@ const emit = defineEmits<{
   (event: "update:theme", value: "light" | "dark"): void;
   (event: "update:fontSize", value: FontSizeName): void;
   (event: "update:fontFamily", value: FontFamilyName): void;
+  (event: "update:busyDelivery", value: BusySendDelivery): void;
 }>();
 
 const dialog = ref<HTMLElement | null>(null);
@@ -144,6 +151,38 @@ function onKeydown(event: KeyboardEvent) {
           -->
           <!-- prettier-ignore: 单行是刻意的，中文折行会引入一个被折叠成空格的换行，看着别扭 -->
           <p class="field-note">「等宽」切换的是界面字体（侧栏、按钮、设置等）；代码块与工具输出始终等宽，会话正文不随这一项变化。</p>
+        </div>
+      </section>
+
+      <section class="group">
+        <p class="group-title">会话</p>
+
+        <div class="field">
+          <p id="soxu-settings-busy-delivery" class="field-label">忙碌时发送</p>
+          <div class="options" role="radiogroup" aria-labelledby="soxu-settings-busy-delivery">
+            <label
+              v-for="option in BUSY_DELIVERY_OPTIONS"
+              :key="option.value"
+              class="option"
+              :class="{ chosen: busyDelivery === option.value }"
+            >
+              <input
+                type="radio"
+                name="soxu-busy-delivery"
+                :value="option.value"
+                :checked="busyDelivery === option.value"
+                @change="emit('update:busyDelivery', option.value)"
+              />
+              {{ option.label }}
+            </label>
+          </div>
+          <!--
+            说明必须与真实行为一致：本切片后端只接收 mode 参数、不改变投递行为，
+            所以这里写「决定点发送时的默认投递方式」，不承诺已经会插队或排队。
+          -->
+          <p class="field-note">
+            决定 agent 忙碌时点发送的默认投递方式：「加入当前」插进正在进行的回答，「排到下轮」等本轮结束后自动发送。
+          </p>
         </div>
       </section>
 

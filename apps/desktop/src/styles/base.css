@@ -21,6 +21,8 @@
   --soxu-input: #ffffff;
   --soxu-ink: #191919;
   --soxu-on-ink: #fcfcfc;
+  /* 强调色底上的文字（发送主钮）：两套主题都用白色，不在组件里写死颜色。 */
+  --soxu-on-accent: #ffffff;
   --soxu-ok: #2f8f68;
   --soxu-warn: #a8762a;
   --soxu-danger: #c0392b;
@@ -115,6 +117,7 @@ html {
   --soxu-input: #211f1f;
   --soxu-ink: #f4f3f3;
   --soxu-on-ink: #191717;
+  --soxu-on-accent: #ffffff;
   --soxu-ok: #6fbf9a;
   --soxu-warn: #d3a55a;
   --soxu-danger: #e0725f;
@@ -282,6 +285,19 @@ code,
   to {
     opacity: 1;
   }
+}
+
+/*
+ * 代码高亮配色（Issue #111 · V4-S1）。
+ *
+ * shiki 一次着色同时写入浅色 `color` 与深色 `--shiki-dark`（双主题 token 都在内联 style 里），
+ * 因此切换主题不需要重新高亮，这里只按主题把颜色切到深色那一套。
+ * 内联 style 的优先级高于普通选择器，必须 !important——shiki 官方文档也是这个写法。
+ * 两个选择器与上面的深色 token 保持同一套语义（:root 给 <html>，.app-shell 给组件级兜底）。
+ */
+:root[data-theme="dark"] .md-code span[style*="--shiki-dark"],
+.app-shell[data-theme="dark"] .md-code span[style*="--shiki-dark"] {
+  color: var(--shiki-dark) !important;
 }
 
 .state-dot {

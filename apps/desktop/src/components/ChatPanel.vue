@@ -4,16 +4,20 @@ import { CircleAlert, CircleStop, RefreshCw, Save } from "@lucide/vue";
 import AppTooltip from "./AppTooltip.vue";
 import ChatComposer from "./ChatComposer.vue";
 import MessageList from "./MessageList.vue";
-import type { SessionTab } from "../workspace/types.ts";
+import type { BusySendDelivery } from "../settings/busyDelivery.ts";
+import type { SendMode, SessionTab } from "../workspace/types.ts";
 
 const props = defineProps<{
   tab: SessionTab;
   bridgeAvailable: boolean;
   busy: boolean;
+  /** 设置里的「忙碌时发送」默认投递方式，透传给 composer。 */
+  defaultDelivery: BusySendDelivery;
 }>();
 
 const emit = defineEmits<{
-  (event: "send", text: string): void;
+  /** mode 为 null 表示按默认投递；运行时语义由后续切片实现。 */
+  (event: "send", payload: { text: string; mode: SendMode | null }): void;
   (event: "cancel"): void;
   (event: "stop"): void;
   (event: "load-more"): void;
@@ -98,7 +102,7 @@ const runtimeHint = computed(() => {
             {{ tab.promoting ? "转存中…" : "转为普通会话" }}
           </button>
         </AppTooltip>
-        <AppTooltip text="停止 Pi 运行时">
+        <AppTooltip text="停止 Pi 运行时" auto>
           <button
             class="icon-button"
             type="button"
@@ -142,12 +146,15 @@ const runtimeHint = computed(() => {
     />
 
     <ChatComposer
+      :session-id="tab.sessionId"
       :draft="tab.draft"
       :status="tab.status"
       :disabled="!bridgeAvailable"
       :busy="busy"
+      :default-delivery="defaultDelivery"
+      :has-project="Boolean(tab.projectId)"
       @update:draft="emit('update:draft', $event)"
-      @send="emit('send', tab.draft)"
+      @send="(mode: SendMode | null) => emit('send', { text: tab.draft, mode })"
       @cancel="emit('cancel')"
     />
   </section>

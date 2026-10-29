@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · V4-S1 会话主链路夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #111 · V4-S1）：
+      pnpm dev 后访问 /tests/harness/v4-session.html ，
+      再用 tests/harness/shoot-v4-session.mjs 截图并量高亮/菜单状态。
+      不参与生产构建（vite build 只构建 index.html），也不连接 Pi：
+      会话、草稿、运行时状态全是内存里的假数据。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./v4-session.ts"></script>
+  </body>
+</html>
