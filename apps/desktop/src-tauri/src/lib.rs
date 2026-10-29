@@ -23,6 +23,8 @@ use crate::state::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // 目录选择器插件：前端「添加项目」用 dialog:allow-open 权限调用。
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let state_dir = app
                 .path()
