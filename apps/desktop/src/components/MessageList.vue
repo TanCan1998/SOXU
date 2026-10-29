@@ -124,7 +124,7 @@ function labelFor(message: ChatMessage): string {
     </div>
     <div
       ref="scrollRef"
-      class="message-scroll visually-scroll"
+      class="message-scroll visually-scroll soxu-selectable"
       role="log"
       aria-live="polite"
       aria-relevant="additions text"

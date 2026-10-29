@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RefreshCw, X } from "@lucide/vue";
+import AppTooltip from "./AppTooltip.vue";
 import type { SessionTab } from "../workspace/types.ts";
 
 const props = defineProps<{
@@ -39,9 +40,11 @@ const historyText = computed(() => {
         <strong>会话状态</strong>
         <p>真实状态 · 无演示数据</p>
       </div>
-      <button class="icon-button" type="button" aria-label="关闭会话状态面板" @click="emit('close')">
-        <X :size="18" :stroke-width="1.75" aria-hidden="true" />
-      </button>
+      <AppTooltip text="关闭会话状态面板">
+        <button class="icon-button" type="button" aria-label="关闭会话状态面板" @click="emit('close')">
+          <X :size="18" :stroke-width="1.75" aria-hidden="true" />
+        </button>
+      </AppTooltip>
     </div>
 
     <div class="inspector-scroll visually-scroll">
@@ -59,9 +62,16 @@ const historyText = computed(() => {
           <span>已扫描</span>
           <strong>{{ projectCount }} 个项目 · {{ sessionCount }} 个会话</strong>
         </div>
-        <button class="link-button" type="button" :disabled="!bridgeAvailable" @click="emit('refresh-projects')">
-          <RefreshCw :size="14" :stroke-width="1.9" aria-hidden="true" /> 重新扫描全部项目
-        </button>
+        <AppTooltip text="重新扫描所有登记项目的会话目录（只读）">
+          <button
+            class="link-button"
+            type="button"
+            :disabled="!bridgeAvailable"
+            @click="emit('refresh-projects')"
+          >
+            <RefreshCw :size="14" :stroke-width="1.9" aria-hidden="true" /> 重新扫描全部项目
+          </button>
+        </AppTooltip>
       </div>
 
       <p class="label">当前会话</p>
@@ -87,9 +97,11 @@ const historyText = computed(() => {
           <span>退出原因</span>
           <strong>{{ tab.runtime.exitReason }}</strong>
         </div>
-        <button class="link-button" type="button" :disabled="!tab.runtime.runtimeId" @click="emit('stop')">
-          停止运行时（保留会话文件）
-        </button>
+        <AppTooltip text="只停止 Pi 运行时，会话文件与历史保持不变">
+          <button class="link-button" type="button" :disabled="!tab.runtime.runtimeId" @click="emit('stop')">
+            停止运行时（保留会话文件）
+          </button>
+        </AppTooltip>
       </div>
       <div v-else class="card"><p class="note">未打开会话。左侧选择会话后这里显示真实运行时状态。</p></div>
 
@@ -232,18 +244,9 @@ const historyText = computed(() => {
   overflow-wrap: anywhere;
 }
 
-.link-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+/* 排版细节留在组件；颜色、下划线渐现与禁用态统一由 base.css 的 .link-button 提供。 */
+.card .link-button {
   margin-top: 8px;
-  font-size: 11.5px;
-  color: var(--soxu-accent);
-}
-
-.link-button:disabled {
-  color: var(--soxu-muted);
-  cursor: default;
 }
 
 .diagnostics {

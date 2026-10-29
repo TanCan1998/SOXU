@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { CircleStop, Send } from "@lucide/vue";
+import AppTooltip from "./AppTooltip.vue";
 import type { TabStatus } from "../workspace/types.ts";
 
 const props = defineProps<{
@@ -86,16 +87,17 @@ defineExpose({ focus: () => textarea.value?.focus() });
             <CircleStop :size="16" :stroke-width="1.9" aria-hidden="true" />
             {{ status === "cancelling" ? "取消中…" : "取消" }}
           </button>
-          <button
-            class="send-button"
-            type="button"
-            :disabled="!canSend"
-            aria-label="发送消息"
-            title="发送消息 (Enter)"
-            @click="send"
-          >
-            <Send :size="17" :stroke-width="1.9" aria-hidden="true" />
-          </button>
+          <AppTooltip text="发送消息 (Enter)">
+            <button
+              class="send-button"
+              type="button"
+              :disabled="!canSend"
+              aria-label="发送消息"
+              @click="send"
+            >
+              <Send :size="17" :stroke-width="1.9" aria-hidden="true" />
+            </button>
+          </AppTooltip>
         </div>
       </div>
     </div>
@@ -169,6 +171,10 @@ defineExpose({ focus: () => textarea.value?.focus() });
   color: var(--soxu-subtext);
 }
 
+.stop-button {
+  transition: background-color var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
 .stop-button:hover:enabled {
   background: var(--soxu-hover);
 }
@@ -181,6 +187,13 @@ defineExpose({ focus: () => textarea.value?.focus() });
   border-radius: 999px;
   background: var(--soxu-ink);
   color: var(--soxu-on-ink);
+  transition:
+    opacity var(--soxu-motion-fast) var(--soxu-motion-ease),
+    transform var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
+.send-button:hover:not(:disabled) {
+  transform: scale(var(--soxu-hover-scale));
 }
 
 .send-button:disabled {

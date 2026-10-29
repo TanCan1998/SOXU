@@ -6,6 +6,7 @@
  */
 import { computed, nextTick, ref, watch } from "vue";
 import { GitBranch, RefreshCw, Trash2, X } from "@lucide/vue";
+import AppTooltip from "./AppTooltip.vue";
 import { worktreeBadges, blockerLabel } from "../workspace/worktreeWorkspace.ts";
 import type {
   CreateWorktreeInput,
@@ -114,9 +115,11 @@ function onKeydown(event: KeyboardEvent) {
             {{ projectName }}<template v-if="view.root"> · {{ view.root }}</template>
           </p>
         </div>
-        <button class="icon-button" type="button" aria-label="关闭工作树面板" @click="emit('close')">
-          <X :size="18" :stroke-width="1.75" aria-hidden="true" />
-        </button>
+        <AppTooltip text="关闭工作树面板">
+          <button class="icon-button" type="button" aria-label="关闭工作树面板" @click="emit('close')">
+            <X :size="18" :stroke-width="1.75" aria-hidden="true" />
+          </button>
+        </AppTooltip>
       </header>
 
       <p v-if="!bridgeAvailable" class="notice" role="status">
@@ -127,45 +130,47 @@ function onKeydown(event: KeyboardEvent) {
         <section class="list" aria-label="工作树列表">
           <div class="list-head">
             <span class="count">{{ view.worktrees.length }} 个工作树</span>
-            <button
-              class="icon-button small"
-              type="button"
-              :disabled="view.loading"
-              aria-label="刷新工作树列表"
-              title="重新枚举（只读）"
-              @click="emit('refresh')"
-            >
-              <RefreshCw :size="14" :stroke-width="1.75" aria-hidden="true" />
-            </button>
+            <AppTooltip text="重新枚举（只读）">
+              <button
+                class="icon-button small"
+                type="button"
+                :disabled="view.loading"
+                aria-label="刷新工作树列表"
+                @click="emit('refresh')"
+              >
+                <RefreshCw :size="14" :stroke-width="1.75" aria-hidden="true" />
+              </button>
+            </AppTooltip>
           </div>
 
           <ul class="worktree-list">
             <li v-for="item in view.worktrees" :key="item.id">
-              <button
-                class="worktree-item"
-                type="button"
-                :class="{ chosen: item.id === view.selectedId }"
-                :aria-current="item.id === view.selectedId ? 'true' : undefined"
-                :title="item.path"
-                @click="emit('select', item.id)"
-              >
-                <span class="item-name">
-                  <GitBranch :size="14" :stroke-width="1.75" aria-hidden="true" />
-                  {{ item.name }}
-                </span>
-                <span class="item-branch">{{ item.branch ?? "detached HEAD" }}</span>
-                <span v-if="worktreeBadges(item).length > 0" class="badges">
-                  <span
-                    v-for="badge in worktreeBadges(item)"
-                    :key="badge.code"
-                    class="badge"
-                    :data-tone="badge.tone"
-                  >
-                    {{ badge.label }}
+              <AppTooltip :text="item.path">
+                <button
+                  class="worktree-item"
+                  type="button"
+                  :class="{ chosen: item.id === view.selectedId }"
+                  :aria-current="item.id === view.selectedId ? 'true' : undefined"
+                  @click="emit('select', item.id)"
+                >
+                  <span class="item-name">
+                    <GitBranch :size="14" :stroke-width="1.75" aria-hidden="true" />
+                    {{ item.name }}
                   </span>
-                </span>
-                <span class="item-sessions">{{ item.sessionIds.length }} 个会话</span>
-              </button>
+                  <span class="item-branch">{{ item.branch ?? "detached HEAD" }}</span>
+                  <span v-if="worktreeBadges(item).length > 0" class="badges">
+                    <span
+                      v-for="badge in worktreeBadges(item)"
+                      :key="badge.code"
+                      class="badge"
+                      :data-tone="badge.tone"
+                    >
+                      {{ badge.label }}
+                    </span>
+                  </span>
+                  <span class="item-sessions">{{ item.sessionIds.length }} 个会话</span>
+                </button>
+              </AppTooltip>
             </li>
             <li v-if="view.worktrees.length === 0" class="empty">
               {{ view.loading ? "正在枚举工作树…" : "该项目没有可展示的工作树。" }}

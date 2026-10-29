@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from "vue";
 import { X } from "@lucide/vue";
+import AppTooltip from "./AppTooltip.vue";
 import type { RuntimeInfo } from "../services/native.ts";
 
 const props = defineProps<{
@@ -47,9 +48,11 @@ function onKeydown(event: KeyboardEvent) {
     >
       <header class="dialog-head">
         <h2 id="soxu-settings-title">设置</h2>
-        <button class="icon-button" type="button" aria-label="关闭设置" @click="emit('close')">
-          <X :size="18" :stroke-width="1.75" aria-hidden="true" />
-        </button>
+        <AppTooltip text="关闭设置">
+          <button class="icon-button" type="button" aria-label="关闭设置" @click="emit('close')">
+            <X :size="18" :stroke-width="1.75" aria-hidden="true" />
+          </button>
+        </AppTooltip>
       </header>
 
       <section class="group">
@@ -165,6 +168,14 @@ function onKeydown(event: KeyboardEvent) {
   border-radius: 10px;
   font-size: 12.5px;
   cursor: pointer;
+  transition:
+    background-color var(--soxu-motion-fast) var(--soxu-motion-ease),
+    border-color var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
+.theme-option:hover {
+  background: var(--soxu-hover);
+  border-color: var(--soxu-muted);
 }
 
 .theme-option.chosen {
