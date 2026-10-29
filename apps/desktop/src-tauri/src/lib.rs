@@ -1,7 +1,8 @@
 //! SOXU 桌面端入口：把 Tauri 窗口接到 Rust Supervisor 与会话目录。
 //!
-//! 分层：commands（IPC 边界）→ workspace / session_runtime（业务）→
-//! driver / watch / entry_text（运行时与索引适配）→ agent-runtime / session-index。
+//! 分层：commands（IPC 边界，按领域拆分为 `commands/` 子模块）→
+//! workspace / session_runtime（业务）→ driver / watch / entry_text（运行时与索引适配）→
+//! agent-runtime / session-index。
 
 mod commands;
 mod driver;
@@ -44,31 +45,47 @@ pub fn run() {
         // 托盘菜单与窗口菜单共用同一组全局监听器，因此只在这里注册一次。
         .on_menu_event(|app, event| tray::handle_menu_event(app, &event))
         .on_window_event(tray::handle_window_event)
+        // ── 领域块规则（Issue #112 / docs/development/command-blocks.md）──
+        // 新增 command 只能追加到自己领域块内（行首注释下方），块内按字母序排列；
+        // 不得在其他领域块内插入。`scripts/check-command-blocks.mjs` 会校验落位与顺序。
         .invoke_handler(tauri::generate_handler![
-            commands::runtime_info,
+            // ── session ──
+            commands::cancel_session,
+            commands::release_session_events,
+            commands::retain_session_events,
+            commands::runtime_status,
+            commands::send_prompt,
+            commands::start_session,
+            commands::stop_session,
+            // ── workspace ──
             commands::list_projects,
-            commands::register_project,
             commands::refresh_project,
+            commands::register_project,
+            commands::runtime_info,
+            // ── worktree ──
+            commands::create_worktree,
             commands::list_worktrees,
             commands::plan_worktree_removal,
-            commands::create_worktree,
-            commands::worktree_diff,
-            commands::remove_worktree,
             commands::prune_worktrees,
+            commands::remove_worktree,
+            commands::worktree_diff,
+            // ── history ──
+            commands::bind_temporary_session_file,
+            commands::discard_temporary_session,
             commands::open_session_history,
+            commands::open_temporary_session,
+            commands::promote_session,
             commands::read_session_texts,
             commands::search_session,
-            commands::open_temporary_session,
-            commands::bind_temporary_session_file,
-            commands::promote_session,
-            commands::discard_temporary_session,
-            commands::start_session,
-            commands::send_prompt,
-            commands::cancel_session,
-            commands::stop_session,
-            commands::runtime_status,
-            commands::retain_session_events,
-            commands::release_session_events,
+            // ── files（V4：新 command 只加在本行下方）──
+            // ── git（V4：新 command 只加在本行下方）──
+            // ── pty（V4：新 command 只加在本行下方）──
+            // ── model（V4：新 command 只加在本行下方）──
+            // ── stats（V4：新 command 只加在本行下方）──
+            // ── outline（V4：新 command 只加在本行下方）──
+            // ── extension（V4：新 command 只加在本行下方）──
+            // ── notify（V4：新 command 只加在本行下方）──
+            // ── search（V4：新 command 只加在本行下方）──
         ])
         .build(tauri::generate_context!())
         .expect("Failed to build SOXU")
@@ -80,4 +97,26 @@ pub fn run() {
                 tauri::async_runtime::block_on(session_runtime::shutdown_all(&state));
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    //! 命令层拆分后的路径回归（Issue #112）。
+    //!
+    //! 拆分只搬位置，前端 invoke 名称与 `commands::<name>` 路径必须保持不变；
+    //! 这里按领域各取一个代表，让「再导出漏了一块」在编译期就失败。
+    //! 真正的 IPC 冒烟需要桌面窗口，属于实机验收。
+
+    use crate::commands;
+
+    #[test]
+    fn command_reexports_keep_their_paths() {
+        // session / worktree / history：Issue #112 验收里点名的三个命令。
+        let _ = commands::start_session;
+        let _ = commands::list_worktrees;
+        let _ = commands::open_session_history;
+        // workspace 与 history 的其余入口同样必须能从 commands 顶层取到。
+        let _ = commands::runtime_info;
+        let _ = commands::search_session;
+    }
 }

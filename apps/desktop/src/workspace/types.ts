@@ -1,7 +1,7 @@
 /**
  * SOXU 工作区数据契约（Rust DTO 的 TypeScript 镜像）。
  *
- * 字段名与 `apps/desktop/src-tauri/src/dto.rs` 的 camelCase 序列化保持一致；
+ * 字段名与 `apps/desktop/src-tauri/src/dto/` 下同名领域模块的 camelCase 序列化保持一致；
  * 改动必须两侧同步，并在 `docs/development/multi-session-workspace.md` 记录。
  */
 

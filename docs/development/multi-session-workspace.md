@@ -31,10 +31,13 @@ Vue 组件 (App.vue, ProjectSidebar, SessionTabs, ChatPanel, MessageList, ChatCo
         ⇅ Pinia store (stores/workspace.ts)
 工作区核心 (workspace/sessionWorkspace.ts + workspace/mapping.ts)   ← 纯 TS，可被 node:test 直接驱动
         ⇅ WorkspaceBridge (workspace/bridge.ts)
-Tauri 命令 (commands.rs) → workspace.rs / session_runtime.rs
+Tauri 命令 (commands/) → workspace.rs / session_runtime.rs
         → driver.rs (运行时驱动) / watch.rs (generation + 订阅计数) / entry_text.rs (正文按需读取)
         → soxu-agent-runtime / soxu-session-index
 ```
+
+命令层按领域拆在 `commands/`（session / workspace / worktree / history），DTO 拆在 `dto/`；
+新增 command 的登记位置、占位块与扩块规则见 [后端命令层的领域块约定](command-blocks.md)。
 
 | 资源 | 唯一 owner | 释放时机 |
 | --- | --- | --- |

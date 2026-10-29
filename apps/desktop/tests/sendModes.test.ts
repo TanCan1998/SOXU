@@ -202,7 +202,8 @@ test("参数管道：bridge 调用 send_prompt 时带 mode/thinking，Rust 命�
   assert.ok(bridge.includes("mode: options?.mode"), "mode 走 camelCase 参数名");
   assert.ok(bridge.includes("thinking: options?.thinking"), "thinking 走 camelCase 参数名");
 
-  const commands = await readFile(join(TAURI_ROOT, "src", "commands.rs"), "utf8");
+  // Issue #112 把命令层拆成 commands/ 子模块，send_prompt 落在 session 领域。
+  const commands = await readFile(join(TAURI_ROOT, "src", "commands", "session.rs"), "utf8");
   assert.ok(commands.includes("mode: Option<PromptMode>"), "Rust 侧按可选参数接收");
   assert.ok(commands.includes("thinking: Option<ThinkingLevel>"), "thinking 同样是可选参数");
   assert.ok(
@@ -210,7 +211,7 @@ test("参数管道：bridge 调用 send_prompt 时带 mode/thinking，Rust 命�
     "本切片只做参数管道：显式声明参数被接收但不改变行为",
   );
 
-  const dto = await readFile(join(TAURI_ROOT, "src", "dto.rs"), "utf8");
+  const dto = await readFile(join(TAURI_ROOT, "src", "dto", "session.rs"), "utf8");
   assert.ok(dto.includes("pub enum PromptMode"), "投递方式在 DTO 层定义");
   assert.ok(dto.includes("pub enum ThinkingLevel"), "思考强度在 DTO 层定义");
 });
