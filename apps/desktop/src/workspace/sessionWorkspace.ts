@@ -166,6 +166,14 @@ export class WorkspaceSession {
     // 必须取回响应式代理：直接改 `created` 原始对象不会触发 Vue 重新渲染。
     const tab = this.tab(meta.sessionId) ?? created;
     this.ensureSubscribed();
+    // 临时会话还没有落盘，后端索引里不存在这个 id：不要订阅事件、也不要拉历史，
+    // 否则 open_session_history 会返回 E_SESSION_UNKNOWN，界面直接进错误态。
+    // 它的内容由 startRuntime 之后的实时事件填充。
+    if (meta.mode === "temporary") {
+      tab.status = "ready";
+      tab.history = { ...tab.history, loading: false, loaded: 0, total: 0, next: null };
+      return;
+    }
     try {
       await this.bridge.retainSession(meta.sessionId);
     } catch (error) {
