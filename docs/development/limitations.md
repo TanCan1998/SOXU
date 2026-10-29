@@ -23,6 +23,10 @@
   [长会话虚拟列表与 5 万事件回归](long-session-virtual-list.md)。
 - 系统托盘已实现（Issue #90）：点窗口关闭只隐藏到托盘，进程与运行中的 Pi 会话继续存活；
   托盘左键与菜单「显示窗口」恢复窗口，菜单「退出」才真正结束进程（仍走 `RunEvent::Exit` 回收受管 Pi 进程）。
+  隐藏到托盘后托盘 tooltip 会变成「已最小化到托盘 · 单击图标显示窗口」，恢复可见时改回品牌名
+  （Issue #101）；**没有加原生通知**，因此窗口消失瞬间界面内没有任何提示，唯一反馈是托盘 tooltip，
+  而 Windows 11 默认把新图标收进「隐藏的图标」溢出区，tooltip 文本本身也没有取得截图/UIA 证据
+  （见[关闭按钮与隐藏反馈排查](evidence/issue-101-close-feedback/README.md)）。
   只在 Windows 本机做了**消息级**验证（见[托盘实机证据](evidence/issue-90-tray/README.md)），
   真实鼠标点击与「图标是否露在任务栏」未肉眼确认；托盘创建失败时回落到「关闭即退出」，
   Linux 需要运行时存在 `libayatana-appindicator`，macOS 未验证。

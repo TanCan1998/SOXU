@@ -91,6 +91,68 @@ fn tray_id_is_stable_so_repeated_creation_is_detected() {
     assert_ne!(MENU_ID_SHOW, MENU_ID_QUIT);
 }
 
+/// Issue #101：隐藏到托盘后必须留下可感知的反馈。
+///
+/// 断言的是文案语义而不是逐字文案：只要同时说明了「已隐藏」和「怎么回来」，
+/// 措辞可以改；反之漏掉任一半，用户就还是会觉得点 × 没反应。
+#[test]
+fn hidden_tooltip_explains_where_the_window_went() {
+    let hidden = tray::tray_tooltip(true);
+    assert!(
+        hidden.contains("托盘"),
+        "隐藏后的提示必须说明窗口去了托盘：{hidden}"
+    );
+    assert!(
+        hidden.contains("单击") || hidden.contains("点击") || hidden.contains("双击"),
+        "隐藏后的提示必须说明怎么恢复窗口：{hidden}"
+    );
+    assert!(
+        hidden.contains("最小化") || hidden.contains("隐藏"),
+        "隐藏后的提示必须说明窗口当前不可见：{hidden}"
+    );
+}
+
+#[test]
+fn visible_tooltip_is_the_brand_and_stays_short() {
+    let visible = tray::tray_tooltip(false);
+    assert_eq!(visible, "SOXU · 索序");
+    // 两个状态必须真的不同：否则「改了 tooltip」只是自我安慰，用户看不到任何变化。
+    assert_ne!(visible, tray::tray_tooltip(true));
+}
+
+/// 反馈必须真的接在隐藏/恢复两条路径上，而不只是一个没人调用的纯函数。
+///
+/// 这两条路径需要真实窗口与托盘宿主，无法在无显示器环境里跑；这里退一步做接线检查：
+/// 隐藏分支在 `window.hide()` 之后把提示切到「已隐藏」，恢复路径把提示切回品牌名。
+/// 顺序也断言了——hide 失败时提示不能提前改成「已隐藏」。
+#[test]
+fn hide_and_restore_paths_actually_switch_the_tooltip() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/tray.rs"))
+        .expect("读取 src/tray.rs");
+
+    let hide_at = source
+        .find("window.hide()")
+        .expect("隐藏分支必须调用 window.hide()");
+    let hide_tooltip_at = source
+        .find("sync_tooltip(window.app_handle(), true)")
+        .expect("隐藏成功后必须把 tooltip 切到「已最小化到托盘」");
+    assert!(
+        hide_tooltip_at > hide_at,
+        "tooltip 只能在隐藏成功之后切换，否则 hide 失败会显示错误状态"
+    );
+
+    let show_at = source
+        .find("window.show()?")
+        .expect("恢复路径必须调用 window.show()");
+    let show_tooltip_at = source
+        .find("sync_tooltip(app, false)")
+        .expect("恢复可见后必须把 tooltip 切回品牌名");
+    assert!(
+        show_tooltip_at > show_at,
+        "tooltip 复位必须发生在 show 之后"
+    );
+}
+
 /// 托盘恢复窗口依赖 `main` 这个 label；配置里新增/改名窗口时必须同步发现。
 #[test]
 fn main_window_label_matches_tauri_config() {
