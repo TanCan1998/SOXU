@@ -12,7 +12,7 @@
     "dev": "pnpm --filter @soxu/desktop dev",
     "tauri:dev": "pnpm --filter @soxu/desktop tauri dev",
     "tauri:build": "pnpm --filter @soxu/desktop tauri build",
-    "check": "pnpm --filter @soxu/desktop check && pnpm --filter @soxu/desktop test && pnpm test:scripts",
+    "check": "pnpm icons:generate && pnpm --filter @soxu/desktop check && pnpm --filter @soxu/desktop test && pnpm test:scripts",
     "test:scripts": "node --test scripts/tests/*.test.mjs",
     "agent:doctor": "node scripts/agent-doctor.mjs",
     "smoke:rpc": "node scripts/m1-pi-rpc-smoke.mjs",

@@ -5,6 +5,7 @@ import {
   Folder,
   GitBranch,
   MessageCircle,
+  MessageSquareDashed,
   Moon,
   Plus,
   RefreshCw,
@@ -40,7 +41,6 @@ const emit = defineEmits<{
 }>();
 
 const search = ref("");
-const rootPath = ref("");
 const { picking, pickError, pick } = useProjectDirectoryPick();
 
 const visibleProjects = computed(() => {
@@ -64,21 +64,15 @@ const totalSessions = computed(() =>
 );
 
 /**
- * 表单提交的统一入口：输入框有内容就按手输路径登记；为空才弹系统目录选择器。
- * 选中后先把路径填回输入框，再走同一条 emit，登记逻辑只有一份。
+ * 「添加项目目录」按钮的唯一入口（Issue #100）：点一次就开系统目录选择器，
+ * 不再有手输路径的输入框。登记动作仍由上层负责，侧栏只把选中的绝对路径交出去。
  *
- * 登记完成后清空输入框（沿用原有手输语义）：否则下次点击会把刚添加的目录
- * 再登记一遍，用户就没法再弹出选择器挑另一个目录了。
+ * 取消或选择器不可用：pick 返回 null，不 emit，已登记项目保持不变。
  */
-async function submitProject() {
-  if (!rootPath.value.trim()) {
-    const picked = await pick();
-    // 取消或选择器不可用：pick 返回 null，输入框与已登记项目都保持不变。
-    if (!picked) return;
-    rootPath.value = picked;
-  }
-  emit("add-project", rootPath.value.trim());
-  rootPath.value = "";
+async function addProject() {
+  const picked = await pick();
+  if (!picked) return;
+  emit("add-project", picked);
 }
 </script>
 
@@ -93,7 +87,7 @@ async function submitProject() {
     </div>
 
     <button class="new-session" type="button" @click="emit('new-temporary')">
-      <Plus :size="18" :stroke-width="1.75" aria-hidden="true" />
+      <MessageSquareDashed :size="18" :stroke-width="1.75" aria-hidden="true" />
       <span>临时会话</span>
       <kbd>Ctrl K</kbd>
     </button>
@@ -177,28 +171,18 @@ async function submitProject() {
       </p>
     </nav>
 
-    <form class="add-project" @submit.prevent="submitProject">
-      <label class="sr-only" for="soxu-project-root">项目目录绝对路径</label>
-      <input
-        id="soxu-project-root"
-        v-model="rootPath"
-        type="text"
-        placeholder="添加项目目录…"
-        :disabled="!bridgeAvailable || busy"
-        autocomplete="off"
-      />
-      <AppTooltip text="添加项目目录：留空时打开系统目录选择器">
-        <button
-          class="icon-button"
-          type="submit"
-          :disabled="!bridgeAvailable || busy || picking"
-          :aria-busy="picking"
-          aria-label="添加项目"
-        >
-          <Plus :size="18" :stroke-width="1.75" aria-hidden="true" />
-        </button>
-      </AppTooltip>
-    </form>
+    <AppTooltip text="添加项目目录：打开系统目录选择器">
+      <button
+        class="add-project"
+        type="button"
+        :disabled="!bridgeAvailable || busy || picking"
+        :aria-busy="picking"
+        @click="addProject"
+      >
+        <Plus :size="16" :stroke-width="1.9" aria-hidden="true" />
+        <span>添加项目目录</span>
+      </button>
+    </AppTooltip>
 
     <p v-if="pickError" class="side-note pick-error" role="alert">{{ pickError }}</p>
 
@@ -406,30 +390,35 @@ async function submitProject() {
   color: var(--soxu-muted);
 }
 
+/* 按钮而不是输入框（Issue #100）：一次点击直接开系统目录选择器。 */
 .add-project {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid var(--soxu-border);
   border-radius: 10px;
-  padding: 2px 4px 2px 10px;
   background: var(--soxu-input);
+  color: var(--soxu-fg);
+  font-size: 0.78125rem;
+  text-align: left;
+  transition: background-color var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
+.add-project:hover:not(:disabled) {
+  background: var(--soxu-hover);
+}
+
+.add-project:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .pick-error {
   color: var(--soxu-danger);
   overflow-wrap: anywhere;
-}
-
-.add-project input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  outline: none;
-  font-size: 0.75rem;
-  height: 32px;
-  color: var(--soxu-fg);
 }
 
 .side-bottom {
