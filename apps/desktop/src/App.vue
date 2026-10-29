@@ -8,6 +8,7 @@ import RuntimeInspector from "./components/RuntimeInspector.vue";
 import SessionTabs from "./components/SessionTabs.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import WorktreeDialog from "./components/WorktreeDialog.vue";
+import { useAppearance } from "./composables/useAppearance.ts";
 import { useProjectDirectoryPick } from "./composables/useProjectDirectoryPick.ts";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
@@ -38,6 +39,11 @@ const settingsOpen = ref(false);
 const worktreeProjectId = ref<string | null>(null);
 const rootPath = ref("");
 const theme = ref<ThemeName>(resolveInitialTheme());
+/**
+ * 外观（字号 + 字体族）：初始值与 main.ts 一致（挂载前就已写进 <html>），
+ * 这里接管后续修改、持久化与 DOM 落地。
+ */
+const { appearance, setFontSize, setFontFamily } = useAppearance();
 const {
   picking: pickingProject,
   pickError: pickProjectError,
@@ -489,10 +495,14 @@ onUnmounted(() => {
     <SettingsDialog
       :open="settingsOpen"
       :theme="theme"
+      :font-size="appearance.fontSize"
+      :font-family="appearance.fontFamily"
       :info="info"
       :bridge-available="store.bridgeAvailable"
       @close="settingsOpen = false"
       @update:theme="(value: ThemeName) => void setTheme(value)"
+      @update:fontSize="setFontSize"
+      @update:fontFamily="setFontFamily"
     />
   </div>
 </template>
@@ -559,7 +569,7 @@ onUnmounted(() => {
 
 .welcome h1 {
   margin: 8px 0 0;
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 620;
   letter-spacing: -0.4px;
 }
@@ -567,7 +577,7 @@ onUnmounted(() => {
 .welcome-note {
   margin: 0;
   max-width: 460px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   line-height: 1.9;
   color: var(--soxu-subtext);
 }
@@ -575,7 +585,7 @@ onUnmounted(() => {
 .welcome-error {
   margin: 0;
   max-width: 520px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   line-height: 1.8;
   color: var(--soxu-danger);
   overflow-wrap: anywhere;
@@ -600,7 +610,7 @@ onUnmounted(() => {
   outline: none;
   background: transparent;
   height: 32px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--soxu-fg);
 }
 
@@ -613,7 +623,7 @@ onUnmounted(() => {
   border-radius: 9px;
   background: var(--soxu-ink);
   color: var(--soxu-on-ink);
-  font-size: 12.5px;
+  font-size: 0.78125rem;
 }
 
 .welcome-form button {
@@ -633,7 +643,7 @@ onUnmounted(() => {
 
 .welcome-secondary {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--soxu-accent);
 }
 </style>

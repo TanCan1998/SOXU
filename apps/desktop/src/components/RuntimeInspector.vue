@@ -168,12 +168,12 @@ const historyText = computed(() => {
 }
 
 .inspector-head strong {
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .inspector-head p {
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--soxu-muted);
 }
 
@@ -185,7 +185,7 @@ const historyText = computed(() => {
 
 .label {
   margin: 4px 2px 8px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--soxu-muted);
 }
@@ -195,7 +195,7 @@ const historyText = computed(() => {
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 18px;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
 }
 
 .row {
@@ -210,7 +210,7 @@ const historyText = computed(() => {
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -238,8 +238,8 @@ const historyText = computed(() => {
 
 .mono {
   margin: 6px 0;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 10.5px;
+  font-family: var(--soxu-font-family-mono);
+  font-size: 0.65625rem;
   color: var(--soxu-muted);
   overflow-wrap: anywhere;
 }
@@ -269,7 +269,7 @@ const historyText = computed(() => {
 .inspector-footer {
   border-top: 1px solid var(--soxu-border);
   padding: 12px 16px;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   line-height: 1.6;
   color: var(--soxu-muted);
 }

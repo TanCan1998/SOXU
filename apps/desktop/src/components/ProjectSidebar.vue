@@ -265,11 +265,11 @@ async function submitProject() {
 }
 
 .brand-word {
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 .brand-cn {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 400;
   color: var(--soxu-muted);
 }
@@ -281,7 +281,7 @@ async function submitProject() {
   width: 100%;
   padding: 10px 12px;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--soxu-fg);
 }
@@ -292,7 +292,7 @@ async function submitProject() {
 
 .new-session kbd {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 400;
   color: var(--soxu-muted);
 }
@@ -311,7 +311,7 @@ async function submitProject() {
   border: 0;
   background: transparent;
   outline: none;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--soxu-fg);
 }
 
@@ -329,7 +329,7 @@ async function submitProject() {
   align-items: center;
   justify-content: space-between;
   padding: 2px 6px 4px 8px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--soxu-muted);
   letter-spacing: 0.3px;
@@ -372,7 +372,7 @@ async function submitProject() {
   width: 100%;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--soxu-fg);
   text-align: left;
 }
@@ -401,7 +401,7 @@ async function submitProject() {
 .side-note {
   margin: 0;
   padding: 4px 10px;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   line-height: 1.7;
   color: var(--soxu-muted);
 }
@@ -427,7 +427,7 @@ async function submitProject() {
   border: 0;
   background: transparent;
   outline: none;
-  font-size: 12px;
+  font-size: 0.75rem;
   height: 32px;
   color: var(--soxu-fg);
 }
@@ -446,7 +446,7 @@ async function submitProject() {
   gap: 8px;
   margin: 0;
   padding: 4px 8px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--soxu-subtext);
 }
 
@@ -459,7 +459,7 @@ async function submitProject() {
 
 .workspace-label {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--soxu-muted);
 }
 </style>

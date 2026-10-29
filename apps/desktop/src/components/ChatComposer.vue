@@ -132,7 +132,9 @@ defineExpose({ focus: () => textarea.value?.focus() });
   border: 0;
   outline: none;
   background: transparent;
-  font-size: 14px;
+  /* 输入框写的就是会话正文，字体与消息气泡保持一致，不随「等宽」界面档变化。 */
+  font-family: var(--soxu-font-family-body);
+  font-size: 0.875rem;
   line-height: 1.7;
   color: var(--soxu-fg);
 }
@@ -149,7 +151,7 @@ defineExpose({ focus: () => textarea.value?.focus() });
 }
 
 .hint {
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   color: var(--soxu-muted);
 }
 
@@ -167,7 +169,7 @@ defineExpose({ focus: () => textarea.value?.focus() });
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid var(--soxu-border);
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--soxu-subtext);
 }
 

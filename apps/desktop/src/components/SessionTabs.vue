@@ -260,7 +260,7 @@ async function onKeydown(event: KeyboardEvent, index: number) {
   align-items: center;
   gap: 7px;
   padding: 7px 4px 7px 10px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--soxu-subtext);
   flex: 1 1 auto;
   min-width: 0;
@@ -281,8 +281,9 @@ async function onKeydown(event: KeyboardEvent, index: number) {
 }
 
 .tab-tag {
+  /* #99 的 flex: none 与 #98 的 rem 字号都要保留：rem 让字号跟随全局设置。 */
   flex: none;
-  font-size: 10px;
+  font-size: 0.625rem;
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--soxu-accent-soft);

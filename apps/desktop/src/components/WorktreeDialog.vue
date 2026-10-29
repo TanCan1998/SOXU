@@ -379,13 +379,13 @@ function onKeydown(event: KeyboardEvent) {
 
 .titles h2 {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 650;
 }
 
 .subtitle {
   margin: 4px 0 0;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--soxu-muted);
   overflow-wrap: anywhere;
 }
@@ -394,7 +394,7 @@ function onKeydown(event: KeyboardEvent) {
 .empty,
 .hint {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   line-height: 1.7;
   color: var(--soxu-muted);
 }
@@ -429,7 +429,7 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 .count {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--soxu-muted);
 }
 
@@ -471,7 +471,7 @@ function onKeydown(event: KeyboardEvent) {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -480,7 +480,7 @@ function onKeydown(event: KeyboardEvent) {
 
 .item-branch,
 .item-sessions {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--soxu-subtext);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -496,7 +496,7 @@ function onKeydown(event: KeyboardEvent) {
 .badge {
   padding: 1px 6px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   border: 1px solid var(--soxu-border);
   background: var(--soxu-soft);
   color: var(--soxu-subtext);
@@ -522,14 +522,14 @@ function onKeydown(event: KeyboardEvent) {
   padding: 8px 10px;
   border-radius: 9px;
   background: var(--soxu-soft);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.7;
   color: var(--soxu-subtext);
 }
 
 .stale button {
   color: var(--soxu-accent);
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .create {
@@ -544,7 +544,7 @@ function onKeydown(event: KeyboardEvent) {
 
 .form-title {
   margin: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--soxu-muted);
 }
@@ -553,7 +553,7 @@ function onKeydown(event: KeyboardEvent) {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--soxu-subtext);
 }
 
@@ -564,7 +564,7 @@ function onKeydown(event: KeyboardEvent) {
   border: 1px solid var(--soxu-border);
   background: var(--soxu-panel);
   color: var(--soxu-fg);
-  font-size: 12px;
+  font-size: 0.75rem;
   outline: none;
 }
 
@@ -576,7 +576,7 @@ function onKeydown(event: KeyboardEvent) {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--soxu-subtext);
 }
 
@@ -585,7 +585,7 @@ function onKeydown(event: KeyboardEvent) {
   border-radius: 8px;
   background: var(--soxu-ink);
   color: var(--soxu-on-ink);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .primary:disabled,
@@ -605,7 +605,7 @@ function onKeydown(event: KeyboardEvent) {
 
 .detail-head h3 {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 0.84375rem;
   font-weight: 650;
   overflow-wrap: anywhere;
 }
@@ -613,7 +613,7 @@ function onKeydown(event: KeyboardEvent) {
 .detail-path,
 .detail-meta {
   margin: 3px 0 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--soxu-muted);
   overflow-wrap: anywhere;
 }
@@ -633,7 +633,7 @@ function onKeydown(event: KeyboardEvent) {
 
 .section-title {
   margin: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--soxu-muted);
 }
@@ -656,7 +656,7 @@ function onKeydown(event: KeyboardEvent) {
   width: 100%;
   padding: 6px 8px;
   border-radius: 7px;
-  font-size: 12px;
+  font-size: 0.75rem;
   text-align: left;
   color: var(--soxu-fg);
 }
@@ -694,7 +694,7 @@ function onKeydown(event: KeyboardEvent) {
   padding: 0 10px;
   border-radius: 8px;
   border: 1px solid var(--soxu-border);
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--soxu-fg);
 }
 
@@ -704,7 +704,7 @@ function onKeydown(event: KeyboardEvent) {
 
 .diff-meta {
   margin: 0;
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--soxu-subtext);
 }
 
@@ -717,7 +717,7 @@ function onKeydown(event: KeyboardEvent) {
   gap: 2px;
   max-height: 160px;
   overflow-y: auto;
-  font-size: 11px;
+  font-size: 0.6875rem;
 }
 
 .files li {
@@ -752,7 +752,7 @@ function onKeydown(event: KeyboardEvent) {
   padding: 8px;
   border-radius: 8px;
   background: var(--soxu-soft);
-  font-size: 11px;
+  font-size: 0.6875rem;
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -767,7 +767,7 @@ function onKeydown(event: KeyboardEvent) {
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   font-weight: 600;
   color: var(--soxu-danger);
 }
@@ -779,7 +779,7 @@ function onKeydown(event: KeyboardEvent) {
   border-radius: 8px;
   border: 1px solid color-mix(in srgb, var(--soxu-danger) 40%, transparent);
   color: var(--soxu-danger);
-  font-size: 11.5px;
+  font-size: 0.71875rem;
 }
 
 .confirm {
@@ -791,21 +791,21 @@ function onKeydown(event: KeyboardEvent) {
 .confirm-line,
 .token {
   margin: 0;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--soxu-subtext);
   overflow-wrap: anywhere;
 }
 
 .token {
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 10.5px;
+  font-family: var(--soxu-font-family-mono);
+  font-size: 0.65625rem;
   color: var(--soxu-muted);
 }
 
 .blockers {
   margin: 0;
   padding-left: 16px;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   line-height: 1.7;
   color: var(--soxu-danger);
 }
@@ -820,7 +820,7 @@ function onKeydown(event: KeyboardEvent) {
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid var(--soxu-border);
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--soxu-fg);
 }
 
@@ -830,7 +830,7 @@ function onKeydown(event: KeyboardEvent) {
   border-radius: 9px;
   background: color-mix(in srgb, var(--soxu-danger) 10%, transparent);
   color: var(--soxu-danger);
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
