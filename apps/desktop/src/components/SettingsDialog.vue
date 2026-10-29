@@ -79,7 +79,7 @@ function onKeydown(event: KeyboardEvent) {
       </section>
 
       <section class="group">
-        <p class="group-title">运行环境</p>
+        <p class="group-title">关于</p>
         <dl class="facts">
           <div>
             <dt>应用</dt>
@@ -90,8 +90,8 @@ function onKeydown(event: KeyboardEvent) {
             <dd>{{ info?.platform ?? "未知" }}</dd>
           </div>
           <div>
-            <dt>Rust 运行时</dt>
-            <dd>{{ bridgeAvailable ? "已连接" : "浏览器预览（未连接）" }}</dd>
+            <dt>连接状态</dt>
+            <dd>{{ bridgeAvailable ? "已连接" : "未连接（浏览器预览）" }}</dd>
           </div>
         </dl>
       </section>

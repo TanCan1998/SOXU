@@ -129,7 +129,7 @@ const runtimeHint = computed(() => {
       <p v-if="bridgeAvailable">
         发送第一条消息后，Pi 负责写入会话 JSONL，SOXU 只做只读索引与展示。
       </p>
-      <p v-else>当前是浏览器预览，未连接 Rust 运行时，无法读取或发送真实会话内容。</p>
+      <p v-else>当前是浏览器预览，尚未连接本机运行时，无法读取或发送真实会话内容。</p>
     </div>
     <MessageList
       v-else

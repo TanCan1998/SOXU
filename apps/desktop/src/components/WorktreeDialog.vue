@@ -120,7 +120,7 @@ function onKeydown(event: KeyboardEvent) {
       </header>
 
       <p v-if="!bridgeAvailable" class="notice" role="status">
-        未连接 Rust 运行时：浏览器预览不读取 Git 工作树，也不会执行任何 Git 操作。
+        未连接：浏览器预览不读取 Git 工作树，也不会执行任何 Git 操作。
       </p>
 
       <div v-else class="body">

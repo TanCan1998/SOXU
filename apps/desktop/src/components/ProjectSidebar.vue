@@ -104,7 +104,7 @@ async function submitProject() {
 
     <nav class="nav-sections visually-scroll" aria-label="项目与会话">
       <p v-if="!bridgeAvailable" class="side-note" role="status">
-        未连接 Rust 运行时：这是浏览器预览，不会加载真实会话。
+        未连接：这是浏览器预览，不会加载真实会话。
       </p>
 
       <section v-for="project in visibleProjects" :key="project.id" class="project-group">
@@ -196,7 +196,7 @@ async function submitProject() {
     <div class="side-bottom">
       <p class="connection" :data-online="bridgeAvailable">
         <span class="state-dot" :data-state="bridgeAvailable ? 'ready' : 'error'" aria-hidden="true"></span>
-        {{ bridgeAvailable ? `已连接 Rust 运行时 · ${totalSessions} 个会话` : "浏览器预览 · 未连接运行时" }}
+        {{ bridgeAvailable ? `已连接 · ${totalSessions} 个会话` : "未连接 · 浏览器预览" }}
       </p>
       <div class="side-bottom-row">
         <button class="icon-button" type="button" aria-label="设置" title="设置" @click="emit('open-settings')">
