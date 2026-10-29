@@ -1,0 +1,448 @@
+{
+  "generatedAt": "2026-10-29T11:04:48.390Z",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "browser": "Edg/156.0.4314.50",
+  "bridge": "unavailable（浏览器预览无 Tauri 桥）",
+  "lightTheme": {
+    "datasetTheme": "light",
+    "shellTheme": "light",
+    "bodyBg": "rgb(252, 252, 252)",
+    "bodyColor": "rgb(25, 25, 25)",
+    "colorScheme": "light",
+    "storedTheme": null,
+    "relativeLuminance": 0.9734452903984125
+  },
+  "initial": {
+    "inspector": {
+      "present": true,
+      "headButtons": 0,
+      "buttons": [
+        {
+          "label": "重新扫描全部项目",
+          "tag": "BUTTON"
+        }
+      ],
+      "closeButtonCount": 0
+    },
+    "welcome": {
+      "inputCount": 0,
+      "formCount": 0,
+      "button": {
+        "tag": "BUTTON",
+        "text": "添加项目",
+        "disabled": true,
+        "hasPlusIcon": true
+      }
+    },
+    "sidebar": {
+      "inputCount": 0,
+      "button": {
+        "tag": "BUTTON",
+        "text": "添加项目目录",
+        "disabled": true,
+        "hasPlusIcon": true
+      },
+      "addProjectInputCount": 0
+    },
+    "temporarySession": {
+      "text": "临时会话Ctrl K",
+      "iconClass": "lucide lucide-message-square-dashed",
+      "iconPaths": 10
+    },
+    "topbarToggle": {
+      "label": "关闭会话状态面板",
+      "expanded": "true",
+      "shortcuts": "Control+I"
+    },
+    "titleAttrCount": 0,
+    "geometry": {
+      "welcomeAdd": {
+        "x": 569,
+        "y": 473,
+        "w": 104,
+        "h": 34
+      },
+      "sidebarAdd": {
+        "x": 12,
+        "y": 670,
+        "w": 237,
+        "h": 36
+      },
+      "tempSessionIcon": {
+        "x": 24,
+        "y": 71,
+        "w": 18,
+        "h": 18
+      },
+      "sidebar": {
+        "x": 0,
+        "y": 0,
+        "w": 262,
+        "h": 800
+      },
+      "inspector": {
+        "x": 980,
+        "y": 0,
+        "w": 300,
+        "h": 800
+      }
+    }
+  },
+  "tempSessionHover": [],
+  "afterTopbarClick": {
+    "inspector": {
+      "present": false
+    },
+    "welcome": {
+      "inputCount": 0,
+      "formCount": 0,
+      "button": {
+        "tag": "BUTTON",
+        "text": "添加项目",
+        "disabled": true,
+        "hasPlusIcon": true
+      }
+    },
+    "sidebar": {
+      "inputCount": 0,
+      "button": {
+        "tag": "BUTTON",
+        "text": "添加项目目录",
+        "disabled": true,
+        "hasPlusIcon": true
+      },
+      "addProjectInputCount": 0
+    },
+    "temporarySession": {
+      "text": "临时会话Ctrl K",
+      "iconClass": "lucide lucide-message-square-dashed",
+      "iconPaths": 10
+    },
+    "topbarToggle": {
+      "label": "打开会话状态面板",
+      "expanded": "false",
+      "shortcuts": "Control+I"
+    },
+    "titleAttrCount": 0,
+    "geometry": {
+      "welcomeAdd": {
+        "x": 719,
+        "y": 473,
+        "w": 104,
+        "h": 34
+      },
+      "sidebarAdd": {
+        "x": 12,
+        "y": 670,
+        "w": 237,
+        "h": 36
+      },
+      "tempSessionIcon": {
+        "x": 24,
+        "y": 71,
+        "w": 18,
+        "h": 18
+      },
+      "sidebar": {
+        "x": 0,
+        "y": 0,
+        "w": 262,
+        "h": 800
+      },
+      "inspector": null
+    },
+    "inspectorVisible": 0
+  },
+  "afterCtrlI": {
+    "inspector": {
+      "present": true,
+      "headButtons": 0,
+      "buttons": [
+        {
+          "label": "重新扫描全部项目",
+          "tag": "BUTTON"
+        }
+      ],
+      "closeButtonCount": 0
+    },
+    "welcome": {
+      "inputCount": 0,
+      "formCount": 0,
+      "button": {
+        "tag": "BUTTON",
+        "text": "添加项目",
+        "disabled": true,
+        "hasPlusIcon": true
+      }
+    },
+    "sidebar": {
+      "inputCount": 0,
+      "button": {
+        "tag": "BUTTON",
+        "text": "添加项目目录",
+        "disabled": true,
+        "hasPlusIcon": true
+      },
+      "addProjectInputCount": 0
+    },
+    "temporarySession": {
+      "text": "临时会话Ctrl K",
+      "iconClass": "lucide lucide-message-square-dashed",
+      "iconPaths": 10
+    },
+    "topbarToggle": {
+      "label": "关闭会话状态面板",
+      "expanded": "true",
+      "shortcuts": "Control+I"
+    },
+    "titleAttrCount": 0,
+    "geometry": {
+      "welcomeAdd": {
+        "x": 569,
+        "y": 473,
+        "w": 104,
+        "h": 34
+      },
+      "sidebarAdd": {
+        "x": 12,
+        "y": 670,
+        "w": 237,
+        "h": 36
+      },
+      "tempSessionIcon": {
+        "x": 24,
+        "y": 71,
+        "w": 18,
+        "h": 18
+      },
+      "sidebar": {
+        "x": 0,
+        "y": 0,
+        "w": 262,
+        "h": 800
+      },
+      "inspector": {
+        "x": 980,
+        "y": 0,
+        "w": 300,
+        "h": 800
+      }
+    },
+    "inspectorVisible": 1
+  },
+  "darkTheme": {
+    "datasetTheme": "dark",
+    "shellTheme": "dark",
+    "bodyBg": "rgb(25, 23, 23)",
+    "bodyColor": "rgb(244, 243, 243)",
+    "colorScheme": "dark",
+    "storedTheme": null,
+    "relativeLuminance": 0.00881327291395034
+  },
+  "dark": {
+    "inspector": {
+      "present": true,
+      "headButtons": 0,
+      "buttons": [
+        {
+          "label": "重新扫描全部项目",
+          "tag": "BUTTON"
+        }
+      ],
+      "closeButtonCount": 0
+    },
+    "welcome": {
+      "inputCount": 0,
+      "formCount": 0,
+      "button": {
+        "tag": "BUTTON",
+        "text": "添加项目",
+        "disabled": true,
+        "hasPlusIcon": true
+      }
+    },
+    "sidebar": {
+      "inputCount": 0,
+      "button": {
+        "tag": "BUTTON",
+        "text": "添加项目目录",
+        "disabled": true,
+        "hasPlusIcon": true
+      },
+      "addProjectInputCount": 0
+    },
+    "temporarySession": {
+      "text": "临时会话Ctrl K",
+      "iconClass": "lucide lucide-message-square-dashed",
+      "iconPaths": 10
+    },
+    "topbarToggle": {
+      "label": "关闭会话状态面板",
+      "expanded": "true",
+      "shortcuts": "Control+I"
+    },
+    "titleAttrCount": 0,
+    "geometry": {
+      "welcomeAdd": {
+        "x": 569,
+        "y": 473,
+        "w": 104,
+        "h": 34
+      },
+      "sidebarAdd": {
+        "x": 12,
+        "y": 670,
+        "w": 237,
+        "h": 36
+      },
+      "tempSessionIcon": {
+        "x": 24,
+        "y": 71,
+        "w": 18,
+        "h": 18
+      },
+      "sidebar": {
+        "x": 0,
+        "y": 0,
+        "w": 262,
+        "h": 800
+      },
+      "inspector": {
+        "x": 980,
+        "y": 0,
+        "w": 300,
+        "h": 800
+      }
+    }
+  },
+  "shots": [
+    {
+      "name": "01-welcome-add-project-button.png",
+      "bytes": 69152,
+      "sha256": "ca2ecf0bc4cc0e105b0150111d5dadf0b8687eded7b328ae68e3bbf2dda3d3ef"
+    },
+    {
+      "name": "02-sidebar-temp-session-dashed.png",
+      "bytes": 69480,
+      "sha256": "a0712ac6a548f2bbbe00dabc41c91384d2d11effdc1c18a20dd519c365209554"
+    },
+    {
+      "name": "03-panel-closed-by-topbar.png",
+      "bytes": 38630,
+      "sha256": "ffba34e7ce721697be969889f900fdeee0f683bfdcce30b9a6083947d8f60ec5"
+    },
+    {
+      "name": "04-panel-reopened-by-ctrl-i.png",
+      "bytes": 69606,
+      "sha256": "16d73aa1731b6510b2cc636f030949f211d37e9e2a888d2d53de79e752794f63"
+    },
+    {
+      "name": "05-dark-inspector-no-close.png",
+      "bytes": 73803,
+      "sha256": "9adb74af22c0b493765579b3c9d8bd1e6a7729a637137823acd0a297dd7c841f"
+    }
+  ],
+  "checks": [
+    {
+      "name": "浅色：<html data-theme> 为 light",
+      "passed": true,
+      "detail": {
+        "datasetTheme": "light",
+        "shellTheme": "light",
+        "bodyBg": "rgb(252, 252, 252)",
+        "bodyColor": "rgb(25, 25, 25)",
+        "colorScheme": "light",
+        "storedTheme": null,
+        "relativeLuminance": 0.9734452903984125
+      }
+    },
+    {
+      "name": "浅色：.app-shell[data-theme] 为 light",
+      "passed": true,
+      "detail": {
+        "datasetTheme": "light",
+        "shellTheme": "light",
+        "bodyBg": "rgb(252, 252, 252)",
+        "bodyColor": "rgb(25, 25, 25)",
+        "colorScheme": "light",
+        "storedTheme": null,
+        "relativeLuminance": 0.9734452903984125
+      }
+    },
+    {
+      "name": "浅色：body 背景确实是浅色（亮度 > 0.8）",
+      "passed": true,
+      "detail": {
+        "bodyBg": "rgb(252, 252, 252)",
+        "relativeLuminance": 0.9734452903984125
+      }
+    },
+    {
+      "name": "浅色：没有被持久化偏好覆盖（localStorage 无 soxu.theme）",
+      "passed": true,
+      "detail": {
+        "storedTheme": null
+      }
+    },
+    {
+      "name": "深色：<html data-theme> 为 dark",
+      "passed": true,
+      "detail": {
+        "datasetTheme": "dark",
+        "shellTheme": "dark",
+        "bodyBg": "rgb(25, 23, 23)",
+        "bodyColor": "rgb(244, 243, 243)",
+        "colorScheme": "dark",
+        "storedTheme": null,
+        "relativeLuminance": 0.00881327291395034
+      }
+    },
+    {
+      "name": "深色：.app-shell[data-theme] 为 dark",
+      "passed": true,
+      "detail": {
+        "datasetTheme": "dark",
+        "shellTheme": "dark",
+        "bodyBg": "rgb(25, 23, 23)",
+        "bodyColor": "rgb(244, 243, 243)",
+        "colorScheme": "dark",
+        "storedTheme": null,
+        "relativeLuminance": 0.00881327291395034
+      }
+    },
+    {
+      "name": "深色：body 背景确实是深色（亮度 < 0.05）",
+      "passed": true,
+      "detail": {
+        "bodyBg": "rgb(25, 23, 23)",
+        "relativeLuminance": 0.00881327291395034
+      }
+    },
+    {
+      "name": "深色：没有被持久化偏好覆盖（localStorage 无 soxu.theme）",
+      "passed": true,
+      "detail": {
+        "storedTheme": null
+      }
+    },
+    {
+      "name": "深色与浅色的 body 背景确实不同",
+      "passed": true,
+      "detail": {
+        "light": "rgb(252, 252, 252)",
+        "dark": "rgb(25, 23, 23)"
+      }
+    },
+    {
+      "name": "深色截图与浅色截图字节不同（05 ≠ 01）",
+      "passed": true,
+      "detail": {
+        "light": "ca2ecf0bc4cc0e105b0150111d5dadf0b8687eded7b328ae68e3bbf2dda3d3ef",
+        "dark": "9adb74af22c0b493765579b3c9d8bd1e6a7729a637137823acd0a297dd7c841f"
+      }
+    }
+  ]
+}

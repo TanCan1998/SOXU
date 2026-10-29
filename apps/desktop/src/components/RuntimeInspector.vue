@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { RefreshCw, X } from "@lucide/vue";
+import { RefreshCw } from "@lucide/vue";
 import AppTooltip from "./AppTooltip.vue";
 import type { SessionTab } from "../workspace/types.ts";
 
@@ -11,8 +11,11 @@ const props = defineProps<{
   bridgeAvailable: boolean;
 }>();
 
+/**
+ * 面板不提供关闭按钮（Issue #100）：顶栏的 PanelRight / Ctrl+I 是唯一切换入口，
+ * 两个入口并存会让「关掉面板」出现两种行为一致的按钮，纯属重复。
+ */
 const emit = defineEmits<{
-  (event: "close"): void;
   (event: "refresh-projects"): void;
   (event: "stop"): void;
 }>();
@@ -40,11 +43,6 @@ const historyText = computed(() => {
         <strong>会话状态</strong>
         <p>真实状态 · 无演示数据</p>
       </div>
-      <AppTooltip text="关闭会话状态面板">
-        <button class="icon-button" type="button" aria-label="关闭会话状态面板" @click="emit('close')">
-          <X :size="18" :stroke-width="1.75" aria-hidden="true" />
-        </button>
-      </AppTooltip>
     </div>
 
     <div class="inspector-scroll visually-scroll">
@@ -162,7 +160,6 @@ const historyText = computed(() => {
 .inspector-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 14px 16px;
   border-bottom: 1px solid var(--soxu-border);
 }

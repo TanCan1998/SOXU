@@ -37,7 +37,6 @@ const inspectorOpen = ref(true);
 const settingsOpen = ref(false);
 /** 工作树面板观察的项目；null 表示面板关闭。 */
 const worktreeProjectId = ref<string | null>(null);
-const rootPath = ref("");
 const theme = ref<ThemeName>(resolveInitialTheme());
 /**
  * 外观（字号 + 字体族）：初始值与 main.ts 一致（挂载前就已写进 <html>），
@@ -254,20 +253,16 @@ function retry() {
 }
 
 /**
- * 欢迎页的添加项目入口，语义与侧栏一致：有内容按手输路径登记，
- * 为空才打开系统目录选择器；选中后填回输入框并走同一条登记流程。
- * 登记后清空输入框，保证下一次点击仍然能弹出选择器挑别的目录。
+ * 欢迎页的添加项目入口（Issue #100）：只走系统目录选择器，不再手输路径。
+ *
+ * 手输框需要用户自己拼绝对路径，写错了只会得到一条扫描失败；选择器给出的
+ * 路径由系统保证存在。取消或选择器不可用时 pick 返回 null，此时既不登记
+ * 也不报错，已登记项目与界面状态都保持原样。
  */
 async function addProject() {
-  if (!rootPath.value.trim()) {
-    const picked = await pickProjectDirectory();
-    // 取消或选择器不可用：不改输入框、不登记、不报错。
-    if (!picked) return;
-    rootPath.value = picked;
-  }
-  const value = rootPath.value.trim();
-  rootPath.value = "";
-  await store.addProject(value);
+  const picked = await pickProjectDirectory();
+  if (!picked) return;
+  await store.addProject(picked);
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -434,26 +429,17 @@ onUnmounted(() => {
           SOXU 只读扫描 Pi 的会话目录，不会移动或删除会话文件。
         </p>
 
-        <form class="welcome-form" @submit.prevent="addProject">
-          <label class="sr-only" for="soxu-welcome-root">项目目录绝对路径</label>
-          <input
-            id="soxu-welcome-root"
-            v-model="rootPath"
-            type="text"
-            placeholder="例如 F:\workplace\pi"
-            :disabled="!store.bridgeAvailable"
-            autocomplete="off"
-          />
-          <AppTooltip text="留空时打开系统目录选择器">
-            <button
-              type="submit"
-              :disabled="!store.bridgeAvailable || pickingProject"
-              :aria-busy="pickingProject"
-            >
-              <Plus :size="16" :stroke-width="1.9" aria-hidden="true" /> 添加项目
-            </button>
-          </AppTooltip>
-        </form>
+        <AppTooltip text="添加项目：打开系统目录选择器">
+          <button
+            class="welcome-add"
+            type="button"
+            :disabled="!store.bridgeAvailable || pickingProject"
+            :aria-busy="pickingProject"
+            @click="addProject"
+          >
+            <Plus :size="16" :stroke-width="1.9" aria-hidden="true" /> 添加项目
+          </button>
+        </AppTooltip>
 
         <p v-if="pickProjectError" class="welcome-error" role="alert">{{ pickProjectError }}</p>
         <button class="welcome-secondary link-button" type="button" @click="newTemporary">
@@ -468,7 +454,6 @@ onUnmounted(() => {
       :project-count="store.state.projects.length"
       :session-count="store.sessionList.length"
       :bridge-available="store.bridgeAvailable"
-      @close="inspectorOpen = false"
       @refresh-projects="() => void store.refreshProjects()"
       @stop="stop"
     />
@@ -591,52 +576,31 @@ onUnmounted(() => {
   overflow-wrap: anywhere;
 }
 
-.welcome-form {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  width: min(520px, 100%);
-  border: 1px solid var(--soxu-border);
-  border-radius: 12px;
-  background: var(--soxu-input);
-  padding: 6px 6px 6px 12px;
-}
-
-.welcome-form input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  height: 32px;
-  font-size: 0.8125rem;
-  color: var(--soxu-fg);
-}
-
-.welcome-form button {
+/*
+ * 「添加项目」是一个按钮而不是输入框（Issue #100）：点击直接开系统目录选择器，
+ * 所以这里只需要一次点击目标，不再有输入框与提交按钮的两段式布局。
+ */
+.welcome-add {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 9px;
+  margin-top: 14px;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 10px;
   background: var(--soxu-ink);
   color: var(--soxu-on-ink);
   font-size: 0.78125rem;
-}
-
-.welcome-form button {
   transition:
     opacity var(--soxu-motion-fast) var(--soxu-motion-ease),
     transform var(--soxu-motion-fast) var(--soxu-motion-ease);
 }
 
-.welcome-form button:hover:not(:disabled) {
+.welcome-add:hover:not(:disabled) {
   opacity: 0.88;
 }
 
-.welcome-form button:disabled {
+.welcome-add:disabled {
   opacity: 0.4;
   cursor: default;
 }

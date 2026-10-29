@@ -49,9 +49,10 @@ test("每个关闭语义按钮都有点击处理，且不是 disabled", async ()
     }
   }
 
-  // 至少要有顶栏检查器、设置、工作树、会话状态面板、Tab 五处关闭入口；
-  // 数量掉下来说明某处关闭入口被删了，而不是「刚好没写关闭二字」。
-  assert.ok(closeButtons.length >= 5, `关闭语义按钮至少 5 个，实际 ${closeButtons.length}`);
+  // 至少要有顶栏检查器、设置、工作树、Tab 四处关闭入口。
+  // Issue #100 按用户要求删掉了会话状态面板内部的重复关闭按钮（顶栏 PanelRight 已覆盖），
+  // 所以基线从 5 降到 4；数量再掉说明又删了关闭入口。
+  assert.ok(closeButtons.length >= 4, `关闭语义按钮至少 4 个，实际 ${closeButtons.length}`);
 
   for (const { path, tag } of closeButtons) {
     assert.match(tag, /@click/, `${path} 的关闭按钮必须有 @click：${tag}`);
@@ -65,7 +66,8 @@ test("每个关闭语义按钮都有点击处理，且不是 disabled", async ()
 
 test("声明了 close 事件的子组件都在 App.vue 里接上了", async () => {
   const app = await readFile(join(SRC_ROOT, "App.vue"), "utf8");
-  const components = ["SessionTabs", "RuntimeInspector", "SettingsDialog", "WorktreeDialog"];
+  // RuntimeInspector 不再声明 close：它的关闭入口统一由顶栏 PanelRight 提供（Issue #100）。
+  const components = ["SessionTabs", "SettingsDialog", "WorktreeDialog"];
 
   for (const name of components) {
     const source = await readFile(join(SRC_ROOT, "components", `${name}.vue`), "utf8");
@@ -86,11 +88,12 @@ test("声明了 close 事件的子组件都在 App.vue 里接上了", async () =
 test("App.vue 的 close 处理真的改了状态，而不是空函数", async () => {
   const app = await readFile(join(SRC_ROOT, "App.vue"), "utf8");
 
-  // 设置 / 工作树 / 会话状态面板 / Tab：四种关闭分别落到不同的状态上。
+  // 设置 / 工作树 / Tab：三种关闭分别落到不同的状态上。
+  // 会话状态面板的开关由顶栏 PanelRight 直接改 inspectorOpen（Issue #100 去重）。
   assert.match(componentTag(app, "SettingsDialog"), /@close="settingsOpen = false"/);
   assert.match(componentTag(app, "WorktreeDialog"), /@close="closeWorktrees"/);
-  assert.match(componentTag(app, "RuntimeInspector"), /@close="inspectorOpen = false"/);
   assert.match(componentTag(app, "SessionTabs"), /@close="closeTab"/);
+  assert.match(app, /@click="inspectorOpen = !inspectorOpen"/);
 
   // 处理函数本身必须落到 store 或状态上，不能是空实现。
   assert.match(app, /function closeWorktrees\(\) \{\s*worktreeProjectId\.value = null;/);

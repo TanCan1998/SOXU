@@ -35,6 +35,9 @@
   macOS 与 Linux 构建、签名与公证均未验证**；产物当前未签名。
 - 桌面图标不入库：`apps/desktop/src-tauri/icons/` 由 `pnpm icons:generate` 从
   `apps/desktop/assets/soxu-master.png` 生成，构建前必须先执行；`pnpm release:readiness` 会核验。
+  `pnpm check` 已内置该前置步骤（与 CI 的「先生成图标、再编译 Rust」顺序一致），
+  但**直接**运行 `cargo test --workspace` 的干净工作树仍需先生成图标：`tauri-build` 在 Windows
+  上要求 `icons/icon.ico` 存在，缺失会以 `failed to run custom build command` 失败（Issue #100 的门禁失败即此原因）。
 - 发布就绪检查（`scripts/check-release-readiness.mjs`）目前只能本地运行，尚未接入 CI
   （`.github/workflows/` 为受保护路径，需维护者批准后单独改动）。
 - 自动化需单机 Coordinator，异常中断不会强制回收全部 agent 子孙进程。AtomGit 自动同步优先交给平台自身配置。
