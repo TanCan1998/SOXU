@@ -8,8 +8,8 @@ use tauri::{AppHandle, State};
 
 use crate::dto::{
     CreateWorktreeInput, EntryRefInput, EntryText, HistoryPage, ProjectSummary, PromotedSession,
-    PromptMode, RuntimeStarted, RuntimeStatus, TemporarySessionView, ThinkingLevel,
-    WorktreeDiffView, WorktreeRemovalView, WorktreeSummary, WorktreeWorkspace,
+    PromptMode, RuntimeStarted, RuntimeStatus, SessionSearchResult, TemporarySessionView,
+    ThinkingLevel, WorktreeDiffView, WorktreeRemovalView, WorktreeSummary, WorktreeWorkspace,
 };
 use crate::session_runtime;
 use crate::state::AppState;
@@ -71,6 +71,20 @@ pub async fn read_session_texts(
     entries: Vec<EntryRefInput>,
 ) -> Result<Vec<EntryText>, String> {
     workspace::read_texts(state.inner(), &session_id, entries).await
+}
+
+/// 会话内搜索：走本地文本缓存 + 线性扫描，搜的是整份会话，不是已加载的一页。
+///
+/// 空查询返回空结果（不是错误）；超过 200 字符返回 E_SEARCH_QUERY_TOO_LONG。
+#[tauri::command]
+pub async fn search_session(
+    state: State<'_, AppState>,
+    session_id: String,
+    query: String,
+    limit: Option<usize>,
+    after_ordinal: Option<u64>,
+) -> Result<SessionSearchResult, String> {
+    workspace::search(state.inner(), &session_id, &query, limit, after_ordinal).await
 }
 
 #[tauri::command]

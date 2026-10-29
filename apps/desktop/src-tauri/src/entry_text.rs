@@ -3,6 +3,9 @@
 //! 索引分页只给出 240 字符的预览（见 `soxu_session_index::PREVIEW_CHARS`），
 //! 聊天界面需要完整消息时用 `HistoryEntry` 的 `offset`/`length` 定位到这里读取。
 //! 读取有双重预算：单条上限与批次上限，且不信任前端传入的范围（必须落在文件内）。
+//!
+//! 正文提取复用 `soxu_session_index::text`：会话内搜索缓存用同一份实现，
+//! 否则会出现「界面显示的内容搜不到 / 搜到的内容界面不显示」。
 
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -16,7 +19,13 @@ pub const MAX_ENTRY_BYTES: u32 = INLINE_ENTRY_BYTES;
 /// 一次 IPC 批次最多读取的条目数，避免前端一次拉爆内存。
 pub const MAX_BATCH_TEXTS: usize = 40;
 /// 单条消息进入 UI 前的字符上限（按字符截断，UTF-8 安全）。
-pub const MAX_TEXT_CHARS: usize = 20_000;
+///
+/// 与搜索缓存的单条正文上限共用同一个常量：两边口径不同会让「看得到」与
+/// 「搜得到」出现缝隙。
+pub const MAX_TEXT_CHARS: usize = soxu_session_index::MAX_CACHED_ENTRY_CHARS;
+
+/// 与搜索缓存共用的正文提取：角色保留 Pi 原始字符串（如 `bashExecution`）。
+pub use soxu_session_index::extract_text;
 
 /// 校验前端提交的定位信息，任何越界都拒绝而不是猜测。
 pub fn validate_range(offset: u64, length: u32, file_len: u64) -> Result<(), String> {
@@ -63,87 +72,19 @@ pub fn read_entry_text(
     })
 }
 
-/// 从一条 JSONL 记录里提取角色与可显示正文；未知结构返回空文本而不是报错。
-pub fn extract_text(line: &str) -> (Option<String>, String) {
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(line.trim_end_matches(['\r', '\n']))
-    else {
-        return (None, String::new());
-    };
-    let Some(message) = value.get("message") else {
-        // compaction / session_info 等非消息条目：退回常见文本字段。
-        let fallback = ["summary", "name", "label", "content"]
-            .iter()
-            .find_map(|key| value.get(*key).and_then(|item| item.as_str()))
-            .unwrap_or_default();
-        return (None, fallback.to_owned());
-    };
-    let role = message
-        .get("role")
-        .and_then(|item| item.as_str())
-        .map(str::to_owned);
-    let text = match message.get("content") {
-        Some(serde_json::Value::String(text)) => text.clone(),
-        Some(serde_json::Value::Array(blocks)) => join_blocks(blocks),
-        _ => shell_text(message),
-    };
-    (role, text)
-}
-
-fn join_blocks(blocks: &[serde_json::Value]) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    for block in blocks {
-        let kind = block
-            .get("type")
-            .and_then(|item| item.as_str())
-            .unwrap_or("");
-        match kind {
-            "text" => {
-                if let Some(text) = block.get("text").and_then(|item| item.as_str()) {
-                    parts.push(text.to_owned());
-                }
-            }
-            "thinking" => parts.push("[思考]".to_owned()),
-            "toolCall" | "tool_call" => {
-                let name = block
-                    .get("name")
-                    .and_then(|item| item.as_str())
-                    .unwrap_or("tool");
-                parts.push(format!("[工具调用：{name}]"));
-            }
-            "image" => parts.push("[图片]".to_owned()),
-            _ => {}
-        }
-    }
-    parts.join("\n")
-}
-
-/// bashExecution 一类消息把正文放在 message.command / message.output。
-fn shell_text(message: &serde_json::Value) -> String {
-    let command = message.get("command").and_then(|item| item.as_str());
-    let output = message.get("output").and_then(|item| item.as_str());
-    match (command, output) {
-        (Some(command), Some(output)) => format!("$ {command}\n{output}"),
-        (Some(command), None) => format!("$ {command}"),
-        (None, Some(output)) => output.to_owned(),
-        (None, None) => String::new(),
-    }
-}
-
 /// 按字符截断，避免一个巨型工具输出撑爆 Vue 状态。
 pub fn truncate(text: &str) -> (String, bool) {
-    if text.chars().count() <= MAX_TEXT_CHARS {
-        return (text.to_owned(), false);
-    }
-    let kept: String = text.chars().take(MAX_TEXT_CHARS).collect();
-    (format!("{kept}…"), true)
+    soxu_session_index::truncate_chars(text, MAX_TEXT_CHARS)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // 提取逻辑本身在 `soxu_session_index::text` 里有完整单测；这里只验证
+    // 桌面端经适配层拿到的形状没有变化（角色原文 + 正文）。
     #[test]
-    fn reads_user_string_content() {
+    fn adapter_keeps_role_and_text_shape() {
         let line = r#"{"type":"message","message":{"role":"user","content":"你好"}}"#;
         assert_eq!(
             extract_text(line),
@@ -152,29 +93,12 @@ mod tests {
     }
 
     #[test]
-    fn joins_block_content_and_marks_thinking() {
-        let line = r#"{"type":"message","message":{"role":"assistant","content":[{"type":"thinking","thinking":"内部"},{"type":"text","text":"答复"},{"type":"toolCall","name":"read"}]}}"#;
-        assert_eq!(
-            extract_text(line),
-            (
-                Some("assistant".to_owned()),
-                "[思考]\n答复\n[工具调用：read]".to_owned()
-            )
-        );
-    }
-
-    #[test]
-    fn renders_shell_execution_records() {
+    fn adapter_renders_shell_execution_records() {
         let line = r#"{"type":"message","message":{"role":"bashExecution","command":"dir","output":"a\nb"}}"#;
         assert_eq!(
             extract_text(line),
             (Some("bashExecution".to_owned()), "$ dir\na\nb".to_owned())
         );
-    }
-
-    #[test]
-    fn broken_json_yields_empty_text_instead_of_panicking() {
-        assert_eq!(extract_text("not json"), (None, String::new()));
     }
 
     #[test]

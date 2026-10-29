@@ -2,16 +2,17 @@
 //!
 //! 只读语义：不写回 JSONL、不移动或删除用户的会话文件；翻页只写索引快照。
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use soxu_session_index::{
-    EntryKind, ErrorCode, MessageRole, ProjectCatalog, ProjectId, ProjectRecord, SessionId,
-    SessionPage,
+    DEFAULT_SEARCH_HITS, EntryKind, ErrorCode, MessageRole, ProjectCatalog, ProjectId,
+    ProjectRecord, SessionId, SessionPage,
 };
 
 use crate::dto::{
     EntryRefInput, EntryText, HistoryEntry, HistoryPage, ProjectSummary, PromotedSession,
-    SessionSummary, TemporarySessionView,
+    SessionSearchResult, SessionSummary, TemporarySessionView,
 };
 use crate::entry_text::{MAX_BATCH_TEXTS, read_entry_text};
 use crate::session_runtime;
@@ -225,6 +226,59 @@ fn history_page(session_id: &str, page: &soxu_session_index::EntryPage) -> Histo
     }
 }
 
+/// 解析会话当前的正文来源：临时会话用它绑定的 Pi 文件，普通会话用登记的落点。
+///
+/// 返回 (路径, 长度)。长度只用于校验读取范围，不用于判断缓存是否需要同步——
+/// 搜索缓存自己看 (mtime, size) 指纹。
+async fn session_file(state: &AppState, session_id: &str) -> Result<(PathBuf, u64), String> {
+    let catalog = state.catalog.lock().await;
+    let session = SessionId::new(session_id);
+    // 临时会话的正文来自它绑定的 Pi 会话文件；文件长度以磁盘实际值为准。
+    if let Some(temporary) = catalog.temporary_session(&session) {
+        let file = temporary
+            .file
+            .clone()
+            .ok_or_else(|| format!("临时会话 {session_id} 还没有绑定 Pi 会话文件"))?;
+        let len = std::fs::metadata(&file).map(|meta| meta.len()).unwrap_or(0);
+        return Ok((PathBuf::from(file), len));
+    }
+    let record = catalog
+        .find_session(&session)
+        .ok_or_else(|| format!("会话未登记：{session_id}"))?;
+    Ok((PathBuf::from(&record.file), record.file_len))
+}
+
+/// 会话内搜索：文本缓存 + 线性扫描（Issue #109）。
+///
+/// 缓存是 CPU 密集型（10 MiB 会话首次建缓存约百毫秒），因此放到阻塞线程池执行，
+/// 不占用 async 执行器。缓存与磁盘的一致性由缓存自己按 (mtime, size) 指纹判断。
+pub async fn search(
+    state: &AppState,
+    session_id: &str,
+    query: &str,
+    limit: Option<usize>,
+    after_ordinal: Option<u64>,
+) -> Result<SessionSearchResult, String> {
+    let (file, _len) = session_file(state, session_id).await?;
+    let session = SessionId::new(session_id);
+    let cache: Arc<std::sync::Mutex<soxu_session_index::SearchCache>> = Arc::clone(&state.search);
+    let query = query.to_owned();
+    let limit = limit.unwrap_or(DEFAULT_SEARCH_HITS);
+    let outcome = tokio::task::spawn_blocking(move || {
+        let mut cache = lock(&cache);
+        let result = cache.search(&session, &file, &query, limit, after_ordinal);
+        // 慢查询与预算淘汰都要留痕：诊断不能因为没人读就消失。
+        for diagnostic in cache.take_diagnostics() {
+            eprintln!("SOXU: {}", diagnostic.message);
+        }
+        result
+    })
+    .await
+    .map_err(|error| format!("搜索任务执行失败：{error}"))?
+    .map_err(|error| error.to_string())?;
+    Ok(SessionSearchResult::from_outcome(session_id, &outcome))
+}
+
 /// 批量读取完整正文。条目范围必须落在会话文件内，批次有上限。
 pub async fn read_texts(
     state: &AppState,
@@ -237,25 +291,7 @@ pub async fn read_texts(
             entries.len()
         ));
     }
-    let (file, file_len) = {
-        let catalog = state.catalog.lock().await;
-        let session = SessionId::new(session_id);
-        // 临时会话的正文来自它绑定的 Pi 会话文件；文件长度以磁盘实际值为准。
-        if let Some(temporary) = catalog.temporary_session(&session) {
-            let file = temporary
-                .file
-                .clone()
-                .ok_or_else(|| format!("临时会话 {session_id} 还没有绑定 Pi 会话文件"))?;
-            let len = std::fs::metadata(&file).map(|meta| meta.len()).unwrap_or(0);
-            (file, len)
-        } else {
-            let record = catalog
-                .find_session(&session)
-                .ok_or_else(|| format!("会话未登记：{session_id}"))?;
-            (record.file.clone(), record.file_len)
-        }
-    };
-    let path = std::path::PathBuf::from(file);
+    let (path, file_len) = session_file(state, session_id).await?;
     let mut texts = Vec::with_capacity(entries.len());
     for reference in entries {
         texts.push(read_entry_text(&path, file_len, &reference)?);

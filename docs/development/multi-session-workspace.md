@@ -59,6 +59,7 @@ Tauri 命令 (commands.rs) → workspace.rs / session_runtime.rs
 | `refresh_project` | `projectId` | `ProjectSummary` | 重新扫描会话目录 |
 | `open_session_history` | `sessionId, offset, limit` | `HistoryPage` | `offset` 是**条目序号**，`limit` 由服务端钳制到 1..=200 |
 | `read_session_texts` | `sessionId, entries[]` | `EntryText[]` | 按 `offset/length` 读取完整正文，一次最多 40 条、单条 256 KiB |
+| `search_session` | `sessionId, query, limit?, afterOrdinal?` | `SessionSearchResult` | 搜**整份会话**（不是已加载的一页）；空查询返回空结果，超过 200 字符返回 `E_SEARCH_QUERY_TOO_LONG` |
 | `open_temporary_session` | `projectId` | `TemporarySessionView` | 分配 `ses_tmp_*`：只进 Rust 内存，不写 catalog.json |
 | `bind_temporary_session_file` | `sessionId, file` | `TemporarySessionView` | 显式绑定 Pi 会话文件；绑定期间该文件被扫描跳过 |
 | `promote_session` | `sessionId` | `{sessionId, project}` | 显式转正；失败保留临时会话并返回稳定错误码 |
@@ -300,6 +301,29 @@ JSONL 会话、滚动帧率与 WebView 进程 RSS。
 - Tauri WebView2/WKWebView/WebKitGTK 内的 `ResizeObserver` 首帧宽度与拖拽观感。
 - 键盘用户无法重排顺序：本 Issue 只要求不破坏既有键盘导航，键盘排序另开任务。
 
+### 会话内搜索（Issue #109，2026-10-30）
+
+抽屉搜索面板不再只过滤已加载的一页：`search_session` 走本地正文缓存 + 线性扫描，
+搜的是整份会话。设计、预算与证据见 [会话内搜索](session-search.md)。
+
+| 规则 | 实现 | 用例 |
+| --- | --- | --- |
+| 搜全整份会话 | 后端缓存所有条目正文（受 8 MiB / 24 MiB 预算约束），线性扫描 | `finds_every_hit_not_only_the_first_page`（1,235 条 → 206 命中）、`search_covers_the_whole_session_and_pages_by_ordinal` |
+| 追加不重建 | `(mtime_ms, size)` 指纹：变大只解析新增字节 | `appends_new_entries_without_rebuilding` |
+| 外部改写不返回旧内容 | 变小 / mtime 倒退 / 等长改写都整份重建 | `rewritten_file_drops_removed_content`、`equal_size_rewrite_is_detected_by_mtime` |
+| 超长条目只给截断片段 | 单条正文上限 20,000 字符，超出只留前 200 + `truncated` | `oversized_entry_is_truncated_and_flagged` |
+| 预算有界且如实报告 | 超预算丢最旧正文并置 `degraded`；全局超限淘汰最久未用会话 | `budget_evicts_oldest_text_and_reports_degraded`、`global_budget_evicts_least_recently_used_session` |
+| 边界输入不 panic | 空查询空结果、超长 `E_SEARCH_QUERY_TOO_LONG`、未登记会话给稳定错误码 | `empty_and_overlong_queries_have_explicit_behaviour`、`search_limits_and_boundary_inputs_are_explicit` |
+| 前端防抖 200 ms | `WorkspaceSession.scheduleSearch`：只保留最后一次查询，定时器随 Tab/组件释放 | `sessionSearch.test.ts`（3 次输入 → 1 次请求） |
+| 迟到响应不覆盖新结果 | `tab.search.seq` 请求序号守卫 | `sessionSearch.test.ts`（迟到响应用例） |
+| 片段高亮由后端给偏移 | `splitSnippet` 按码点切片，前端不重算匹配位置 | `sessionSearch.test.ts`（emoji / 越界偏移） |
+
+性能基线（Windows 11 / release，5 次采样）：50,001 条 / 11.9 MB 会话，建缓存 96–135 ms、
+单次查询 5–9 ms、缓存占用 6.19 MiB。复跑：`cargo test --release -p soxu-session-index --test search_perf -- --ignored --nocapture`。
+
+**未验证（Issue #109）**：Tauri WebView2/WKWebView/WebKitGTK 实机、macOS/Linux 的 `mtime` 行为、
+真实（非合成）10 MiB 会话；搜索面板组件尚未迁移到本仓库，本 Issue 只交付数据层、防抖与高亮助手。
+
 ## 10. 已知限制
 
 1. 会话标题取首条用户消息的预览（≤44 字符），Pi 会话没有显式标题字段时回退到文件名。
@@ -324,6 +348,9 @@ JSONL 会话、滚动帧率与 WebView 进程 RSS。
    要么等尾部分页/按需回补实现。
 11. Tab 顺序只存在本次会话的内存里（`state.tabs`）：刷新或重启后按打开顺序重建，
    不写入 Pi 会话数据，因此不会污染用户的 JSONL 与目录索引。
+12. 会话内搜索的缓存按 `(mtime_ms, size)` 指纹判断一致性：文件系统 `mtime` 精度不足时，
+   等长外部改写可能漏判（后续 `size` 变化或截断检测仍会纠正）。搜索面板组件尚未迁移到本仓库，
+   目前只有 `WorkspaceSession.search` / `scheduleSearch` 与高亮助手可供接线。
 
 ## 相关文档
 
@@ -331,5 +358,6 @@ JSONL 会话、滚动帧率与 WebView 进程 RSS。
   Diff 与受确认删除；本文件的 Tab/事件规则同样适用）
 - [Pi RPC Supervisor](agent-runtime.md)
 - [会话目录与 JSONL 索引契约](../architecture/session-catalog.md)
+- [会话内搜索：文本缓存 + 线性扫描](session-search.md)
 - [Pi RPC 适配契约](../specifications/rpc-contract.md)
 - [UI/UX 基线](../design/gpt-inspired-ui.md)

@@ -8,11 +8,20 @@
  * 1. 事件必须匹配 `runtimeId + generation`，迟到事件整条丢弃。
  * 2. 关闭 Tab 只释放订阅，不停止 Agent（Pane 销毁 ≠ 停止任务）。
  * 3. dispose 之后任何 await 回来的结果都不得再写状态。
+ *
+ * 文件超过 400 行的理由：Tab 生命周期、分页、实时流与搜索的状态机共享**同一份**
+ * dispose / 关闭边界——把它们拆到别的类会立刻出现「定时器归谁清、迟到响应归谁丢」
+ * 的双 owner 问题。纯函数部分已经拆出：映射规则在 `mapping.ts`，
+ * 搜索展示（片段切片、码点长度）在 `search.ts`。
  */
 
 import {
   HISTORY_PAGE_SIZE,
   MAX_MESSAGE_CHARS,
+  SEARCH_DEBOUNCE_MS,
+  SEARCH_HIT_LIMIT,
+  SEARCH_QUERY_MAX_CHARS,
+  createSearchState,
   createWorkspaceState,
   type ChatMessage,
   type EntryRef,
@@ -22,12 +31,15 @@ import {
   type RuntimeEvent,
   type SendPromptOptions,
   type SessionId,
+  type SearchOptions,
   type SessionMode,
+  type SessionSearchResult,
   type SessionTab,
   type WorktreeId,
   type WorkspaceBridge,
   type WorkspaceState,
 } from "./types.ts";
+import { charLength } from "./search.ts";
 import {
   capText,
   deltaText,
@@ -66,6 +78,7 @@ export function createTab(meta: SessionMeta): SessionTab {
     draft: "",
     diagnostics: [],
     promoting: false,
+    search: createSearchState(),
   };
 }
 
@@ -75,6 +88,8 @@ export class WorkspaceSession {
   private readonly pageSize: number;
   private unlisten: (() => void) | null = null;
   private disposed = false;
+  /** 每个会话至多一个待触发的防抖定时器：定时器由这里创建，也由这里清理。 */
+  private readonly searchTimers = new Map<SessionId, ReturnType<typeof setTimeout>>();
 
   constructor(
     bridge: WorkspaceBridge,
@@ -300,6 +315,8 @@ export class WorkspaceSession {
       // 转正后以持久化历史为准：先清掉实时回显，避免同一句话出现两次。
       tab.messages = [];
       tab.history = { loaded: 0, total: 0, next: null, loading: false, evicted: 0, evictedLive: 0 };
+      // 身份变了：旧的搜索结果属于 ses_tmp_*，不能挂在新身份下面。
+      tab.search = createSearchState();
       await this.bridge.retainSession(promoted.sessionId);
       await this.release(previousId);
       await this.loadPage(tab, 0);
@@ -316,6 +333,113 @@ export class WorkspaceSession {
     } finally {
       if (!this.disposed) tab.promoting = false;
     }
+  }
+
+  /**
+   * 会话内搜索：一次调用发一次请求，结果写进 `tab.search`。
+   *
+   * 搜的是**整份会话**（后端走本地文本缓存 + 线性扫描），不是已加载的一页；
+   * 空查询不发请求（清空输入框不该产生一次 10 MiB 扫描）。
+   */
+  async search(
+    sessionId: SessionId,
+    query: string,
+    options: SearchOptions = {},
+  ): Promise<SessionSearchResult | null> {
+    const tab = this.tab(sessionId);
+    if (!tab || this.disposed) return null;
+    const trimmed = query.trim();
+    const seq = tab.search.seq + 1;
+    if (charLength(trimmed) > SEARCH_QUERY_MAX_CHARS) {
+      // 与后端同一个上限：前端先拦，避免把注定失败的请求发出去。
+      tab.search = {
+        ...createSearchState(),
+        query: trimmed,
+        error: `查询超过 ${SEARCH_QUERY_MAX_CHARS} 字符，请缩短后重试`,
+        seq,
+      };
+      return null;
+    }
+    if (!trimmed) {
+      tab.search = {
+        ...createSearchState(),
+        query: "",
+        // 保留序号：清空输入框会让在途响应作废，不能让它把结果写回来。
+        seq,
+      };
+      return null;
+    }
+    tab.search = { ...tab.search, query: trimmed, loading: true, error: null, seq };
+    try {
+      const result = await this.bridge.searchSession(tab.sessionId, trimmed, {
+        limit: options.limit ?? SEARCH_HIT_LIMIT,
+        afterOrdinal: options.afterOrdinal ?? null,
+      });
+      // 迟到的旧响应（用户已经改了查询）整条丢弃，绝不覆盖新结果。
+      if (this.disposed || tab.search.seq !== seq) return null;
+      tab.search = {
+        ...tab.search,
+        loading: false,
+        error: null,
+        hits: result.hits,
+        totalHits: result.totalHits,
+        scannedEntries: result.scannedEntries,
+        truncated: result.truncated,
+        degraded: result.degraded,
+        tookMs: result.tookMs,
+      };
+      if (result.degraded) {
+        // 预算淘汰导致结果可能不完整：必须让用户看到，而不是静默少几条。
+        tab.diagnostics = pushDiagnostic(
+          tab,
+          "搜索缓存因内存预算丢弃了部分旧正文，结果可能不完整",
+        );
+      }
+      return result;
+    } catch (error) {
+      if (this.disposed || tab.search.seq !== seq) return null;
+      tab.search = {
+        ...tab.search,
+        loading: false,
+        error: describeError(error),
+        hits: [],
+        totalHits: 0,
+        scannedEntries: 0,
+        truncated: false,
+        degraded: false,
+        tookMs: 0,
+      };
+      return null;
+    }
+  }
+
+  /**
+   * 输入防抖：200 ms 内的连续输入只发一次请求（只保留最后一次查询）。
+   *
+   * 定时器按会话登记，关闭 Tab / dispose 时显式清理——否则组件卸载后
+   * 还会再发一次请求，并把结果写进已经销毁的 Tab。
+   */
+  scheduleSearch(sessionId: SessionId, query: string, options: SearchOptions = {}): void {
+    if (this.disposed) return;
+    this.cancelScheduledSearch(sessionId);
+    const timer = setTimeout(() => {
+      this.searchTimers.delete(sessionId);
+      void this.search(sessionId, query, options);
+    }, SEARCH_DEBOUNCE_MS);
+    this.searchTimers.set(sessionId, timer);
+  }
+
+  /** 取消待触发的防抖；不传 sessionId 时清理全部（dispose 用）。 */
+  cancelScheduledSearch(sessionId?: SessionId): void {
+    if (sessionId === undefined) {
+      for (const timer of this.searchTimers.values()) clearTimeout(timer);
+      this.searchTimers.clear();
+      return;
+    }
+    const timer = this.searchTimers.get(sessionId);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    this.searchTimers.delete(sessionId);
   }
 
   async loadMore(sessionId: SessionId): Promise<void> {
@@ -432,6 +556,8 @@ export class WorkspaceSession {
   async closeTab(sessionId: SessionId): Promise<void> {
     const tab = this.tab(sessionId);
     if (!tab) return;
+    // 关掉 Tab 就不能再有在途搜索：定时器与在途响应都不该写回已移除的 Tab。
+    this.cancelScheduledSearch(sessionId);
     const temporary = tab.mode === "temporary";
     this.state.tabs = this.state.tabs.filter((candidate) => candidate.sessionId !== sessionId);
     if (this.state.activeSessionId === sessionId) {
@@ -451,6 +577,7 @@ export class WorkspaceSession {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    this.cancelScheduledSearch();
     const unlisten = this.unlisten;
     this.unlisten = null;
     unlisten?.();

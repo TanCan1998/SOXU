@@ -129,6 +129,74 @@ pub struct EntryText {
     pub clipped: bool,
 }
 
+/// 会话内搜索的一条命中：片段与偏移都由后端给出，前端不重新计算匹配位置。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionSearchHit {
+    pub ordinal: u64,
+    pub kind: EntryKind,
+    pub role: Option<MessageRole>,
+    /// 命中位置前后各 40 个字符（边界对齐到字符，不是字节）。
+    pub snippet: String,
+    /// `snippet` 内命中的起始字符偏移。
+    pub match_start: usize,
+    /// `snippet` 内命中的结束字符偏移（左闭右开）。
+    pub match_end: usize,
+    /// 该条目内的命中次数（后端上限 20）。
+    pub total_matches: usize,
+    /// 该条目正文被裁剪过（超长条目或缓存预算淘汰），片段不是全文。
+    pub truncated: bool,
+}
+
+/// 一次会话内搜索的结果。
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionSearchResult {
+    pub session_id: String,
+    pub hits: Vec<SessionSearchHit>,
+    /// 会话内命中条目总数，与 `limit` / 分页无关。
+    pub total_hits: usize,
+    pub scanned_entries: usize,
+    /// 命中数超过 `limit`（还有下一页）。
+    pub truncated: bool,
+    /// 缓存因预算丢弃了部分正文：结果可能不完整，界面必须如实说明。
+    pub degraded: bool,
+    pub took_ms: u64,
+    /// 本次调用是否重建了缓存（验收用：追加不应触发重建）。
+    pub rebuilt: bool,
+}
+
+impl SessionSearchResult {
+    pub fn from_outcome(
+        session_id: &str,
+        result: &soxu_session_index::SessionSearchResult,
+    ) -> Self {
+        Self {
+            session_id: session_id.to_owned(),
+            hits: result
+                .hits
+                .iter()
+                .map(|hit| SessionSearchHit {
+                    ordinal: hit.ordinal,
+                    kind: hit.kind,
+                    role: hit.role,
+                    snippet: hit.snippet.clone(),
+                    match_start: hit.match_start,
+                    match_end: hit.match_end,
+                    total_matches: hit.total_matches,
+                    truncated: hit.truncated,
+                })
+                .collect(),
+            total_hits: result.total_hits,
+            scanned_entries: result.scanned_entries,
+            truncated: result.truncated,
+            degraded: result.degraded,
+            took_ms: result.took_ms,
+            rebuilt: result.rebuilt,
+        }
+    }
+}
+
 /// 启动运行时的返回值：每次执行都有新的 runtimeId + generation。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

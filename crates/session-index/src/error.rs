@@ -30,6 +30,7 @@ pub enum ErrorCode {
     TemporarySessionFileInvalid,
     TemporarySessionFileConflict,
     TemporarySessionRuntimeActive,
+    SearchQueryTooLong,
 }
 
 impl ErrorCode {
@@ -56,6 +57,7 @@ impl ErrorCode {
             Self::TemporarySessionFileInvalid => "E_TEMPORARY_SESSION_FILE_INVALID",
             Self::TemporarySessionFileConflict => "E_TEMPORARY_SESSION_FILE_CONFLICT",
             Self::TemporarySessionRuntimeActive => "E_TEMPORARY_SESSION_RUNTIME_ACTIVE",
+            Self::SearchQueryTooLong => "E_SEARCH_QUERY_TOO_LONG",
         }
     }
 
@@ -72,6 +74,7 @@ impl ErrorCode {
                 | Self::TemporarySessionUnpromotable
                 | Self::TemporarySessionFileInvalid
                 | Self::TemporarySessionRuntimeActive
+                | Self::SearchQueryTooLong
         )
     }
 }
