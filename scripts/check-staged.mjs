@@ -16,6 +16,16 @@ function die(message) {
 
 function main() {
   console.log('SOXU pre-commit：检查暂存区');
+  // Agent 会话（由 loop 通过 SOXU_AGENT_SESSION=1 标记）不得自己提交：
+  // 改动必须留在工作区，由 Runner 统一暂存、跑门禁、提交与推送。
+  // 否则 agent 的提交会绕过 testedTree/reviewedTree 校验（Issue #97 就这样绕过过一次）。
+  // Runner 自己提交时会显式带 SOXU_ALLOW_COMMIT=1。
+  if (process.env.SOXU_AGENT_SESSION === '1' && process.env.SOXU_ALLOW_COMMIT !== '1') {
+    die('Agent 会话不允许直接 git commit：请把改动留在工作区（不要暂存），由 Runner 提交。'
+      + '\n   如果需要验证改动，直接运行测试命令，不要提交。');
+    return;
+  }
+
   const whitespace = spawnSync('git', ['diff', '--cached', '--check'], { stdio: 'inherit' });
   if (whitespace.status !== 0 || whitespace.error) {
     die('检测到暂存内容的行尾空格、冲突相关空白或 EOF 多余空行');
