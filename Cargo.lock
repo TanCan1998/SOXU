@@ -2867,6 +2867,7 @@ dependencies = [
  "serde_json",
  "soxu-pi-protocol",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use soxu_agent_runtime::{PiProgram, RuntimeHandle, SupervisorEvent};
@@ -17,6 +17,26 @@ pub fn fake_pi(mode: &str, label: &str) -> PiProgram {
         .join("fixtures")
         .join("fake-pi.mjs");
     let args: Vec<OsString> = vec![script.into_os_string(), mode.into(), label.into()];
+    PiProgram::new(node).with_args(args)
+}
+
+/// 启动带两个孙进程的 `tests/fixtures/fake-pi.mjs`（P-03 进程树清理冒烟）。
+///
+/// `log` 收下夹具写出的树结构行（`root-start` / `leaf-spawn` / `leaf-start`），
+/// `release` 是让 `stubborn` 孙进程退出的开关文件；`follow` 孙进程不读它。
+pub fn fake_pi_tree(mode: &str, label: &str, log: &Path, release: &Path) -> PiProgram {
+    let node = std::env::var("NODE_BINARY").unwrap_or_else(|_| "node".to_owned());
+    let script: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("fake-pi.mjs");
+    let args: Vec<OsString> = vec![
+        script.into_os_string(),
+        mode.into(),
+        label.into(),
+        log.into(),
+        release.into(),
+    ];
     PiProgram::new(node).with_args(args)
 }
 
