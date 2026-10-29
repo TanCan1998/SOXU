@@ -45,6 +45,7 @@
   "timeouts": {
     "piStartupSeconds": 90,
     "piIdleSeconds": 240,
+    "idleExtensionSeconds": 600,
     "piHardMinutes": 35,
     "reviewHardMinutes": 12,
     "installMinutes": 6,

@@ -184,6 +184,7 @@ cargo fmt --all -- --check
 | 临时会话的可写归属防双写（幂等声明、抢占失败、释放者校验） | `crates/session-index/tests/temporary_lifecycle.rs` |
 | 崩溃后无幽灵运行时/幽灵历史 | `src-tauri/tests/temporary_session.rs`（`restarted_app_reports_no_ghost_runtime`） |
 | 多临时会话隔离（跨项目/工作树） | `crates/session-index/tests/temporary_lifecycle.rs` |
+| Tab 等宽（96~220 上下限）、拖拽阈值与落位、只改顺序不改 active | `tests/sessionTabs.test.ts`（15 例） |
 
 ## 9. 验证状态
 
@@ -271,6 +272,34 @@ cargo fmt --all -- --check
 **未验证（Issue #36）**：Tauri WebView2/WKWebView/WebKitGTK 实机、macOS/Linux、真实 5 万事件
 JSONL 会话、滚动帧率与 WebView 进程 RSS。
 
+### Tab 等宽与拖拽排序（Issue #99，2026-10-29）
+
+`SessionTabs.vue` 的会话 Tab 有两条规则：等宽的纯函数在
+`src/composables/tabStripLayout.ts`（可单独跑用例），拖拽状态机在
+`src/composables/useTabDrag.ts`（独占 window 级 listener 的加与摘），
+组件本身只负责 DOM 测量与样式绑定：
+
+| 规则 | 实现 | 用例 |
+| --- | --- | --- |
+| 同一栏内所有 Tab 等宽 | 容器宽度经 `ResizeObserver` 量一次，`tabWidth(count, width)` 均分后夹到 **[96, 220]**，结果写进 `--soxu-tab-width`，单个 Tab 不再自带 min/max 宽度 | `tabWidth`、`overflows` |
+| 放不下时横向滚动 | 等宽被下限夹住即判定溢出，沿用 `.tabs-scroll` 的 `overflow-x: auto` | `overflows` |
+| 拖拽阈值 ≥ 6px | `exceedsDragThreshold`：不到阈值仍是一次点击（照常切换会话） | `exceedsDragThreshold` |
+| 落位与让位动画一致 | `dropIndex`（其余 Tab 中「中心仍在指针左侧」的个数）决定目标位；`slotShift`（-1/0/+1 槽位）决定其它 Tab 的平移量，空位用虚线框标出 | `dropIndex`、`slotShift` |
+| 只改顺序，不改 `activeSessionId` | `WorkspaceSession.moveTab(fromIndex, toIndex)` 重排数组、原样搬运 Tab 对象；store 暴露同名 action，`App.vue` 只接 `@move` | `moveTab`（4 例，含 reactive 观察） |
+| 键盘导航不受影响 | 拖拽只监听 pointer 事件，`@keydown` 仍是同一处理器（方向键 / Home / End / Delete） | 结构断言 + 浏览器实测 |
+| 触屏可用 | 统一走 pointer events；`.tab-item` 设 `touch-action: pan-y`，横向滑动归拖拽、纵向留给页面滚动 | 浏览器实测（CDP 触摸派发） |
+| `prefers-reduced-motion` 退化 | 组件内 `@media` 去掉 transform 过渡（`base.css` 另把全局时长压到 0.01ms） | 结构断言 + 浏览器实测 `transition-property: none` |
+
+实机证据（headless Edge + CDP，1/3/8 个 Tab 截图、鼠标与触屏拖拽、键盘回归）见
+[Issue #99 证据](evidence/issue-99-tab-width-drag/README.md)。
+复跑：`node apps/desktop/tests/harness/shoot-session-tabs.mjs`。
+
+### 未验证（Issue #99）
+
+- 真实触摸屏设备上的拖拽手感（本次用 CDP `Input.dispatchTouchEvent` 模拟触摸，非实体设备）。
+- Tauri WebView2/WKWebView/WebKitGTK 内的 `ResizeObserver` 首帧宽度与拖拽观感。
+- 键盘用户无法重排顺序：本 Issue 只要求不破坏既有键盘导航，键盘排序另开任务。
+
 ## 10. 已知限制
 
 1. 会话标题取首条用户消息的预览（≤44 字符），Pi 会话没有显式标题字段时回退到文件名。
@@ -293,6 +322,8 @@ JSONL 会话、滚动帧率与 WebView 进程 RSS。
    [长会话虚拟列表](long-session-virtual-list.md) 第 6 节）。
 10. Tab 窗口释放后的更早消息不会自动回补：要么关闭并重新打开 Tab（重新从第 0 页加载），
    要么等尾部分页/按需回补实现。
+11. Tab 顺序只存在本次会话的内存里（`state.tabs`）：刷新或重启后按打开顺序重建，
+   不写入 Pi 会话数据，因此不会污染用户的 JSONL 与目录索引。
 
 ## 相关文档
 

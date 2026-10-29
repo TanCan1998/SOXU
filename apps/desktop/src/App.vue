@@ -399,6 +399,7 @@ onUnmounted(() => {
         :tabs="store.state.tabs"
         :active-session-id="store.state.activeSessionId"
         @select="selectTab"
+        @move="store.moveTab"
         @close="closeTab"
         @new-temporary="newTemporary"
       />

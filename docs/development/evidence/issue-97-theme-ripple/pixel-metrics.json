@@ -1,0 +1,719 @@
+{
+  "origin": {
+    "x": 69,
+    "y": 831
+  },
+  "viewport": {
+    "height": 860,
+    "width": 1280
+  },
+  "comparisons": {
+    "settled-light-vs-baseline-light": {
+      "size": {
+        "width": 1280,
+        "height": 860
+      },
+      "changedPixels": 0,
+      "changedRatio": 0,
+      "maxBlueExcess": {
+        "value": 0,
+        "x": 0,
+        "y": 0
+      },
+      "revealedRadius": null,
+      "changedBand": null,
+      "ringBand": null,
+      "profileSample": [
+        {
+          "radius": 0,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 80,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 160,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 240,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 320,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 400,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 480,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 560,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 640,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 720,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 800,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 880,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 960,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1040,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1120,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1200,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        }
+      ]
+    },
+    "settled-dark-vs-baseline-dark": {
+      "size": {
+        "width": 1280,
+        "height": 860
+      },
+      "changedPixels": 0,
+      "changedRatio": 0,
+      "maxBlueExcess": {
+        "value": 0,
+        "x": 0,
+        "y": 0
+      },
+      "revealedRadius": null,
+      "changedBand": null,
+      "ringBand": null,
+      "profileSample": [
+        {
+          "radius": 0,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 80,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 160,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 240,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 320,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 400,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 480,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 560,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 640,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 720,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 800,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 880,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 960,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1040,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1120,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1200,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        }
+      ]
+    },
+    "t200-dark-to-light-vs-noglow": {
+      "size": {
+        "width": 1280,
+        "height": 860
+      },
+      "changedPixels": 32085,
+      "changedRatio": 0.02915,
+      "maxBlueExcess": {
+        "value": 78.5,
+        "x": 1220,
+        "y": 447
+      },
+      "revealedRadius": null,
+      "changedBand": null,
+      "ringBand": null,
+      "profileSample": [
+        {
+          "radius": 0,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 80,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 160,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 240,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 320,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 400,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 480,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 560,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 640,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 720,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 800,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 880,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 960,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1040,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1120,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1200,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        }
+      ]
+    },
+    "t200-light-to-dark-vs-noglow": {
+      "size": {
+        "width": 1280,
+        "height": 860
+      },
+      "changedPixels": 32085,
+      "changedRatio": 0.02915,
+      "maxBlueExcess": {
+        "value": 75,
+        "x": 1220,
+        "y": 451
+      },
+      "revealedRadius": null,
+      "changedBand": null,
+      "ringBand": null,
+      "profileSample": [
+        {
+          "radius": 0,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 80,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 160,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 240,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 320,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 400,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 480,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 560,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 640,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 720,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 800,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 880,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 960,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1040,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1120,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1200,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        }
+      ]
+    },
+    "ripple-dark-to-light-vs-settled-light": {
+      "size": {
+        "width": 1280,
+        "height": 860
+      },
+      "changedPixels": 329444,
+      "changedRatio": 0.29928,
+      "maxBlueExcess": {
+        "value": 58.5,
+        "x": 1167,
+        "y": 701
+      },
+      "revealedRadius": 1208,
+      "changedBand": {
+        "from": 984,
+        "to": 1208
+      },
+      "ringBand": {
+        "from": 944,
+        "to": 1208,
+        "peak": 35.5
+      },
+      "profileSample": [
+        {
+          "radius": 0,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 80,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 160,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 240,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 320,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 400,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 480,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 560,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 640,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 720,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 800,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 880,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 960,
+          "blueDelta": 8.02,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1040,
+          "blueDelta": 23.5,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 1120,
+          "blueDelta": 32.5,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 1200,
+          "blueDelta": 16.7,
+          "changedOnCircle": 0.95
+        }
+      ]
+    },
+    "ripple-light-to-dark-vs-settled-dark": {
+      "size": {
+        "width": 1280,
+        "height": 860
+      },
+      "changedPixels": 325446,
+      "changedRatio": 0.29564,
+      "maxBlueExcess": {
+        "value": 49.5,
+        "x": 1062,
+        "y": 332
+      },
+      "revealedRadius": 1208,
+      "changedBand": {
+        "from": 1000,
+        "to": 1208
+      },
+      "ringBand": {
+        "from": 952,
+        "to": 1208,
+        "peak": 29.44
+      },
+      "profileSample": [
+        {
+          "radius": 0,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 80,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 160,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 240,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 320,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 400,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 480,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 560,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 640,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 720,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 800,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 880,
+          "blueDelta": 0,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 960,
+          "blueDelta": 5.52,
+          "changedOnCircle": 0
+        },
+        {
+          "radius": 1040,
+          "blueDelta": 18.5,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 1120,
+          "blueDelta": 27.56,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 1200,
+          "blueDelta": 15.73,
+          "changedOnCircle": 1
+        }
+      ]
+    },
+    "reveal-t200-dark-to-light-vs-settled-dark": {
+      "size": {
+        "width": 1280,
+        "height": 860
+      },
+      "changedPixels": 1042940,
+      "changedRatio": 0.94744,
+      "maxBlueExcess": {
+        "value": 233,
+        "x": 1229,
+        "y": 452
+      },
+      "revealedRadius": 1208,
+      "changedBand": {
+        "from": 0,
+        "to": 1208
+      },
+      "ringBand": {
+        "from": 32,
+        "to": 1200,
+        "peak": 10.33
+      },
+      "profileSample": [
+        {
+          "radius": 0,
+          "blueDelta": 2,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 80,
+          "blueDelta": 4.2,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 160,
+          "blueDelta": 3.15,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 240,
+          "blueDelta": 1.61,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 320,
+          "blueDelta": 1.46,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 400,
+          "blueDelta": 1.38,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 480,
+          "blueDelta": -0.33,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 560,
+          "blueDelta": 1.35,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 640,
+          "blueDelta": -1.91,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 720,
+          "blueDelta": -2.39,
+          "changedOnCircle": 0.94
+        },
+        {
+          "radius": 800,
+          "blueDelta": 5.93,
+          "changedOnCircle": 0.98
+        },
+        {
+          "radius": 880,
+          "blueDelta": 1.24,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 960,
+          "blueDelta": -0.21,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 1040,
+          "blueDelta": 1.15,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 1120,
+          "blueDelta": 1.13,
+          "changedOnCircle": 1
+        },
+        {
+          "radius": 1200,
+          "blueDelta": 6.14,
+          "changedOnCircle": 1
+        }
+      ]
+    }
+  }
+}

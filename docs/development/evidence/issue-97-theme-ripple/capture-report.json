@@ -1,0 +1,340 @@
+[
+  {
+    "file": "dark-to-light-01-t200ms",
+    "shot": "to-light-t200",
+    "boot": {
+      "theme": "light",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "origin": {
+      "clientX": 69,
+      "clientY": 831
+    },
+    "theme": "light",
+    "frozen": 4,
+    "before": {
+      "layers": [
+        "soxu-theme-glow__edge",
+        "soxu-theme-glow__ripple"
+      ],
+      "rect": {
+        "x": 69,
+        "y": 831,
+        "width": 0,
+        "height": 0,
+        "top": 831,
+        "right": 69,
+        "bottom": 831,
+        "left": 69
+      },
+      "popoverOpen": true
+    },
+    "layers": [
+      "soxu-theme-glow__edge",
+      "soxu-theme-glow__ripple"
+    ],
+    "rect": {
+      "x": 69,
+      "y": 831,
+      "width": 0,
+      "height": 0,
+      "top": 831,
+      "right": 69,
+      "bottom": 831,
+      "left": 69
+    },
+    "popoverOpen": true
+  },
+  {
+    "file": "dark-to-light-01b-t200ms-noglow",
+    "shot": "to-light-t200-noglow",
+    "boot": {
+      "theme": "light",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "origin": {
+      "clientX": 69,
+      "clientY": 831
+    },
+    "theme": "light",
+    "frozen": 4,
+    "before": {
+      "layers": [
+        "soxu-theme-glow__edge",
+        "soxu-theme-glow__ripple"
+      ],
+      "rect": {
+        "x": 69,
+        "y": 831,
+        "width": 0,
+        "height": 0,
+        "top": 831,
+        "right": 69,
+        "bottom": 831,
+        "left": 69
+      },
+      "popoverOpen": true
+    },
+    "layers": [],
+    "rect": null
+  },
+  {
+    "file": "dark-to-light-02-ripple-fade",
+    "shot": "to-light-ripple",
+    "boot": {
+      "theme": "light",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "origin": {
+      "clientX": 69,
+      "clientY": 831
+    },
+    "theme": "light",
+    "frozen": 2,
+    "htmlClass": "",
+    "layers": [
+      "soxu-theme-glow__edge",
+      "soxu-theme-glow__ripple"
+    ],
+    "rect": {
+      "x": 69,
+      "y": 831,
+      "width": 0,
+      "height": 0,
+      "top": 831,
+      "right": 69,
+      "bottom": 831,
+      "left": 69
+    },
+    "popoverOpen": true
+  },
+  {
+    "file": "dark-to-light-03-settled",
+    "shot": "to-light-settled",
+    "boot": {
+      "theme": "light",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "origin": {
+      "clientX": 69,
+      "clientY": 831
+    },
+    "theme": "light",
+    "cleared": true,
+    "residualLayers": 0,
+    "htmlClass": "",
+    "bodyTheme": "light"
+  },
+  {
+    "file": "baseline-light",
+    "shot": "baseline-light",
+    "boot": {
+      "theme": "light",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "theme": "light",
+    "residualLayers": 0
+  },
+  {
+    "file": "light-to-dark-01-t200ms",
+    "shot": "to-dark-t200",
+    "boot": {
+      "theme": "light",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "origin": {
+      "clientX": 69,
+      "clientY": 831
+    },
+    "theme": "dark",
+    "frozen": 4,
+    "before": {
+      "layers": [
+        "soxu-theme-glow__edge",
+        "soxu-theme-glow__ripple"
+      ],
+      "rect": {
+        "x": 69,
+        "y": 831,
+        "width": 0,
+        "height": 0,
+        "top": 831,
+        "right": 69,
+        "bottom": 831,
+        "left": 69
+      },
+      "popoverOpen": true
+    },
+    "layers": [
+      "soxu-theme-glow__edge",
+      "soxu-theme-glow__ripple"
+    ],
+    "rect": {
+      "x": 69,
+      "y": 831,
+      "width": 0,
+      "height": 0,
+      "top": 831,
+      "right": 69,
+      "bottom": 831,
+      "left": 69
+    },
+    "popoverOpen": true
+  },
+  {
+    "file": "light-to-dark-01b-t200ms-noglow",
+    "shot": "to-dark-t200-noglow",
+    "boot": {
+      "theme": "dark",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "origin": {
+      "clientX": 69,
+      "clientY": 831
+    },
+    "theme": "dark",
+    "frozen": 4,
+    "before": {
+      "layers": [
+        "soxu-theme-glow__edge",
+        "soxu-theme-glow__ripple"
+      ],
+      "rect": {
+        "x": 69,
+        "y": 831,
+        "width": 0,
+        "height": 0,
+        "top": 831,
+        "right": 69,
+        "bottom": 831,
+        "left": 69
+      },
+      "popoverOpen": true
+    },
+    "layers": [],
+    "rect": null
+  },
+  {
+    "file": "light-to-dark-02-ripple-fade",
+    "shot": "to-dark-ripple",
+    "boot": {
+      "theme": "dark",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "origin": {
+      "clientX": 69,
+      "clientY": 831
+    },
+    "theme": "dark",
+    "frozen": 2,
+    "htmlClass": "",
+    "layers": [
+      "soxu-theme-glow__edge",
+      "soxu-theme-glow__ripple"
+    ],
+    "rect": {
+      "x": 69,
+      "y": 831,
+      "width": 0,
+      "height": 0,
+      "top": 831,
+      "right": 69,
+      "bottom": 831,
+      "left": 69
+    },
+    "popoverOpen": true
+  },
+  {
+    "file": "light-to-dark-03-settled",
+    "shot": "to-dark-settled",
+    "boot": {
+      "theme": "dark",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "origin": {
+      "clientX": 69,
+      "clientY": 831
+    },
+    "theme": "dark",
+    "cleared": true,
+    "residualLayers": 0,
+    "htmlClass": "",
+    "bodyTheme": "dark"
+  },
+  {
+    "file": "baseline-dark",
+    "shot": "baseline-dark",
+    "boot": {
+      "theme": "dark",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "theme": "dark",
+    "residualLayers": 0
+  },
+  {
+    "file": "reduced-motion",
+    "shot": "reduced-motion",
+    "boot": {
+      "theme": "dark",
+      "reducedMotion": true,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "from": "dark",
+    "theme": "light",
+    "changed": true,
+    "layerSeen": 0,
+    "residualLayers": 0,
+    "htmlClass": "",
+    "hasViewTransition": true
+  },
+  {
+    "file": "unsupported",
+    "shot": "unsupported",
+    "boot": {
+      "theme": "light",
+      "reducedMotion": false,
+      "hasViewTransition": true,
+      "hasGetAnimations": true,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36 Edg/156.0.0.0"
+    },
+    "from": "light",
+    "theme": "dark",
+    "changed": true,
+    "layerSeen": 0,
+    "residualLayers": 0,
+    "htmlClass": "",
+    "hasViewTransition": false
+  }
+]
