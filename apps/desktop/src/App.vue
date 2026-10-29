@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { PanelLeft, PanelRight, Plus } from "@lucide/vue";
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Plus } from "@lucide/vue";
+import AppTooltip from "./components/AppTooltip.vue";
 import ChatPanel from "./components/ChatPanel.vue";
 import ProjectSidebar from "./components/ProjectSidebar.vue";
 import RuntimeInspector from "./components/RuntimeInspector.vue";
@@ -19,6 +20,13 @@ import {
 } from "./theme/theme.ts";
 import { runThemeTransition } from "./theme/themeTransition.ts";
 import { currentWindowTarget } from "./theme/windowTheme.ts";
+import {
+  createSessionHistory,
+  findTarget,
+  moveTo,
+  recordVisit,
+  type SessionHistory,
+} from "./workspace/sessionHistory.ts";
 import type { CreateWorktreeInput, SessionId, WorktreeId } from "./workspace/types.ts";
 
 const store = useWorkspaceStore();
@@ -45,6 +53,45 @@ const worktreeProjectSessions = computed(() => worktreeProject.value?.sessions ?
 const lastSession = computed(() =>
   [...store.sessionList].sort((left, right) => right.updatedAtMs - left.updatedAtMs)[0] ?? null,
 );
+
+/**
+ * 顶栏后退 / 前进（Issue #96）。
+ *
+ * 历史只记录「查看过的会话」，由 activeSessionId 的变化驱动，不需要每个入口
+ * 各自埋点：侧栏打开、Tab 点击、工作树打开、重试重开都会自然进入历史。
+ * 目标必须是仍然打开的 Tab，否则重置后跳回已关闭会话只会得到空白面板。
+ */
+const history = ref<SessionHistory>(createSessionHistory());
+const isOpenTab = (sessionId: SessionId) =>
+  store.state.tabs.some((tab) => tab.sessionId === sessionId);
+const backTarget = computed(() => findTarget(history.value, "back", isOpenTab));
+const forwardTarget = computed(() => findTarget(history.value, "forward", isOpenTab));
+
+/**
+ * flush: "sync" 是必需的：后退时先移动游标再切会话，如果记录发生在下一个 tick，
+ * 中间那次 recordVisit 会把刚保留的前进分支截断，前进按钮会凭空失效。
+ */
+watch(
+  () => store.state.activeSessionId,
+  (sessionId) => {
+    if (sessionId) history.value = recordVisit(history.value, sessionId);
+  },
+  { flush: "sync" },
+);
+
+function goBack() {
+  const target = backTarget.value;
+  if (!target) return;
+  history.value = moveTo(history.value, target.index);
+  store.setActive(target.sessionId);
+}
+
+function goForward() {
+  const target = forwardTarget.value;
+  if (!target) return;
+  history.value = moveTo(history.value, target.index);
+  store.setActive(target.sessionId);
+}
 
 /** 持久化只发生在用户切换时；没选过的用户继续跟随系统偏好，不被首次启动写死。 */
 watch(theme, (value) => {
@@ -279,42 +326,65 @@ onUnmounted(() => {
     <div class="main-column">
       <header class="app-header">
         <div class="header-start">
-          <button
-            class="icon-button"
-            type="button"
-            :aria-label="sidebarOpen ? '收起侧栏' : '展开侧栏'"
-            :aria-expanded="sidebarOpen"
-            title="侧栏 (Ctrl+B)"
-            aria-keyshortcuts="Control+B"
-            @click="sidebarOpen = !sidebarOpen"
-          >
-            <PanelLeft :size="18" :stroke-width="1.75" aria-hidden="true" />
-          </button>
-          <div class="location">
-            <span class="location-name">SOXU</span>
-            <span class="location-sep" aria-hidden="true">/</span>
-            <span class="location-scope">多会话工作区</span>
-          </div>
+          <AppTooltip text="侧栏 (Ctrl+B)">
+            <button
+              class="icon-button"
+              type="button"
+              :aria-label="sidebarOpen ? '收起侧栏' : '展开侧栏'"
+              :aria-expanded="sidebarOpen"
+              aria-keyshortcuts="Control+B"
+              @click="sidebarOpen = !sidebarOpen"
+            >
+              <PanelLeft :size="18" :stroke-width="1.75" aria-hidden="true" />
+            </button>
+          </AppTooltip>
+          <AppTooltip text="后退：上一个查看过的会话">
+            <span class="icon-button-frame">
+              <button
+                class="icon-button"
+                type="button"
+                :disabled="!backTarget"
+                aria-label="后退到上一个查看过的会话"
+                @click="goBack"
+              >
+                <ChevronLeft :size="18" :stroke-width="1.75" aria-hidden="true" />
+              </button>
+            </span>
+          </AppTooltip>
+          <AppTooltip text="前进：回到下一个查看过的会话">
+            <span class="icon-button-frame">
+              <button
+                class="icon-button"
+                type="button"
+                :disabled="!forwardTarget"
+                aria-label="前进到下一个查看过的会话"
+                @click="goForward"
+              >
+                <ChevronRight :size="18" :stroke-width="1.75" aria-hidden="true" />
+              </button>
+            </span>
+          </AppTooltip>
         </div>
         <div class="header-end">
-          <span
-            class="badge"
-            :data-tone="store.bridgeAvailable ? undefined : 'danger'"
-            :title="store.bridgeAvailable ? '已连接本机运行时' : '浏览器预览：未连接本机运行时'"
+          <AppTooltip
+            :text="store.bridgeAvailable ? '已连接本机运行时' : '浏览器预览：未连接本机运行时'"
           >
-            {{ store.bridgeAvailable ? "已连接" : "未连接" }}
-          </span>
-          <button
-            class="icon-button"
-            type="button"
-            :aria-label="inspectorOpen ? '关闭会话状态面板' : '打开会话状态面板'"
-            :aria-expanded="inspectorOpen"
-            title="会话状态 (Ctrl+I)"
-            aria-keyshortcuts="Control+I"
-            @click="inspectorOpen = !inspectorOpen"
-          >
-            <PanelRight :size="18" :stroke-width="1.75" aria-hidden="true" />
-          </button>
+            <span class="badge" :data-tone="store.bridgeAvailable ? undefined : 'danger'">
+              {{ store.bridgeAvailable ? "已连接" : "未连接" }}
+            </span>
+          </AppTooltip>
+          <AppTooltip text="会话状态 (Ctrl+I)">
+            <button
+              class="icon-button"
+              type="button"
+              :aria-label="inspectorOpen ? '关闭会话状态面板' : '打开会话状态面板'"
+              :aria-expanded="inspectorOpen"
+              aria-keyshortcuts="Control+I"
+              @click="inspectorOpen = !inspectorOpen"
+            >
+              <PanelRight :size="18" :stroke-width="1.75" aria-hidden="true" />
+            </button>
+          </AppTooltip>
         </div>
       </header>
 
@@ -367,18 +437,19 @@ onUnmounted(() => {
             :disabled="!store.bridgeAvailable"
             autocomplete="off"
           />
-          <button
-            type="submit"
-            :disabled="!store.bridgeAvailable || pickingProject"
-            :aria-busy="pickingProject"
-            title="留空时打开系统目录选择器"
-          >
-            <Plus :size="16" :stroke-width="1.9" aria-hidden="true" /> 添加项目
-          </button>
+          <AppTooltip text="留空时打开系统目录选择器">
+            <button
+              type="submit"
+              :disabled="!store.bridgeAvailable || pickingProject"
+              :aria-busy="pickingProject"
+            >
+              <Plus :size="16" :stroke-width="1.9" aria-hidden="true" /> 添加项目
+            </button>
+          </AppTooltip>
         </form>
 
         <p v-if="pickProjectError" class="welcome-error" role="alert">{{ pickProjectError }}</p>
-        <button class="welcome-secondary" type="button" @click="newTemporary">
+        <button class="welcome-secondary link-button" type="button" @click="newTemporary">
           先开一个临时会话
         </button>
       </section>
@@ -436,11 +507,12 @@ onUnmounted(() => {
   flex: none;
   min-width: 0;
   /*
-   * 必须显式给背景：不写背景时顶部栏没有自己的底色，深色主题下会透出
-   * 窗口 backgroundColor（tauri.conf.json 里的纯白），形成一条浅色带。
-   * 取值与 V3 设计的 rail 一致，等同侧栏，保证顶部与左栏同色。
+   * 与页面融合（Issue #96）：顶栏不再有自己的底色，用与 body 完全相同的
+   * --soxu-bg，只留 1px 分隔线。之所以不用 transparent：「透明」的 computed
+   * background-color 是 rgba(0,0,0,0)，与 body 不一致，验收与截图都无法比对，
+   * 而显式同色既能保证一致，也不会透出窗口 backgroundColor 的纯白。
    */
-  background: var(--soxu-sidebar);
+  background: var(--soxu-bg);
   color: var(--soxu-fg);
   border-bottom: 1px solid var(--soxu-border);
 }
@@ -452,26 +524,16 @@ onUnmounted(() => {
   gap: 10px;
 }
 
-.location {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  font-size: 13px;
-}
-
-.location-name {
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  /* 显式声明主题文字色：将来改 .app-header 的 color 时标题不会退回浏览器默认黑 */
-  color: var(--soxu-fg);
-}
-
-.location-sep {
-  color: var(--soxu-muted);
-}
-
-.location-scope {
-  color: var(--soxu-subtext);
+/*
+ * 后退 / 前进的提示挂在容器上而不是按钮上。
+ *
+ * 浏览器不会给 disabled 按钮派发鼠标事件，把 tooltip 触发器放在按钮上时，
+ * 「为什么点不动」这段说明恰恰在最需要的时候看不到；容器仍能接收悬停。
+ * 按钮本身保留 disabled + aria-label，键盘语义不变。
+ */
+.icon-button-frame {
+  display: inline-flex;
+  border-radius: 9px;
 }
 
 .welcome {
@@ -551,6 +613,16 @@ onUnmounted(() => {
   background: var(--soxu-ink);
   color: var(--soxu-on-ink);
   font-size: 12.5px;
+}
+
+.welcome-form button {
+  transition:
+    opacity var(--soxu-motion-fast) var(--soxu-motion-ease),
+    transform var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
+.welcome-form button:hover:not(:disabled) {
+  opacity: 0.88;
 }
 
 .welcome-form button:disabled {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from "vue";
 import { Plus, X } from "@lucide/vue";
+import AppTooltip from "./AppTooltip.vue";
 import type { SessionId, SessionTab } from "../workspace/types.ts";
 
 const props = defineProps<{
@@ -48,44 +49,42 @@ async function onKeydown(event: KeyboardEvent, index: number) {
   <div class="tab-strip" role="tablist" aria-label="已打开的会话">
     <div class="tabs-scroll">
       <div v-for="(tab, index) in tabs" :key="tab.sessionId" class="tab-item">
-        <button
-          :id="`soxu-tab-${tab.sessionId}`"
-          :ref="(element) => setTabRef(element, index)"
-          class="tab"
-          type="button"
-          role="tab"
-          :aria-selected="tab.sessionId === activeSessionId"
-          :aria-controls="'soxu-chat-panel'"
-          :tabindex="tab.sessionId === activeSessionId ? 0 : -1"
-          :class="{ chosen: tab.sessionId === activeSessionId }"
-          :title="tab.title"
-          @click="emit('select', tab.sessionId)"
-          @keydown="onKeydown($event, index)"
-        >
-          <span class="state-dot" :data-state="tab.status" aria-hidden="true"></span>
-          <span class="tab-title">{{ tab.title }}</span>
-          <span v-if="tab.mode === 'temporary'" class="tab-tag">临时</span>
-        </button>
-        <button
-          class="tab-close"
-          type="button"
-          :aria-label="`关闭会话 ${tab.title}`"
-          title="关闭 Tab（不停止 Agent）"
-          @click="emit('close', tab.sessionId)"
-        >
-          <X :size="14" :stroke-width="2" aria-hidden="true" />
-        </button>
+        <AppTooltip :text="tab.title">
+          <button
+            :id="`soxu-tab-${tab.sessionId}`"
+            :ref="(element) => setTabRef(element, index)"
+            class="tab"
+            type="button"
+            role="tab"
+            :aria-selected="tab.sessionId === activeSessionId"
+            :aria-controls="'soxu-chat-panel'"
+            :tabindex="tab.sessionId === activeSessionId ? 0 : -1"
+            :class="{ chosen: tab.sessionId === activeSessionId }"
+            @click="emit('select', tab.sessionId)"
+            @keydown="onKeydown($event, index)"
+          >
+            <span class="state-dot" :data-state="tab.status" aria-hidden="true"></span>
+            <span class="tab-title">{{ tab.title }}</span>
+            <span v-if="tab.mode === 'temporary'" class="tab-tag">临时</span>
+          </button>
+        </AppTooltip>
+        <AppTooltip text="关闭 Tab（不停止 Agent）">
+          <button
+            class="tab-close"
+            type="button"
+            :aria-label="`关闭会话 ${tab.title}`"
+            @click="emit('close', tab.sessionId)"
+          >
+            <X :size="14" :stroke-width="2" aria-hidden="true" />
+          </button>
+        </AppTooltip>
       </div>
     </div>
-    <button
-      class="icon-button"
-      type="button"
-      aria-label="新建临时会话"
-      title="新建临时会话"
-      @click="emit('new-temporary')"
-    >
-      <Plus :size="18" :stroke-width="1.75" aria-hidden="true" />
-    </button>
+    <AppTooltip text="新建临时会话">
+      <button class="icon-button" type="button" aria-label="新建临时会话" @click="emit('new-temporary')">
+        <Plus :size="18" :stroke-width="1.75" aria-hidden="true" />
+      </button>
+    </AppTooltip>
   </div>
 </template>
 
@@ -116,10 +115,17 @@ async function onKeydown(event: KeyboardEvent, index: number) {
   border-radius: 9px;
   flex: none;
   max-width: 240px;
+  /*
+   * hover 用 inset 阴影画 1px 边框：加真实 border 会让 Tab 宽度跳 2px，
+   * 鼠标经过时整条 Tab 会抖动。
+   */
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: box-shadow var(--soxu-motion-fast) var(--soxu-motion-ease);
 }
 
 .tab-item:hover {
   background: var(--soxu-hover);
+  box-shadow: inset 0 0 0 1px var(--soxu-border);
 }
 
 .tab {
@@ -162,7 +168,14 @@ async function onKeydown(event: KeyboardEvent, index: number) {
   color: var(--soxu-muted);
 }
 
+.tab-close {
+  transition:
+    color var(--soxu-motion-fast) var(--soxu-motion-ease),
+    background-color var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
 .tab-close:hover {
   color: var(--soxu-fg);
+  background: var(--soxu-border);
 }
 </style>

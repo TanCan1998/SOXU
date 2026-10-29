@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { CircleAlert, CircleStop, RefreshCw, Save } from "@lucide/vue";
+import AppTooltip from "./AppTooltip.vue";
 import ChatComposer from "./ChatComposer.vue";
 import MessageList from "./MessageList.vue";
 import type { SessionTab } from "../workspace/types.ts";
@@ -86,27 +87,28 @@ const runtimeHint = computed(() => {
       </div>
       <div class="head-actions">
         <span v-if="tab.mode === 'temporary'" class="badge" data-tone="accent">临时会话</span>
-        <button
-          v-if="tab.mode === 'temporary'"
-          class="promote"
-          type="button"
-          :disabled="!canPromote"
-          :title="promoteHint"
-          @click="emit('promote')"
-        >
-          <Save :size="15" :stroke-width="1.85" aria-hidden="true" />
-          {{ tab.promoting ? "转存中…" : "转为普通会话" }}
-        </button>
-        <button
-          class="icon-button"
-          type="button"
-          :disabled="!tab.runtime.runtimeId"
-          title="停止 Pi 运行时"
-          aria-label="停止 Pi 运行时"
-          @click="emit('stop')"
-        >
-          <CircleStop :size="17" :stroke-width="1.75" aria-hidden="true" />
-        </button>
+        <AppTooltip v-if="tab.mode === 'temporary'" :text="promoteHint">
+          <button
+            class="promote"
+            type="button"
+            :disabled="!canPromote"
+            @click="emit('promote')"
+          >
+            <Save :size="15" :stroke-width="1.85" aria-hidden="true" />
+            {{ tab.promoting ? "转存中…" : "转为普通会话" }}
+          </button>
+        </AppTooltip>
+        <AppTooltip text="停止 Pi 运行时">
+          <button
+            class="icon-button"
+            type="button"
+            :disabled="!tab.runtime.runtimeId"
+            aria-label="停止 Pi 运行时"
+            @click="emit('stop')"
+          >
+            <CircleStop :size="17" :stroke-width="1.75" aria-hidden="true" />
+          </button>
+        </AppTooltip>
       </div>
     </header>
 
@@ -216,6 +218,14 @@ const runtimeHint = computed(() => {
   color: var(--soxu-fg);
   font-size: 11.5px;
   font-weight: 560;
+  transition:
+    background-color var(--soxu-motion-fast) var(--soxu-motion-ease),
+    border-color var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
+.promote:hover:not(:disabled) {
+  background: var(--soxu-hover);
+  border-color: var(--soxu-muted);
 }
 
 .promote:disabled {
@@ -258,6 +268,11 @@ const runtimeHint = computed(() => {
   border: 1px solid color-mix(in srgb, var(--soxu-danger) 40%, transparent);
   border-radius: 999px;
   padding: 4px 10px;
+  transition: background-color var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
+.retry:hover {
+  background: color-mix(in srgb, var(--soxu-danger) 14%, transparent);
 }
 
 .empty-chat {

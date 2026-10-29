@@ -1,7 +1,9 @@
-import { createApp } from "vue";
+import { createApp, h } from "vue";
 import { createPinia } from "pinia";
+import { TooltipProvider } from "reka-ui";
 import App from "./App.vue";
 import "./styles/base.css";
+import { TOOLTIP_DELAY_MS, TOOLTIP_SKIP_DELAY_MS } from "./components/tooltipConfig.ts";
 import { applyDocumentTheme, resolveInitialTheme, syncWindowTheme } from "./theme/theme.ts";
 import { currentWindowTarget } from "./theme/windowTheme.ts";
 
@@ -11,4 +13,18 @@ const initialTheme = resolveInitialTheme();
 applyDocumentTheme(initialTheme);
 void syncWindowTheme(initialTheme, currentWindowTarget());
 
-createApp(App).use(createPinia()).mount("#app");
+/**
+ * TooltipProvider 必须包住整棵树：所有 AppTooltip 都要求它是祖先，
+ * 否则 Reka UI 会抛「must be used within TooltipProvider」。
+ * 延迟与「相邻按钮免等待」只在这里配置一次，不在每个调用点重复。
+ */
+createApp({
+  render: () =>
+    h(
+      TooltipProvider,
+      { delayDuration: TOOLTIP_DELAY_MS, skipDelayDuration: TOOLTIP_SKIP_DELAY_MS },
+      { default: () => h(App) },
+    ),
+})
+  .use(createPinia())
+  .mount("#app");

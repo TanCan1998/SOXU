@@ -26,6 +26,15 @@
   --soxu-danger: #c0392b;
   --soxu-focus: #3a83f7;
   --soxu-radius: 10px;
+  /*
+   * 交互动效 token（Issue #96）：hover 反馈只允许引用这些值，
+   * 组件里不写死时长、曲线或缩放比例，改一处即可全局生效。
+   */
+  --soxu-motion-fast: 120ms;
+  --soxu-motion-base: 180ms;
+  --soxu-motion-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --soxu-hover-scale: 1.04;
+  --soxu-shadow-raised: 0 6px 18px rgb(0 0 0 / 12%);
   color-scheme: light;
 }
 
@@ -57,6 +66,8 @@
   --soxu-warn: #d3a55a;
   --soxu-danger: #e0725f;
   --soxu-focus: #7aa9f9;
+  /* 深色背景需要更强的阴影才看得出层次，仍是同一个 token 名。 */
+  --soxu-shadow-raised: 0 8px 22px rgb(0 0 0 / 45%);
   color-scheme: dark;
 }
 
@@ -98,12 +109,31 @@ button {
   border-radius: 6px;
 }
 
+/*
+ * 界面文本默认不可拖选（Issue #96）：桌面应用里误拖出蓝色选区会露出网页感，
+ * 也会打断按钮点击。输入框、代码块与会话正文单独放开——那些内容需要复制。
+ * 例外写在全局而不是各组件内，避免新增组件时漏掉。
+ */
+input,
+textarea,
+select,
+[contenteditable="true"],
+pre,
+code,
+.soxu-selectable {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 .app-shell {
   display: flex;
   height: 100vh;
   overflow: hidden;
   background: var(--soxu-bg);
   color: var(--soxu-fg);
+  /* 整窗禁止拖选，例外见文件上方 input/textarea/pre/code/.soxu-selectable。 */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .main-column {
@@ -121,15 +151,83 @@ button {
   flex: none;
   border-radius: 9px;
   color: var(--soxu-subtext);
+  transition:
+    background-color var(--soxu-motion-fast) var(--soxu-motion-ease),
+    color var(--soxu-motion-fast) var(--soxu-motion-ease),
+    transform var(--soxu-motion-fast) var(--soxu-motion-ease);
 }
 
-.icon-button:hover {
+/* 轻微放大 + 背景提亮：可感知但不夸张；reduced-motion 下 token 退化为 1。 */
+.icon-button:hover:not(:disabled) {
   background: var(--soxu-hover);
+  color: var(--soxu-fg);
+  transform: scale(var(--soxu-hover-scale));
 }
 
 .icon-button:disabled {
   opacity: 0.45;
   cursor: default;
+}
+
+/*
+ * 文字型操作按钮：下划线渐现而不是常驻，避免界面到处是下划线。
+ * 只动 text-decoration-color，不改变文字尺寸，因此不会引起重排。
+ */
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  color: var(--soxu-accent);
+  font-size: 11.5px;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition:
+    text-decoration-color var(--soxu-motion-base) var(--soxu-motion-ease),
+    color var(--soxu-motion-fast) var(--soxu-motion-ease);
+}
+
+.link-button:hover:not(:disabled) {
+  text-decoration-color: currentColor;
+}
+
+.link-button:disabled {
+  color: var(--soxu-muted);
+  cursor: default;
+}
+
+/*
+ * 悬浮提示呈现层（Reka UI Tooltip 的内容节点）。
+ *
+ * 这段样式渲染在 portal 里（挂到 body），拿不到 .app-shell[data-theme] 兜底，
+ * 所以只能用 :root token 与 var(--soxu-shadow-raised)。
+ * 出现动画是纯透明度 + 2px 位移；prefers-reduced-motion 时直接取消，不做形变。
+ */
+.soxu-tooltip {
+  z-index: 60;
+  max-width: 260px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--soxu-border);
+  background: var(--soxu-panel);
+  color: var(--soxu-subtext);
+  font-size: 11.5px;
+  line-height: 1.5;
+  box-shadow: var(--soxu-shadow-raised);
+  overflow-wrap: anywhere;
+  animation: soxu-tooltip-in var(--soxu-motion-base) var(--soxu-motion-ease);
+}
+
+@keyframes soxu-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .state-dot {
@@ -196,9 +294,18 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    /* hover 动效退化为纯颜色变化：不再缩放、不再位移。 */
+    --soxu-hover-scale: 1;
+  }
+
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .soxu-tooltip {
+    animation: none;
   }
 }
 

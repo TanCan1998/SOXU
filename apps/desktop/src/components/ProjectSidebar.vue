@@ -12,6 +12,7 @@ import {
   Settings,
   Sun,
 } from "@lucide/vue";
+import AppTooltip from "./AppTooltip.vue";
 import { useProjectDirectoryPick } from "../composables/useProjectDirectoryPick.ts";
 import type { ProjectSummary, SessionId, WorktreeId } from "../workspace/types.ts";
 
@@ -109,56 +110,63 @@ async function submitProject() {
 
       <section v-for="project in visibleProjects" :key="project.id" class="project-group">
         <div class="project-head">
-          <span class="project-name" :title="project.root">
-            <Folder :size="14" :stroke-width="1.75" aria-hidden="true" />
-            {{ project.name }}
-          </span>
+          <AppTooltip :text="project.root">
+            <span class="project-name">
+              <Folder :size="14" :stroke-width="1.75" aria-hidden="true" />
+              {{ project.name }}
+            </span>
+          </AppTooltip>
           <span class="project-actions">
-            <button
-              class="icon-button small"
-              type="button"
-              :disabled="!bridgeAvailable"
-              :aria-label="`管理 ${project.name} 的工作树`"
-              title="工作树：枚举、创建、Diff 与受确认的删除"
-              @click="emit('open-worktrees', project.id)"
-            >
-              <GitBranch :size="14" :stroke-width="1.75" aria-hidden="true" />
-            </button>
-            <button
-              class="icon-button small"
-              type="button"
-              :disabled="busy || !bridgeAvailable"
-              :aria-label="`刷新项目 ${project.name}`"
-              title="重新扫描会话目录"
-              @click="emit('refresh-project', project.id)"
-            >
-              <RefreshCw :size="14" :stroke-width="1.75" aria-hidden="true" />
-            </button>
+            <AppTooltip text="工作树：枚举、创建、Diff 与受确认的删除">
+              <button
+                class="icon-button small"
+                type="button"
+                :disabled="!bridgeAvailable"
+                :aria-label="`管理 ${project.name} 的工作树`"
+                @click="emit('open-worktrees', project.id)"
+              >
+                <GitBranch :size="14" :stroke-width="1.75" aria-hidden="true" />
+              </button>
+            </AppTooltip>
+            <AppTooltip text="重新扫描会话目录">
+              <button
+                class="icon-button small"
+                type="button"
+                :disabled="busy || !bridgeAvailable"
+                :aria-label="`刷新项目 ${project.name}`"
+                @click="emit('refresh-project', project.id)"
+              >
+                <RefreshCw :size="14" :stroke-width="1.75" aria-hidden="true" />
+              </button>
+            </AppTooltip>
           </span>
         </div>
         <ul class="session-list">
           <li v-for="session in project.sessions" :key="session.id">
-            <button
-              class="session-item"
-              type="button"
-              :class="{ chosen: session.id === activeSessionId }"
-              :aria-current="session.id === activeSessionId ? 'page' : undefined"
-              :title="session.title"
-              @click="
-                emit('open-session', {
-                  sessionId: session.id,
-                  projectId: project.id,
-                  title: session.title,
-                  worktreeId: session.worktreeId,
-                })
-              "
-            >
-              <MessageCircle :size="14" :stroke-width="1.75" aria-hidden="true" />
-              <span class="session-title">{{ session.title }}</span>
-              <span v-if="session.missing" class="missing" title="会话文件已不在磁盘上">
-                <CircleAlert :size="13" :stroke-width="1.9" aria-hidden="true" />
-              </span>
-            </button>
+            <AppTooltip :text="session.title">
+              <button
+                class="session-item"
+                type="button"
+                :class="{ chosen: session.id === activeSessionId }"
+                :aria-current="session.id === activeSessionId ? 'page' : undefined"
+                @click="
+                  emit('open-session', {
+                    sessionId: session.id,
+                    projectId: project.id,
+                    title: session.title,
+                    worktreeId: session.worktreeId,
+                  })
+                "
+              >
+                <MessageCircle :size="14" :stroke-width="1.75" aria-hidden="true" />
+                <span class="session-title">{{ session.title }}</span>
+                <AppTooltip v-if="session.missing" text="会话文件已不在磁盘上">
+                  <span class="missing">
+                    <CircleAlert :size="13" :stroke-width="1.9" aria-hidden="true" />
+                  </span>
+                </AppTooltip>
+              </button>
+            </AppTooltip>
           </li>
           <li v-if="project.sessions.length === 0" class="session-empty">该目录下暂无 Pi 会话</li>
         </ul>
@@ -179,16 +187,17 @@ async function submitProject() {
         :disabled="!bridgeAvailable || busy"
         autocomplete="off"
       />
-      <button
-        class="icon-button"
-        type="submit"
-        :disabled="!bridgeAvailable || busy || picking"
-        :aria-busy="picking"
-        aria-label="添加项目"
-        title="添加项目目录：留空时打开系统目录选择器"
-      >
-        <Plus :size="18" :stroke-width="1.75" aria-hidden="true" />
-      </button>
+      <AppTooltip text="添加项目目录：留空时打开系统目录选择器">
+        <button
+          class="icon-button"
+          type="submit"
+          :disabled="!bridgeAvailable || busy || picking"
+          :aria-busy="picking"
+          aria-label="添加项目"
+        >
+          <Plus :size="18" :stroke-width="1.75" aria-hidden="true" />
+        </button>
+      </AppTooltip>
     </form>
 
     <p v-if="pickError" class="side-note pick-error" role="alert">{{ pickError }}</p>
@@ -199,19 +208,22 @@ async function submitProject() {
         {{ bridgeAvailable ? `已连接 · ${totalSessions} 个会话` : "未连接 · 浏览器预览" }}
       </p>
       <div class="side-bottom-row">
-        <button class="icon-button" type="button" aria-label="设置" title="设置" @click="emit('open-settings')">
-          <Settings :size="20" :stroke-width="1.75" aria-hidden="true" />
-        </button>
-        <button
-          class="icon-button"
-          type="button"
-          :aria-label="theme === 'light' ? '切换到深色主题' : '切换到浅色主题'"
-          :title="theme === 'light' ? '切换到深色主题' : '切换到浅色主题'"
-          @click="emit('toggle-theme', $event)"
-        >
-          <Sun v-if="theme === 'dark'" :size="20" :stroke-width="1.75" aria-hidden="true" />
-          <Moon v-else :size="20" :stroke-width="1.75" aria-hidden="true" />
-        </button>
+        <AppTooltip text="设置">
+          <button class="icon-button" type="button" aria-label="设置" @click="emit('open-settings')">
+            <Settings :size="20" :stroke-width="1.75" aria-hidden="true" />
+          </button>
+        </AppTooltip>
+        <AppTooltip :text="theme === 'light' ? '切换到深色主题' : '切换到浅色主题'">
+          <button
+            class="icon-button"
+            type="button"
+            :aria-label="theme === 'light' ? '切换到深色主题' : '切换到浅色主题'"
+            @click="emit('toggle-theme', $event)"
+          >
+            <Sun v-if="theme === 'dark'" :size="20" :stroke-width="1.75" aria-hidden="true" />
+            <Moon v-else :size="20" :stroke-width="1.75" aria-hidden="true" />
+          </button>
+        </AppTooltip>
         <span class="workspace-label">本地工作区</span>
       </div>
     </div>
