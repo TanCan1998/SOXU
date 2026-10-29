@@ -324,6 +324,8 @@ code,
   --soxu-theme-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
   --soxu-theme-glow-delay: 30ms;
   --soxu-theme-glow-duration: 390ms;
+  --soxu-theme-ripple-delay: 420ms;
+  --soxu-theme-ripple-duration: 480ms;
 }
 
 html.soxu-theme-transition::view-transition-old(root),
@@ -352,15 +354,21 @@ html.soxu-theme-transition::view-transition-new(root) {
 }
 
 /*
- * 发光涟漪节点：position: fixed + popover 进入 top layer。
+ * 发光涟漪：0×0 的容器 + 两层圆圈，position: fixed + popover 进入 top layer。
  *
  * 注意：View Transitions 的快照画在 top layer 的最上层，popover 也压不过"旧快照"，
  * 只有落在已经揭开的新区域里才可见。所以光晕动画整体延后 --soxu-theme-glow-delay，
- * 保证它一直追在扩散边缘内侧；动画结束由 JS 移除节点。
+ * 保证它一直追在扩散边缘内侧。
+ *
+ * 两层分工（Issue #97）：
+ * - __edge 在扩散过程中追着边缘推进；
+ * - __ripple 在扩散抵达边界后才起跑（--soxu-theme-ripple-delay = 扩散时长），
+ *   此时 View Transitions 的伪元素已经销毁，水波才完整可见：沿边缘微微外扩、变淡、
+ *   然后由 JS 在淡出结束后移除整个容器。
  */
 .soxu-theme-glow {
   position: fixed;
-  /* 抵消 popover 的 UA 样式（inset: 0 + margin: auto），否则光晕盒子会被拉到视口中央 */
+  /* 抵消 popover 的 UA 样式（inset: 0 + margin: auto），否则容器会被拉到视口中央 */
   inset: auto;
   left: var(--soxu-theme-x);
   top: var(--soxu-theme-y);
@@ -369,9 +377,30 @@ html.soxu-theme-transition::view-transition-new(root) {
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 50%;
+  /* UA 给 popover 设了 overflow: auto，不放开会把两层圆圈裁成 0×0 */
+  overflow: visible;
   background: transparent;
   pointer-events: none;
+}
+
+.soxu-theme-glow::backdrop {
+  background: transparent;
+}
+
+/* 两层圆圈都以容器左上角（= 点击点）为圆心，靠 transform 居中 */
+.soxu-theme-glow__edge,
+.soxu-theme-glow__ripple {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* 边缘光晕：宽度按扩散半径线性放大，缓动与 clip-path 一致，光晕才贴在扩散边缘上 */
+.soxu-theme-glow__edge {
+  width: 0;
+  height: 0;
   transform: translate(-50%, -50%);
   box-shadow:
     0 0 12px 1px color-mix(in srgb, var(--soxu-accent) 72%, transparent),
@@ -380,11 +409,6 @@ html.soxu-theme-transition::view-transition-new(root) {
     var(--soxu-theme-glow-delay) forwards;
 }
 
-.soxu-theme-glow::backdrop {
-  background: transparent;
-}
-
-/* 宽度按扩散半径线性放大，缓动与 clip-path 一致，光晕才贴在扩散边缘上 */
 @keyframes soxu-theme-glow-expand {
   0% {
     width: 0;
@@ -400,5 +424,45 @@ html.soxu-theme-transition::view-transition-new(root) {
     width: calc(var(--soxu-theme-r) * 2);
     height: calc(var(--soxu-theme-r) * 2);
     opacity: 0;
+  }
+}
+
+/*
+ * 水波：只画边缘内侧的一条柔和光环（中间留空，不给整屏蒙雾），
+ * 淡出过程中略微外扩，读起来像水面残波收回去。
+ * 颜色只引用 --soxu-accent，深浅主题自动跟随。
+ */
+.soxu-theme-glow__ripple {
+  width: calc(var(--soxu-theme-r) * 2);
+  height: calc(var(--soxu-theme-r) * 2);
+  /*
+   * circle + closest-side：百分比按圆的半径算。
+   * radial-gradient 默认 farthest-corner，光环会被推到 1.41R 之外、整条落在视口外面（实测完全不可见）。
+   */
+  background: radial-gradient(
+    circle closest-side,
+    transparent 0 60%,
+    color-mix(in srgb, var(--soxu-accent) 58%, transparent) 72%,
+    transparent 84%
+  );
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.9);
+  animation: soxu-theme-ripple-wave var(--soxu-theme-ripple-duration) var(--soxu-theme-easing)
+    var(--soxu-theme-ripple-delay) both;
+}
+
+@keyframes soxu-theme-ripple-wave {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+
+  25% {
+    opacity: 0.85;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.08);
   }
 }
