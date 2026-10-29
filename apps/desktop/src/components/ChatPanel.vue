@@ -172,7 +172,7 @@ const runtimeHint = computed(() => {
 
 .chat-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 640;
   letter-spacing: -0.2px;
   max-width: 560px;
@@ -186,7 +186,7 @@ const runtimeHint = computed(() => {
   align-items: center;
   gap: 6px;
   margin: 6px 0 0;
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--soxu-muted);
 }
 
@@ -216,7 +216,7 @@ const runtimeHint = computed(() => {
   border: 1px solid var(--soxu-border);
   background: var(--soxu-panel);
   color: var(--soxu-fg);
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   font-weight: 560;
   transition:
     background-color var(--soxu-motion-fast) var(--soxu-motion-ease),
@@ -238,7 +238,7 @@ const runtimeHint = computed(() => {
   border-radius: 10px;
   background: var(--soxu-soft);
   color: var(--soxu-subtext);
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   line-height: 1.6;
 }
 
@@ -251,7 +251,7 @@ const runtimeHint = computed(() => {
   border-radius: 10px;
   background: color-mix(in srgb, var(--soxu-danger) 12%, transparent);
   color: var(--soxu-danger);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .error-text {
@@ -264,7 +264,7 @@ const runtimeHint = computed(() => {
   align-items: center;
   gap: 5px;
   color: var(--soxu-danger);
-  font-size: 12px;
+  font-size: 0.75rem;
   border: 1px solid color-mix(in srgb, var(--soxu-danger) 40%, transparent);
   border-radius: 999px;
   padding: 4px 10px;
@@ -297,7 +297,7 @@ const runtimeHint = computed(() => {
 
 .empty-chat h2 {
   margin: 6px 0 0;
-  font-size: 19px;
+  font-size: 1.1875rem;
   font-weight: 600;
   letter-spacing: -0.3px;
 }
@@ -305,7 +305,7 @@ const runtimeHint = computed(() => {
 .empty-chat p {
   margin: 0;
   max-width: 460px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   line-height: 1.9;
   color: var(--soxu-subtext);
 }

@@ -133,7 +133,7 @@ async function onKeydown(event: KeyboardEvent, index: number) {
   align-items: center;
   gap: 7px;
   padding: 7px 4px 7px 10px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--soxu-subtext);
   max-width: 220px;
 }
@@ -152,7 +152,7 @@ async function onKeydown(event: KeyboardEvent, index: number) {
 }
 
 .tab-tag {
-  font-size: 10px;
+  font-size: 0.625rem;
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--soxu-accent-soft);

@@ -189,7 +189,7 @@ function labelFor(message: ChatMessage): string {
 }
 
 .older {
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--soxu-subtext);
   border: 1px solid var(--soxu-border);
   border-radius: 999px;
@@ -203,7 +203,7 @@ function labelFor(message: ChatMessage): string {
 
 .evicted-note {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   color: var(--soxu-muted);
 }
 
@@ -238,7 +238,7 @@ function labelFor(message: ChatMessage): string {
 
 .message-label {
   margin: 0;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   letter-spacing: 0.3px;
   color: var(--soxu-muted);
 }
@@ -249,7 +249,12 @@ function labelFor(message: ChatMessage): string {
   border-radius: 14px;
   border: 1px solid var(--soxu-border);
   background: var(--soxu-panel);
-  font-size: 14px;
+  /*
+   * 正文字体走独立 token（Issue #98）：选「等宽」时界面变等宽，
+   * 会话正文仍然保持正文栈，长段落不会因为布局字体选择而变难读。
+   */
+  font-family: var(--soxu-font-family-body);
+  font-size: 0.875rem;
   line-height: 1.75;
   overflow-wrap: anywhere;
 }
@@ -262,8 +267,8 @@ function labelFor(message: ChatMessage): string {
 
 .message[data-role="tool"] .bubble,
 .message[data-role="other"] .bubble {
-  font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
-  font-size: 12px;
+  font-family: var(--soxu-font-family-mono);
+  font-size: 0.75rem;
   color: var(--soxu-subtext);
   background: var(--soxu-soft);
 }
@@ -275,7 +280,7 @@ function labelFor(message: ChatMessage): string {
 .partial {
   display: block;
   margin-top: 6px;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   color: var(--soxu-muted);
 }
 
@@ -300,7 +305,9 @@ function labelFor(message: ChatMessage): string {
   border-radius: 10px;
   background: var(--soxu-soft);
   padding: 8px 12px;
-  font-size: 12px;
+  /* 折叠块里的原始输出同样是代码，字体走等宽 token。 */
+  font-family: var(--soxu-font-family-mono);
+  font-size: 0.75rem;
   color: var(--soxu-subtext);
 }
 
