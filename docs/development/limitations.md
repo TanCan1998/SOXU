@@ -18,6 +18,9 @@
   （`.github/workflows/` 为受保护路径，需维护者批准后单独改动）。
 - 自动化需单机 Coordinator，异常中断不会强制回收全部 agent 子孙进程。AtomGit 自动同步优先交给平台自身配置。
 - 治理路径 guard、提示词规范和移除明文 token **不能替代 OS 沙箱**，生产使用请隔离执行账户。
+- 越权路径与敏感信息回归（P-08）只在 Windows 本机实机跑过：目录联接、`..` 穿越、越界读写、
+  凭据文件不进界面 DTO、提交门禁拦密钥均已验证；**文件符号链接因普通用户无权限而跳过**，
+  macOS/Linux 未实机验证。覆盖矩阵与平台差异见[越权与敏感信息回归](security-regression.md)。
 - 依赖可复现：`pnpm-lock.yaml`、`Cargo.lock` 已入库，CI 使用 `--frozen-lockfile` / `--locked`；
   `pnpm agent:doctor` 可离线核对它们与批准版本（见 [M0 退出证据与 M1 Windows 冒烟](m0-m1-exit-evidence.md)）。
 - Windows 启动与 Pi RPC 冒烟（P-02 协议层）已在实机跑过并留有原始报告，但

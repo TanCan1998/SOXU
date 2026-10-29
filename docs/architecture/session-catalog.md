@@ -8,6 +8,10 @@
 - Pi 拥有会话文件、格式与写入权；本 crate **只读** JSONL，从不写回、从不移动或删除用户的会话文件。
 - 运行中的 Pi 进程不与会话文件强绑定：文件可能被重命名、迁移、截断；进程可能早于或晚于文件存在。
 - 索引是可丢弃的缓存。任何不一致都选择重建，而不是把错误历史展示给 UI。
+- **隐式扫描有路径边界**：只有解析（`canonicalize`）后仍位于会话根目录内的 `.jsonl` 才进入索引。
+  指向根目录之外的符号链接 / 目录联接会被拒绝并列入 `SyncReport::rejected_paths`，
+  文件原样留在磁盘上。非默认布局用 `attach_session_file` 显式登记——那是用户主动选择，
+  不受隐式扫描边界限制（见[越权与敏感信息回归](../development/security-regression.md)）。
 
 ## 身份关系
 
@@ -170,6 +174,9 @@ Git 侧的枚举、创建与受确认删除见 [Git 工作树服务](worktree-se
 `oversized_line_is_skipped_with_bounded_memory`。
 **身份关系与错误码**：`error_codes_are_stable_and_specific`、`runtime_ownership_filters_stale_generations`、
 `worktrees_do_not_share_sessions`、`ids_and_index_survive_restart`，加上本文件。
+**越权路径**：`linked_session_file_outside_root_is_not_indexed`、
+`linked_session_directory_outside_root_is_not_indexed`、`attach_of_unregistered_worktree_is_rejected`、
+`project_registered_through_link_keeps_a_single_identity`。
 
 复现命令：
 

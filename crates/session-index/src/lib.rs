@@ -27,8 +27,8 @@ pub use entry::{
 };
 pub use error::{CatalogError, ErrorCode, Result};
 pub use identity::{
-    ProjectId, RuntimeId, RuntimeLink, SessionId, SessionIdentity, WorktreeId, normalize_path,
-    strip_verbatim,
+    ProjectId, RuntimeId, RuntimeLink, SessionId, SessionIdentity, WorktreeId, is_within,
+    normalize_path, strip_verbatim,
 };
 pub use index::{INLINE_ENTRY_BYTES, MAX_PAGE_BYTES, MAX_PAGE_ENTRIES, SessionLog, SessionPage};
 pub use records::{

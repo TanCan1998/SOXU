@@ -168,6 +168,22 @@ pub fn strip_verbatim(path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
+/// `candidate` 是否等于 `root` 或位于其下（按规范化字符串比较）。
+///
+/// 只做字符串比较，不碰文件系统：调用方必须先把两侧解析成真实路径，
+/// 否则符号链接 / 目录联接可以伪造包含关系（见 `ProjectCatalog::sync` 的扫描守门）。
+pub fn is_within(root: &Path, candidate: &Path) -> bool {
+    let root = normalize_path(root);
+    let candidate = normalize_path(candidate);
+    if root == candidate {
+        return true;
+    }
+    if root == "/" {
+        return candidate.starts_with('/');
+    }
+    candidate.starts_with(&format!("{root}/"))
+}
+
 pub(crate) fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -218,6 +234,16 @@ mod tests {
         let id = SessionId::from_header_id("../../etc/passwd");
         assert!(id.as_str().starts_with("ses_"));
         assert!(!id.as_str().contains('/'));
+    }
+
+    #[test]
+    fn containment_is_prefix_aware_and_not_fooled_by_siblings() {
+        assert!(is_within(Path::new("/work"), Path::new("/work/repo")));
+        assert!(is_within(Path::new("/work"), Path::new("/work")));
+        // 前缀相同但不是子目录：越权路径最容易被这种比较放过。
+        assert!(!is_within(Path::new("/work"), Path::new("/workshop/repo")));
+        assert!(!is_within(Path::new("/work"), Path::new("/work-secret/a")));
+        assert!(is_within(Path::new("/"), Path::new("/etc/passwd")));
     }
 
     #[test]
