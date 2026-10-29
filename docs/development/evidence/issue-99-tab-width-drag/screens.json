@@ -1,0 +1,1183 @@
+{
+  "generatedAt": "2026-10-29T10:22:08.903Z",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browser": "Edg/156.0.4314.50",
+  "widths": {
+    "1": {
+      "count": 1,
+      "widths": [
+        220
+      ],
+      "uniform": true,
+      "lefts": [
+        20
+      ],
+      "gaps": [],
+      "truncated": [
+        {
+          "client": 165,
+          "scroll": 165,
+          "ellipsis": "ellipsis"
+        }
+      ],
+      "selected": [
+        "true"
+      ],
+      "scrollWidth": 1208,
+      "clientWidth": 1208,
+      "scrollable": false,
+      "tabWidthVar": "220px",
+      "transitionProperty": "box-shadow, transform",
+      "order": [
+        "harness_ses_0"
+      ],
+      "active": "harness_ses_0"
+    },
+    "3": {
+      "count": 3,
+      "widths": [
+        220,
+        220,
+        220
+      ],
+      "uniform": true,
+      "lefts": [
+        20,
+        246,
+        472
+      ],
+      "gaps": [
+        6,
+        6
+      ],
+      "truncated": [
+        {
+          "client": 165,
+          "scroll": 165,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 165,
+          "scroll": 165,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 126,
+          "scroll": 126,
+          "ellipsis": "ellipsis"
+        }
+      ],
+      "selected": [
+        "true",
+        "false",
+        "false"
+      ],
+      "scrollWidth": 1208,
+      "clientWidth": 1208,
+      "scrollable": false,
+      "tabWidthVar": "220px",
+      "transitionProperty": "box-shadow, transform",
+      "order": [
+        "harness_ses_0",
+        "harness_ses_1",
+        "harness_ses_2"
+      ],
+      "active": "harness_ses_0"
+    },
+    "8": {
+      "count": 8,
+      "widths": [
+        145,
+        145,
+        145,
+        145,
+        145,
+        145,
+        145,
+        145
+      ],
+      "uniform": true,
+      "lefts": [
+        20,
+        171,
+        322,
+        473,
+        624,
+        775,
+        926,
+        1077
+      ],
+      "gaps": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "truncated": [
+        {
+          "client": 90,
+          "scroll": 150,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 90,
+          "scroll": 113,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 51,
+          "scroll": 126,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 90,
+          "scroll": 138,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 90,
+          "scroll": 113,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 90,
+          "scroll": 114,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 90,
+          "scroll": 100,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 90,
+          "scroll": 100,
+          "ellipsis": "ellipsis"
+        }
+      ],
+      "selected": [
+        "true",
+        "false",
+        "false",
+        "false",
+        "false",
+        "false",
+        "false",
+        "false"
+      ],
+      "scrollWidth": 1208,
+      "clientWidth": 1208,
+      "scrollable": false,
+      "tabWidthVar": "145px",
+      "transitionProperty": "box-shadow, transform",
+      "order": [
+        "harness_ses_0",
+        "harness_ses_1",
+        "harness_ses_2",
+        "harness_ses_3",
+        "harness_ses_4",
+        "harness_ses_5",
+        "harness_ses_6",
+        "harness_ses_7"
+      ],
+      "active": "harness_ses_0"
+    }
+  },
+  "narrow": {
+    "3": {
+      "count": 3,
+      "widths": [
+        177,
+        177,
+        177
+      ],
+      "uniform": true,
+      "lefts": [
+        20,
+        203,
+        386
+      ],
+      "gaps": [
+        6,
+        6
+      ],
+      "truncated": [
+        {
+          "client": 122,
+          "scroll": 150,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 122,
+          "scroll": 122,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 83,
+          "scroll": 126,
+          "ellipsis": "ellipsis"
+        }
+      ],
+      "selected": [
+        "true",
+        "false",
+        "false"
+      ],
+      "scrollWidth": 548,
+      "clientWidth": 548,
+      "scrollable": false,
+      "tabWidthVar": "177px",
+      "transitionProperty": "box-shadow, transform",
+      "order": [
+        "harness_ses_0",
+        "harness_ses_1",
+        "harness_ses_2"
+      ],
+      "active": "harness_ses_0"
+    },
+    "8": {
+      "count": 8,
+      "widths": [
+        96,
+        96,
+        96,
+        96,
+        96,
+        96,
+        96,
+        96
+      ],
+      "uniform": true,
+      "lefts": [
+        20,
+        122,
+        224,
+        326,
+        428,
+        530,
+        632,
+        734
+      ],
+      "gaps": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "truncated": [
+        {
+          "client": 41,
+          "scroll": 150,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 41,
+          "scroll": 113,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 41,
+          "scroll": 126,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 41,
+          "scroll": 138,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 41,
+          "scroll": 113,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 41,
+          "scroll": 114,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 41,
+          "scroll": 100,
+          "ellipsis": "ellipsis"
+        },
+        {
+          "client": 41,
+          "scroll": 100,
+          "ellipsis": "ellipsis"
+        }
+      ],
+      "selected": [
+        "true",
+        "false",
+        "false",
+        "false",
+        "false",
+        "false",
+        "false",
+        "false"
+      ],
+      "scrollWidth": 814,
+      "clientWidth": 548,
+      "scrollable": true,
+      "tabWidthVar": "96px",
+      "transitionProperty": "box-shadow, transform",
+      "order": [
+        "harness_ses_0",
+        "harness_ses_1",
+        "harness_ses_2",
+        "harness_ses_3",
+        "harness_ses_4",
+        "harness_ses_5",
+        "harness_ses_6",
+        "harness_ses_7"
+      ],
+      "active": "harness_ses_0",
+      "scrolledBy": 266
+    }
+  },
+  "mouseDragMid": {
+    "count": 8,
+    "widths": [
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145
+    ],
+    "uniform": true,
+    "lefts": [
+      513,
+      20,
+      173,
+      435,
+      624,
+      775,
+      926,
+      1077
+    ],
+    "gaps": [
+      -638,
+      8,
+      117,
+      44,
+      6,
+      6,
+      6
+    ],
+    "truncated": [
+      {
+        "client": 90,
+        "scroll": 150,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 51,
+        "scroll": 126,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 138,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 114,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      }
+    ],
+    "selected": [
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false"
+    ],
+    "scrollWidth": 1208,
+    "clientWidth": 1208,
+    "scrollable": false,
+    "tabWidthVar": "145px",
+    "transitionProperty": "none",
+    "order": [
+      "harness_ses_0",
+      "harness_ses_1",
+      "harness_ses_2",
+      "harness_ses_3",
+      "harness_ses_4",
+      "harness_ses_5",
+      "harness_ses_6",
+      "harness_ses_7"
+    ],
+    "active": "harness_ses_0",
+    "markers": 1,
+    "tooltips": []
+  },
+  "mouseDragAfter": {
+    "count": 8,
+    "widths": [
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145
+    ],
+    "uniform": true,
+    "lefts": [
+      20,
+      171,
+      322,
+      473,
+      624,
+      775,
+      926,
+      1077
+    ],
+    "gaps": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "truncated": [
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 51,
+        "scroll": 126,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 138,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 150,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 114,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      }
+    ],
+    "selected": [
+      "false",
+      "false",
+      "false",
+      "true",
+      "false",
+      "false",
+      "false",
+      "false"
+    ],
+    "scrollWidth": 1208,
+    "clientWidth": 1208,
+    "scrollable": false,
+    "tabWidthVar": "145px",
+    "transitionProperty": "box-shadow, transform",
+    "order": [
+      "harness_ses_1",
+      "harness_ses_2",
+      "harness_ses_3",
+      "harness_ses_0",
+      "harness_ses_4",
+      "harness_ses_5",
+      "harness_ses_6",
+      "harness_ses_7"
+    ],
+    "active": "harness_ses_0"
+  },
+  "touchDragMid": {
+    "count": 8,
+    "widths": [
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145
+    ],
+    "uniform": true,
+    "lefts": [
+      196,
+      171,
+      322,
+      473,
+      624,
+      775,
+      926,
+      1077
+    ],
+    "gaps": [
+      -170,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "truncated": [
+      {
+        "client": 90,
+        "scroll": 150,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 51,
+        "scroll": 126,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 138,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 114,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      }
+    ],
+    "selected": [
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false"
+    ],
+    "scrollWidth": 1208,
+    "clientWidth": 1208,
+    "scrollable": false,
+    "tabWidthVar": "145px",
+    "transitionProperty": "none",
+    "order": [
+      "harness_ses_0",
+      "harness_ses_1",
+      "harness_ses_2",
+      "harness_ses_3",
+      "harness_ses_4",
+      "harness_ses_5",
+      "harness_ses_6",
+      "harness_ses_7"
+    ],
+    "active": "harness_ses_0"
+  },
+  "touchDragAfter": {
+    "count": 8,
+    "widths": [
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145
+    ],
+    "uniform": true,
+    "lefts": [
+      20,
+      171,
+      322,
+      473,
+      624,
+      775,
+      926,
+      1077
+    ],
+    "gaps": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "truncated": [
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 150,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 51,
+        "scroll": 126,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 138,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 114,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      }
+    ],
+    "selected": [
+      "false",
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false"
+    ],
+    "scrollWidth": 1208,
+    "clientWidth": 1208,
+    "scrollable": false,
+    "tabWidthVar": "145px",
+    "transitionProperty": "box-shadow, transform",
+    "order": [
+      "harness_ses_1",
+      "harness_ses_0",
+      "harness_ses_2",
+      "harness_ses_3",
+      "harness_ses_4",
+      "harness_ses_5",
+      "harness_ses_6",
+      "harness_ses_7"
+    ],
+    "active": "harness_ses_0"
+  },
+  "belowThreshold": {
+    "count": 8,
+    "widths": [
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145
+    ],
+    "uniform": true,
+    "lefts": [
+      20,
+      171,
+      322,
+      473,
+      624,
+      775,
+      926,
+      1077
+    ],
+    "gaps": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "truncated": [
+      {
+        "client": 90,
+        "scroll": 150,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 51,
+        "scroll": 126,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 138,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 114,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      }
+    ],
+    "selected": [
+      "false",
+      "false",
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false"
+    ],
+    "scrollWidth": 1208,
+    "clientWidth": 1208,
+    "scrollable": false,
+    "tabWidthVar": "145px",
+    "transitionProperty": "box-shadow, transform",
+    "order": [
+      "harness_ses_0",
+      "harness_ses_1",
+      "harness_ses_2",
+      "harness_ses_3",
+      "harness_ses_4",
+      "harness_ses_5",
+      "harness_ses_6",
+      "harness_ses_7"
+    ],
+    "active": "harness_ses_2"
+  },
+  "closeThenDragMid": {
+    "markers": 1,
+    "dragging": 1,
+    "rectCount": 7
+  },
+  "closeThenDrag": {
+    "count": 7,
+    "widths": [
+      166,
+      166,
+      166,
+      166,
+      166,
+      166,
+      166
+    ],
+    "uniform": true,
+    "lefts": [
+      20,
+      192,
+      364,
+      536,
+      708,
+      880,
+      1052
+    ],
+    "gaps": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "truncated": [
+      {
+        "client": 72,
+        "scroll": 126,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 111,
+        "scroll": 138,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 111,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 111,
+        "scroll": 150,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 111,
+        "scroll": 114,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 111,
+        "scroll": 111,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 111,
+        "scroll": 111,
+        "ellipsis": "ellipsis"
+      }
+    ],
+    "selected": [
+      "false",
+      "false",
+      "false",
+      "true",
+      "false",
+      "false",
+      "false"
+    ],
+    "scrollWidth": 1208,
+    "clientWidth": 1208,
+    "scrollable": false,
+    "tabWidthVar": "166px",
+    "transitionProperty": "box-shadow, transform",
+    "order": [
+      "harness_ses_2",
+      "harness_ses_3",
+      "harness_ses_4",
+      "harness_ses_0",
+      "harness_ses_5",
+      "harness_ses_6",
+      "harness_ses_7"
+    ],
+    "active": "harness_ses_0"
+  },
+  "keyboard": {
+    "afterRight": {
+      "active": "harness_ses_1",
+      "focusedId": "soxu-tab-harness_ses_1",
+      "selected": [
+        "false",
+        "true",
+        "false"
+      ]
+    },
+    "afterLeft": {
+      "active": "harness_ses_0",
+      "focusedId": "soxu-tab-harness_ses_0",
+      "selected": [
+        "true",
+        "false",
+        "false"
+      ]
+    },
+    "afterDelete": {
+      "count": 2,
+      "active": "harness_ses_1"
+    }
+  },
+  "reducedMotion": {
+    "count": 8,
+    "widths": [
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145
+    ],
+    "uniform": true,
+    "lefts": [
+      473,
+      20,
+      171,
+      473,
+      624,
+      775,
+      926,
+      1077
+    ],
+    "gaps": [
+      -598,
+      6,
+      157,
+      6,
+      6,
+      6,
+      6
+    ],
+    "truncated": [
+      {
+        "client": 90,
+        "scroll": 150,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 51,
+        "scroll": 126,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 138,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 114,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      }
+    ],
+    "selected": [
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false"
+    ],
+    "scrollWidth": 1208,
+    "clientWidth": 1208,
+    "scrollable": false,
+    "tabWidthVar": "145px",
+    "transitionProperty": "none",
+    "order": [
+      "harness_ses_0",
+      "harness_ses_1",
+      "harness_ses_2",
+      "harness_ses_3",
+      "harness_ses_4",
+      "harness_ses_5",
+      "harness_ses_6",
+      "harness_ses_7"
+    ],
+    "active": "harness_ses_0"
+  },
+  "reducedMotionAfter": {
+    "count": 8,
+    "widths": [
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145,
+      145
+    ],
+    "uniform": true,
+    "lefts": [
+      20,
+      171,
+      322,
+      473,
+      624,
+      775,
+      926,
+      1077
+    ],
+    "gaps": [
+      6,
+      6,
+      6,
+      6,
+      6,
+      6,
+      6
+    ],
+    "truncated": [
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 51,
+        "scroll": 126,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 150,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 138,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 113,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 114,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      },
+      {
+        "client": 90,
+        "scroll": 100,
+        "ellipsis": "ellipsis"
+      }
+    ],
+    "selected": [
+      "false",
+      "false",
+      "true",
+      "false",
+      "false",
+      "false",
+      "false",
+      "false"
+    ],
+    "scrollWidth": 1208,
+    "clientWidth": 1208,
+    "scrollable": false,
+    "tabWidthVar": "145px",
+    "transitionProperty": "none",
+    "order": [
+      "harness_ses_1",
+      "harness_ses_2",
+      "harness_ses_0",
+      "harness_ses_3",
+      "harness_ses_4",
+      "harness_ses_5",
+      "harness_ses_6",
+      "harness_ses_7"
+    ],
+    "active": "harness_ses_0"
+  },
+  "appTooltip": [
+    {
+      "text": "侧栏 (Ctrl+B)侧栏 (Ctrl+B)",
+      "state": "delayed-open"
+    }
+  ],
+  "appTooltipAfterLeave": 0
+}
