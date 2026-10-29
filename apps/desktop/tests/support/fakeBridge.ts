@@ -17,6 +17,7 @@ import type {
   RuntimeStarted,
   PromotedSession,
   RuntimeStatus,
+  SendPromptOptions,
   SessionId,
   SessionMode,
   TemporarySessionView,
@@ -263,8 +264,13 @@ export class FakeBridge implements WorkspaceBridge {
     return true;
   }
 
-  async sendPrompt(sessionId: SessionId, text: string): Promise<void> {
-    this.calls.push({ method: "sendPrompt", args: [sessionId, text] });
+  async sendPrompt(
+    sessionId: SessionId,
+    text: string,
+    options?: SendPromptOptions,
+  ): Promise<void> {
+    // options 原样记录：V4-S1 的断言要确认 mode/thinking 确实走到了 bridge 这一层。
+    this.calls.push({ method: "sendPrompt", args: [sessionId, text, options] });
   }
 
   async cancelRuntime(sessionId: SessionId): Promise<void> {

@@ -276,6 +276,28 @@ export interface WorktreeState {
   pruning: boolean;
 }
 
+/**
+ * 发送投递方式（V4-S1，Issue #111）。
+ *
+ * 三个内部名沿用 PiDeck（`docs/design/UIUX/V4/interaction-decisions.md` 第一节）：
+ * - steer：插入正在进行的回答（仅 agent 忙碌时有意义）；
+ * - followUp：本轮结束后自动发送（总是可用）；
+ * - parallel：独立会话后台处理，不打断当前输出。
+ *
+ * 本切片只做 UI 与参数管道：运行时语义（注入/排队/并行会话）由后续切片实现，
+ * 后端目前接受参数但不改变行为。
+ */
+export type SendMode = "steer" | "followUp" | "parallel";
+
+/** 思考强度（`send_prompt` 的可选参数，本切片同样只做管道）。 */
+export type ThinkingLevel = "low" | "medium" | "high";
+
+/** `send_prompt` 的可选参数；省略即后端默认行为。 */
+export interface SendPromptOptions {
+  mode?: SendMode;
+  thinking?: ThinkingLevel;
+}
+
 /** 视图使用的最小白名单：Tauri 实现之外，测试与浏览器预览都可以替换它。 */
 export interface WorkspaceBridge {
   listProjects(): Promise<ProjectSummary[]>;
@@ -292,7 +314,8 @@ export interface WorkspaceBridge {
   promoteSession(sessionId: SessionId): Promise<PromotedSession>;
   /** 结束临时会话：幂等，不删除 Pi 的会话文件。返回是否命中。 */
   discardTemporarySession(sessionId: SessionId): Promise<boolean>;
-  sendPrompt(sessionId: SessionId, text: string): Promise<void>;
+  /** 发送一条消息；`options.mode` / `options.thinking` 由后端接收但暂不改变行为。 */
+  sendPrompt(sessionId: SessionId, text: string, options?: SendPromptOptions): Promise<void>;
   cancelRuntime(sessionId: SessionId): Promise<void>;
   stopRuntime(sessionId: SessionId): Promise<void>;
   runtimeStatus(sessionId: SessionId): Promise<RuntimeStatus | null>;

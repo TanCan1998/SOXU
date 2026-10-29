@@ -9,6 +9,7 @@ import SessionTabs from "./components/SessionTabs.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import WorktreeDialog from "./components/WorktreeDialog.vue";
 import { useAppearance } from "./composables/useAppearance.ts";
+import { useBusyDelivery } from "./composables/useBusyDelivery.ts";
 import { useProjectDirectoryPick } from "./composables/useProjectDirectoryPick.ts";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
@@ -28,7 +29,12 @@ import {
   recordVisit,
   type SessionHistory,
 } from "./workspace/sessionHistory.ts";
-import type { CreateWorktreeInput, SessionId, WorktreeId } from "./workspace/types.ts";
+import type {
+  CreateWorktreeInput,
+  SendMode,
+  SessionId,
+  WorktreeId,
+} from "./workspace/types.ts";
 
 const store = useWorkspaceStore();
 const info = ref<RuntimeInfo | null>(null);
@@ -43,6 +49,8 @@ const theme = ref<ThemeName>(resolveInitialTheme());
  * 这里接管后续修改、持久化与 DOM 落地。
  */
 const { appearance, setFontSize, setFontFamily } = useAppearance();
+/** 设置 → 会话 → 忙碌时发送的默认投递方式（V4-S1）。 */
+const { busyDelivery, setBusyDelivery } = useBusyDelivery();
 const {
   picking: pickingProject,
   pickError: pickProjectError,
@@ -205,10 +213,14 @@ function closeTab(sessionId: SessionId) {
   void store.closeTab(sessionId);
 }
 
-function send(text: string) {
+/**
+ * 发送消息：`mode` 是 composer 三选菜单的选择（null = 按默认投递）。
+ * 本切片把 mode 作为参数传给后端管道，运行时语义（注入/排队/并行会话）由后续切片实现。
+ */
+function send(payload: { text: string; mode: SendMode | null }) {
   const tab = activeTab.value;
   if (!tab) return;
-  void store.send(tab.sessionId, text);
+  void store.send(tab.sessionId, payload.text, payload.mode ? { mode: payload.mode } : undefined);
 }
 
 function cancel() {
@@ -404,6 +416,7 @@ onUnmounted(() => {
         :tab="activeTab"
         :bridge-available="store.bridgeAvailable"
         :busy="store.busy"
+        :default-delivery="busyDelivery"
         @send="send"
         @cancel="cancel"
         @stop="stop"
@@ -482,12 +495,14 @@ onUnmounted(() => {
       :theme="theme"
       :font-size="appearance.fontSize"
       :font-family="appearance.fontFamily"
+      :busy-delivery="busyDelivery"
       :info="info"
       :bridge-available="store.bridgeAvailable"
       @close="settingsOpen = false"
       @update:theme="(value: ThemeName) => void setTheme(value)"
       @update:fontSize="setFontSize"
       @update:fontFamily="setFontFamily"
+      @update:busyDelivery="setBusyDelivery"
     />
   </div>
 </template>

@@ -20,6 +20,7 @@ import {
   type HistoryPage,
   type ProjectId,
   type RuntimeEvent,
+  type SendPromptOptions,
   type SessionId,
   type SessionMode,
   type SessionTab,
@@ -347,7 +348,19 @@ export class WorkspaceSession {
     }
   }
 
-  async sendPrompt(sessionId: SessionId, text: string): Promise<void> {
+  /**
+   * 发送一条消息。
+   *
+   * `options.mode` / `options.thinking` 只作为参数管道透传给后端（V4-S1）：
+   * 后端目前接受并校验这两个字段，但不改变投递行为——注入/排队/并行会话
+   * 属于后续切片，这里不能提前把「忙碌时发送」当成已生效。
+   * 因此忙碌（running/cancelling/loading）时仍然直接返回，草稿保留在 Tab 上。
+   */
+  async sendPrompt(
+    sessionId: SessionId,
+    text: string,
+    options?: SendPromptOptions,
+  ): Promise<void> {
     const tab = this.tab(sessionId);
     const content = text.trim();
     if (!tab || this.disposed || !content) return;
@@ -374,7 +387,7 @@ export class WorkspaceSession {
     tab.status = "running";
     tab.error = null;
     try {
-      await this.bridge.sendPrompt(tab.sessionId, content);
+      await this.bridge.sendPrompt(tab.sessionId, content, options);
     } catch (error) {
       if (this.disposed) return;
       tab.status = "error";

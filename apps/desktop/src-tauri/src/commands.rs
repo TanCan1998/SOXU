@@ -8,8 +8,8 @@ use tauri::{AppHandle, State};
 
 use crate::dto::{
     CreateWorktreeInput, EntryRefInput, EntryText, HistoryPage, ProjectSummary, PromotedSession,
-    RuntimeStarted, RuntimeStatus, TemporarySessionView, WorktreeDiffView, WorktreeRemovalView,
-    WorktreeSummary, WorktreeWorkspace,
+    PromptMode, RuntimeStarted, RuntimeStatus, TemporarySessionView, ThinkingLevel,
+    WorktreeDiffView, WorktreeRemovalView, WorktreeSummary, WorktreeWorkspace,
 };
 use crate::session_runtime;
 use crate::state::AppState;
@@ -175,12 +175,23 @@ pub async fn start_session(
     session_runtime::start(&app, state.inner(), &session_id, temporary.unwrap_or(false)).await
 }
 
+/// 发送一条消息。
+///
+/// `mode` 与 `thinking` 是 V4-S1 新增的可选参数（Issue #111）：
+/// 命令层接收并校验取值（非法值由 serde 直接报错），但**不改变行为**——
+/// 注入当前回合 / 排队到下一轮 / 并行会话的运行时语义属于后续切片。
+/// 旧前端不传这两个字段时按 `None` 处理，行为与改动前完全一致。
 #[tauri::command]
 pub async fn send_prompt(
     state: State<'_, AppState>,
     session_id: String,
     text: String,
+    mode: Option<PromptMode>,
+    thinking: Option<ThinkingLevel>,
 ) -> Result<(), String> {
+    // 显式消费两个参数：既让「参数已接通但未生效」这件事留在代码里，
+    // 也避免编译器对未使用参数告警。
+    let _ = (mode, thinking);
     session_runtime::prompt(state.inner(), &session_id, &text).await
 }
 

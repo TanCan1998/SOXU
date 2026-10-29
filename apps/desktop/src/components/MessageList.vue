@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
+import MarkdownContent from "./MarkdownContent.vue";
+import MessageActions from "./MessageActions.vue";
 import type { ChatMessage, HistoryCursor } from "../workspace/types.ts";
 import {
   MESSAGE_OVERSCAN_ROWS,
@@ -84,6 +86,23 @@ function measure(element: unknown) {
   });
 }
 
+/** 用户与 agent 的消息按 markdown 渲染（V4-S1）：代码块、行内 code、表格、引用。 */
+function isRichRole(message: ChatMessage | undefined): boolean {
+  return message?.role === "user" || message?.role === "assistant";
+}
+
+/** 工具输出超过这个长度就折叠：展开前不占滚动高度。 */
+const TOOL_FOLD_CHARS = 360;
+
+function isFoldedTool(message: ChatMessage | undefined): boolean {
+  return message?.role === "tool" && (message.text.length ?? 0) > TOOL_FOLD_CHARS;
+}
+
+/** 只有 agent 消息有 hover 操作（复制/重试/回退），且必须真的有正文。 */
+function showsActions(message: ChatMessage | undefined): boolean {
+  return message?.role === "assistant" && (message.text?.length ?? 0) > 0;
+}
+
 function labelFor(message: ChatMessage): string {
   switch (message.role) {
     case "user":
@@ -146,25 +165,33 @@ function labelFor(message: ChatMessage): string {
             :data-role="messages[item.index]?.role"
           >
             <p class="message-label">{{ labelFor(messages[item.index]!) }}</p>
-            <details
-              v-if="messages[item.index]?.role === 'tool' && (messages[item.index]?.text.length ?? 0) > 360"
-              class="tool-block"
-            >
+            <details v-if="isFoldedTool(messages[item.index])" class="tool-block">
               <summary>展开工具输出</summary>
               <pre>{{ messages[item.index]?.text }}</pre>
             </details>
-            <div v-else class="bubble">
-              <span class="text">{{ messages[item.index]?.text || "（空内容）" }}</span>
-              <span v-if="messages[item.index]?.partial" class="partial">预览，正文未载入</span>
-              <span v-if="messages[item.index]?.truncated" class="partial">
-                正文超过单条上限，已截断
-              </span>
-              <span
-                v-if="messages[item.index]?.streaming"
-                class="streaming"
-                aria-hidden="true"
-              ></span>
-            </div>
+            <template v-else>
+              <div class="bubble">
+                <MarkdownContent
+                  v-if="isRichRole(messages[item.index]) && messages[item.index]?.text"
+                  :text="messages[item.index]?.text ?? ''"
+                  :streaming="messages[item.index]?.streaming ?? false"
+                />
+                <span v-else class="text">{{ messages[item.index]?.text || "（空内容）" }}</span>
+                <span v-if="messages[item.index]?.partial" class="partial">预览，正文未载入</span>
+                <span v-if="messages[item.index]?.truncated" class="partial">
+                  正文超过单条上限，已截断
+                </span>
+                <span
+                  v-if="messages[item.index]?.streaming"
+                  class="streaming"
+                  aria-hidden="true"
+                ></span>
+              </div>
+              <MessageActions
+                v-if="showsActions(messages[item.index])"
+                :text="messages[item.index]?.text ?? ''"
+              />
+            </template>
           </article>
         </div>
       </div>
@@ -263,6 +290,22 @@ function labelFor(message: ChatMessage): string {
   background: var(--soxu-accent-soft);
   border-color: transparent;
   max-width: 86%;
+}
+
+/*
+ * agent 消息不套气泡（V4 原型 msg-agent）：直接排版更好读长文，
+ * 也让 markdown 里的代码块/表格能占满可用宽度。
+ */
+.message[data-role="assistant"] .bubble {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+/* hover 或键盘聚焦时露出消息操作，静止时不抢注意力（原型 .msg:hover .msg-actions）。 */
+.message:hover :deep(.message-actions),
+.message:focus-within :deep(.message-actions) {
+  opacity: 1;
 }
 
 .message[data-role="tool"] .bubble,
