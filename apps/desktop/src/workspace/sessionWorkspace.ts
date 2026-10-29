@@ -12,6 +12,7 @@
 
 import {
   HISTORY_PAGE_SIZE,
+  MAX_MESSAGE_CHARS,
   createWorkspaceState,
   type ChatMessage,
   type EntryRef,
@@ -27,8 +28,10 @@ import {
   type WorkspaceState,
 } from "./types.ts";
 import {
+  capText,
   deltaText,
   describeError,
+  enforceMessageWindow,
   finalizeStreaming,
   mergeHistory,
   pushDiagnostic,
@@ -57,7 +60,7 @@ export function createTab(meta: SessionMeta): SessionTab {
     status: "idle",
     error: null,
     messages: [],
-    history: { loaded: 0, total: 0, next: null, loading: false },
+    history: { loaded: 0, total: 0, next: null, loading: false, evicted: 0, evictedLive: 0 },
     runtime: { runtimeId: null, generation: 0, state: "idle", exitReason: null, retry: null },
     draft: "",
     diagnostics: [],
@@ -265,7 +268,7 @@ export class WorkspaceSession {
       }
       // 转正后以持久化历史为准：先清掉实时回显，避免同一句话出现两次。
       tab.messages = [];
-      tab.history = { loaded: 0, total: 0, next: null, loading: false };
+      tab.history = { loaded: 0, total: 0, next: null, loading: false, evicted: 0, evictedLive: 0 };
       await this.bridge.retainSession(promoted.sessionId);
       await this.release(previousId);
       await this.loadPage(tab, 0);
@@ -324,16 +327,20 @@ export class WorkspaceSession {
       if (!tab.runtime.runtimeId) return; // 启动失败：保留草稿，由 UI 展示错误
     }
     tab.draft = "";
+    const prompt = capText(content);
     tab.messages.push({
       id: `live:${tab.runtime.generation}:${++liveSeq}`,
       ordinal: null,
       role: "user",
-      text: content,
+      text: prompt.text,
       partial: false,
       streaming: false,
       source: "live",
       createdAt: new Date().toISOString(),
+      ...(prompt.truncated ? { truncated: true } : {}),
     });
+    // 实时追加同样受窗口约束：连续多轮对话不能绕开 MAX_TAB_LIVE_MESSAGES 无限增长。
+    enforceMessageWindow(tab);
     tab.status = "running";
     tab.error = null;
     try {
@@ -516,9 +523,12 @@ export class WorkspaceSession {
         const message = tab.messages.find(
           (candidate) => candidate.id === `${tab.sessionId}:h:${item.ordinal}`,
         );
+        // 窗口可能已经把这条历史释放掉：迟到正文不写状态，也不新建消息。
         if (!message) continue;
-        message.text = item.text;
+        const capped = capText(item.text);
+        message.text = capped.text;
         message.partial = item.clipped;
+        if (capped.truncated) message.truncated = true;
       }
     } catch (error) {
       tab.diagnostics = pushDiagnostic(tab, `正文读取失败：${describeError(error)}`);
@@ -556,18 +566,35 @@ function applyStream(tab: SessionTab, event: Extract<RuntimeEvent, { type: "stre
   if (!delta) return;
   const last = tab.messages.at(-1);
   if (last && last.role === "assistant" && last.streaming) {
-    last.text += delta;
+    // 有界追加：一条超长流式输出（例如整份文件）不能无上限地长在内存里。
+    // 到顶后直接丢弃后续增量，避免每个 token 都重新切片一次 20k 字符。
+    if (last.text.length >= MAX_MESSAGE_CHARS) {
+      last.truncated = true;
+      return;
+    }
+    const merged = last.text + delta;
+    if (merged.length > MAX_MESSAGE_CHARS) {
+      last.text = capText(merged).text;
+      last.truncated = true;
+      return;
+    }
+    last.text = merged;
     return;
   }
+  const capped = capText(delta);
   const message: ChatMessage = {
     id: `live:${tab.runtime.generation}:${++liveSeq}`,
     ordinal: null,
     role: "assistant",
-    text: delta,
+    text: capped.text,
     partial: false,
     streaming: true,
     source: "live",
     createdAt: null,
+    ...(capped.truncated ? { truncated: true } : {}),
   };
   tab.messages.push(message);
+  // 只在「新消息」边界收敛窗口，不在每个 token 上重复扫描；
+  // 刚 push 的这条正在流式，enforceMessageWindow 保证它不会被释放。
+  enforceMessageWindow(tab);
 }

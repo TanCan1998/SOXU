@@ -100,6 +100,14 @@ Tauri 命令 (commands.rs) → workspace.rs / session_runtime.rs
 4. `next === null` 表示到底；`loadMore` 在到底或加载中时不再请求。
 5. 用户消息会由 Pi 写入 JSONL；页面重新加载历史后，本地乐观回显若与历史条目角色相同且
    历史文本是其前缀，则被移除，避免重复。
+6. **窗口化缓存**：每个 Tab 最多保留 240 条历史、120 条实时消息、2,000,000 历史字符
+   （`workspace/types.ts`）。合并历史页与**新增实时消息**（用户发问、新的流式回复）之后都会
+   收敛窗口，释放**最旧**的消息（正在流式的最后一条永不释放）：历史释放记在 `history.evicted`、
+   实时释放记在 `history.evictedLive`，界面与检查器如实显示；Pi 的会话文件不受影响。
+7. 单条正文超过 20,000 字符时截断并标记 `truncated`（后端 `clipped` + 前端 `capText` 双保险），
+   流式增量到顶后丢弃后续增量，不再无限增长。
+
+细节、实测数字与未验证项见[长会话虚拟列表与 5 万事件回归](long-session-virtual-list.md)。
 
 ## 6. 临时会话生命周期与转正
 
@@ -164,6 +172,7 @@ cargo fmt --all -- --check
 | --- | --- |
 | 多 Tab 并发事件不串线、迟到 generation 丢弃 | `tests/multiTabEvents.test.ts`（2 个 Tab 交错流式、串名 runtimeId、过期 generation） |
 | 历史恢复、分页去重、正文补齐、错误重试 | `tests/historyRestore.test.ts` |
+| 长会话：首屏只读一页、窗口上限、DOM 行数、长输出截断 | `tests/longSession.test.ts`（50,000 条夹具，见[长会话虚拟列表](long-session-virtual-list.md)） |
 | 取消幂等、取消失败回滚 | `tests/cancelAndDispose.test.ts` |
 | 卸载时释放监听器与订阅、卸载后不写状态 | `tests/cancelAndDispose.test.ts`（`dispose`、在途历史响应） |
 | Tab 状态必须经 Vue 响应式代理更新 | `tests/storeReactivity.test.ts`（`watch` 能观察到 loading → ready → idle） |
@@ -244,6 +253,23 @@ cargo fmt --all -- --check
 - `automation/loop` 的 dashboard 测试在本机因 Windows 临时目录 `EBUSY` 失败；该失败与本次改动
   无关（未修改 `automation/`），需在 CI 或干净环境复核。
 
+### 长会话虚拟列表（Issue #36，2026-10-29）
+
+本机实测（Windows 11 / Node 26.10.0 / pnpm 12.15.0），详细数据见
+[长会话虚拟列表与 5 万事件回归](long-session-virtual-list.md)：
+
+| 命令 | 结果 |
+| --- | --- |
+| `pnpm --filter @soxu/desktop test` | 51 例通过（新增 `tests/longSession.test.ts` 6 例，50,000 条夹具） |
+| `node --expose-gc tests/perf/longSessionMemory.mjs` | 首屏 heapUsed 8.9 MiB；翻 25 页后 9.8 MiB（保留 240 条）；对照保留全部 5 万条预览 218.8 MiB |
+| `moli fetch --layout --eval-file tests/harness/measure-dom.js`（Chromium 开发服务器） | 240 条与 50,000 条都渲染 15 行 / 89 个节点；滚到底部渲染 49,983..49,999 |
+
+同时修复了一个真实缺陷：Vue 在元素进入布局前调用 `ref` 回调，测量到的 0 被 tanstack 写入尺寸缓存
+且不会自愈，导致所有行叠在 0 位置、滚动高度错乱。现在只测量高度大于 0 的元素。
+
+**未验证（Issue #36）**：Tauri WebView2/WKWebView/WebKitGTK 实机、macOS/Linux、真实 5 万事件
+JSONL 会话、滚动帧率与 WebView 进程 RSS。
+
 ## 10. 已知限制
 
 1. 会话标题取首条用户消息的预览（≤44 字符），Pi 会话没有显式标题字段时回退到文件名。
@@ -261,6 +287,11 @@ cargo fmt --all -- --check
 7. 索引快照由 `soxu-session-index` 维护，SOXU 不订阅文件系统事件；实时性取决于刷新时机。
 8. `list_projects` 首次会为每个会话读取首页并在有界页面里找首条用户消息作为标题（结果缓存）；
    会话数量很多时首次加载会明显变慢，后续可改为在扫描阶段提取标题。
+9. 分页方向仍是「从最早一条往后」：打开长会话先看到最早一页，按钮是「加载更多历史」；
+   尾部分页需要后端提供 `prev`/尾部偏移，尚未实现（见
+   [长会话虚拟列表](long-session-virtual-list.md) 第 6 节）。
+10. Tab 窗口释放后的更早消息不会自动回补：要么关闭并重新打开 Tab（重新从第 0 页加载），
+   要么等尾部分页/按需回补实现。
 
 ## 相关文档
 

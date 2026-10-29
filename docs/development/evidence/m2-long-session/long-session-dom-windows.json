@@ -1,0 +1,86 @@
+{
+  "issue": 36,
+  "task": "P-04 长会话：虚拟列表 DOM 规模",
+  "generatedAt": "2026-10-29T03:17:05.000Z",
+  "environment": {
+    "os": "Windows 11 (10.0.26300)",
+    "browser": "Moli fetch --layout（Chromium 内核，1920×1080 视口）",
+    "node": "v26.10.0",
+    "note": "开发服务器 + 测试夹具页，不是 Tauri WebView，也不是实机验收"
+  },
+  "fixture": {
+    "page": "apps/desktop/tests/harness/long-session.html",
+    "entry": "apps/desktop/tests/harness/long-session.ts",
+    "measure": "apps/desktop/tests/harness/measure-dom.js",
+    "messageSource": "tests/support/longSession.ts（确定性生成，非真实会话）",
+    "rowEstimatePx": 96,
+    "overscanRows": 6
+  },
+  "steps": [
+    "pnpm --filter @soxu/desktop dev",
+    "moli fetch --layout --wait-selector \".virtual-row\" --eval-file tests/harness/measure-dom.js \"http://127.0.0.1:1420/tests/harness/long-session.html?count=240\"",
+    "moli fetch --layout --wait-selector \".virtual-row\" --eval-file tests/harness/measure-dom.js \"http://127.0.0.1:1420/tests/harness/long-session.html?count=50000\"",
+    "moli fetch --layout --wait-selector \".virtual-row\" --eval-file tests/harness/measure-dom.js \"http://127.0.0.1:1420/tests/harness/long-session.html?count=50000&scroll=end\""
+  ],
+  "results": [
+    {
+      "case": "窗口上限 240 条（应用真实保留规模），顶部",
+      "requested": 240,
+      "renderedRows": 15,
+      "domNodes": 89,
+      "firstIndex": 0,
+      "lastIndex": 14,
+      "rowHeightsPx": [
+        134,
+        134,
+        134
+      ],
+      "canvasHeightPx": 23695,
+      "scrollTop": 0,
+      "scrollHeight": 23068,
+      "clientHeight": 1080
+    },
+    {
+      "case": "50,000 条（P-04 规模），顶部",
+      "requested": 50000,
+      "renderedRows": 15,
+      "domNodes": 89,
+      "firstIndex": 0,
+      "lastIndex": 14,
+      "rowHeightsPx": [
+        134,
+        134,
+        134
+      ],
+      "canvasHeightPx": 4800660,
+      "scrollTop": 0,
+      "scrollHeight": 4800028,
+      "clientHeight": 1080
+    },
+    {
+      "case": "50,000 条，滚到底部（验证尾部定位）",
+      "requested": 50000,
+      "renderedRows": 17,
+      "domNodes": 99,
+      "firstIndex": 49983,
+      "lastIndex": 49999,
+      "canvasHeightPx": 4800000,
+      "scrollTop": 4798948,
+      "scrollHeight": 4800028,
+      "clientHeight": 1080
+    }
+  ],
+  "observations": [
+    "DOM 行数与消息总数无关：240 条与 50,000 条都是 15 行 / 89 个节点。",
+    "canvasHeight 随实测行高在两次采样间有 ±40px 波动（23733 vs 23695），行数与节点数稳定，属正常测量噪声。",
+    "滚动到底部后渲染的是最后 17 条（49,983..49,999），说明尾部定位可用。",
+    "行高由 measureElement 实测（夹具行约 134px），首次渲染的估算值只影响滚动条长度。",
+    "该夹具暴露并修复了一个真实缺陷：Vue 在元素进入布局前就调用 ref 回调，测量到的 0 会被 tanstack 写入尺寸缓存且不会自愈，导致所有行叠在 0 位置。修复后首帧只测量高度大于 0 的元素。"
+  ],
+  "limitations": [
+    "不是 Tauri WebView2/WKWebView/WebKitGTK 的实测：Chromium 开发服务器与桌面端内核不同。",
+    "只测 DOM 规模与行定位，未测滚动帧率、合成层内存与 WebView 进程 RSS。",
+    "夹具行高固定（约 134px），真实会话里长工具输出与 Markdown 混排的行高分布更宽。",
+    "macOS/Linux 未验证。"
+  ]
+}

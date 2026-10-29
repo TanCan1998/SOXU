@@ -9,6 +9,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "check": "vue-tsc --noEmit",
     "test": "node --test tests/*.test.ts",
+    "perf:long-session": "node --expose-gc tests/perf/longSessionMemory.mjs",
     "tauri": "tauri"
   },
   "dependencies": {
