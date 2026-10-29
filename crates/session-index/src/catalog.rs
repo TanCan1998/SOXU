@@ -20,6 +20,7 @@ use crate::records::{
 };
 use crate::snapshot::{CATALOG_SCHEMA_VERSION, RebuildReason, SnapshotLoad};
 use crate::store;
+use crate::temporary::TemporaryRegistry;
 
 /// 目录配置：Pi 会话根目录通常来自默认布局，也可显式覆盖。
 #[derive(Debug, Clone, Default)]
@@ -70,25 +71,32 @@ pub struct SyncReport {
     /// 越出会话根目录、被拒绝索引的候选文件（P-08：符号链接 / 目录联接指向外部）。
     /// 拒绝是可见的：文件原样留在磁盘上，只记入报告。
     pub rejected_paths: Vec<String>,
+    /// 已绑定到临时会话、因此被挡在普通历史之外的文件（临时会话不是历史）。
+    pub temporary_skipped: Vec<String>,
     pub warnings: usize,
 }
 
-struct Upsert {
-    record: SessionRecord,
+pub(crate) struct Upsert {
+    pub(crate) record: SessionRecord,
     report: crate::snapshot::ScanReport,
     load_accepted: bool,
     is_new: bool,
     relocation: Option<Relocation>,
-    duplicate: Option<String>,
+    pub(crate) duplicate: Option<String>,
 }
 
 pub struct ProjectCatalog {
     store: PathBuf,
-    index_dir: PathBuf,
+    /// 索引快照目录；临时会话的分页复用同一套缓存（见 temporary.rs）。
+    pub(crate) index_dir: PathBuf,
     sessions_root: Option<PathBuf>,
     snapshot: CatalogSnapshot,
+    /// 临时会话的内存登记表：**不属于 snapshot**，永远不会被序列化。
+    pub(crate) temporary: TemporaryRegistry,
     dirty: bool,
     load_warning: bool,
+    /// 本次打开时清理掉的上一进程运行时挂载数量（崩溃遗留，不是历史）。
+    recovered_stale_runtimes: usize,
 }
 
 impl ProjectCatalog {
@@ -101,7 +109,7 @@ impl ProjectCatalog {
         let directory = state_dir.as_ref().to_path_buf();
         let store_path = directory.join("catalog.json");
         let mut load_warning = false;
-        let snapshot = match store::read_json::<CatalogSnapshot>(&store_path) {
+        let mut snapshot = match store::read_json::<CatalogSnapshot>(&store_path) {
             Ok(Some(snapshot)) if snapshot.schema == CATALOG_SCHEMA_VERSION => snapshot,
             Ok(Some(_)) => {
                 load_warning = true;
@@ -114,14 +122,25 @@ impl ProjectCatalog {
                 CatalogSnapshot::default()
             }
         };
+        // 崩溃遗留的运行时挂载必须在这里清掉：上一进程的 Pi 已经不存在，
+        // 留着它会让 UI 显示一个「仍在运行」的幽灵运行时，并让旧事件有机会被放行。
+        // 水位继续递增，因此上一代的事件在重启后依旧被丢弃。
+        let recovered_stale_runtimes = clear_stale_runtimes(&mut snapshot);
         Ok(Self {
             store: store_path,
             index_dir: directory.join("indexes"),
             sessions_root: config.sessions_root,
             snapshot,
-            dirty: load_warning,
+            temporary: TemporaryRegistry::default(),
+            dirty: load_warning || recovered_stale_runtimes > 0,
             load_warning,
+            recovered_stale_runtimes,
         })
+    }
+
+    /// 本次打开时清理掉的上一进程运行时挂载数量；>0 说明上次是异常退出。
+    pub fn recovered_stale_runtimes(&self) -> usize {
+        self.recovered_stale_runtimes
     }
 
     pub fn load_warning(&self) -> bool {
@@ -359,6 +378,14 @@ impl ProjectCatalog {
                         .push(path.to_string_lossy().to_string());
                     continue;
                 }
+                // 绑定到临时会话的文件属于「默认不进入历史」的内容：扫描既不登记也不索引。
+                // 只有显式转正（promote_temporary_session）才会让它成为普通会话。
+                if self.temporary.is_bound_file(&path) {
+                    report
+                        .temporary_skipped
+                        .push(path.to_string_lossy().to_string());
+                    continue;
+                }
                 report.scanned_files += 1;
                 match self.upsert_session(project, &worktree.id, &path) {
                     Ok(upsert) => {
@@ -561,7 +588,7 @@ impl ProjectCatalog {
 
     /// 索引快照的落盘路径：缓存键绑定文件路径，与 SessionId 解耦，
     /// 因此文件重命名后旧快照自然失效并由快照自校验重建。
-    fn index_snapshot_path(&self, file: &Path) -> PathBuf {
+    pub(crate) fn index_snapshot_path(&self, file: &Path) -> PathBuf {
         self.index_dir.join(format!("{:016x}.json", file_key(file)))
     }
 
@@ -622,9 +649,19 @@ impl ProjectCatalog {
             .find(|project| &project.id == id)
     }
 
-    fn touch(&mut self) {
+    pub(crate) fn touch(&mut self) {
         self.dirty = true;
         self.snapshot.updated_at_ms = now_ms();
+    }
+
+    /// 某个路径当前是否是已登记会话的落点（跨项目查找）。
+    pub(crate) fn registered_file(&self, file: &Path) -> Option<&SessionRecord> {
+        let normalized = normalize_path(file);
+        self.snapshot
+            .projects
+            .iter()
+            .flat_map(|project| project.sessions.iter())
+            .find(|record| normalize_path(Path::new(&record.file)) == normalized)
     }
 
     fn find_session_by_file(&self, project: &ProjectId, file: &Path) -> Option<&SessionRecord> {
@@ -652,7 +689,7 @@ impl ProjectCatalog {
         })
     }
 
-    fn upsert_session(
+    pub(crate) fn upsert_session(
         &mut self,
         project: &ProjectId,
         worktree: &WorktreeId,
@@ -793,11 +830,32 @@ impl ProjectCatalog {
     }
 }
 
+/// 清理上一进程遗留的运行时挂载，返回清理数量。
+///
+/// 崩溃或断电后 catalog.json 里会留下 `runtime` 链接，但对应 Pi 进程已经不存在。
+/// 保留它会让 UI 显示幽灵运行时、并让旧 generation 的事件有机会被放行，因此打开目录时
+/// 统一清空并把水位抬到 `generation + 1`。会话记录本身与磁盘文件不受影响。
+fn clear_stale_runtimes(snapshot: &mut CatalogSnapshot) -> usize {
+    let mut cleared = 0;
+    for project in &mut snapshot.projects {
+        for session in &mut project.sessions {
+            if let Some(link) = session.runtime.take() {
+                session.generation_watermark = session
+                    .generation_watermark
+                    .max(link.generation.saturating_add(1));
+                session.updated_at_ms = now_ms();
+                cleared += 1;
+            }
+        }
+    }
+    cleared
+}
+
 /// 隐式扫描的路径守门：`file` 解析后仍须落在已解析的会话根目录内。
 ///
 /// 两边都先 `canonicalize`，所以符号链接、目录联接、`..` 都无法伪造包含关系；
 /// 根目录无法解析、文件无法解析（并发删除）时一律拒绝——拒绝比误读安全。
-fn session_file_inside(resolved_root: Option<&Path>, file: &Path) -> bool {
+pub(crate) fn session_file_inside(resolved_root: Option<&Path>, file: &Path) -> bool {
     let Some(root) = resolved_root else {
         return false;
     };

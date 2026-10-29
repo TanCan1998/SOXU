@@ -59,6 +59,11 @@ impl AppState {
             .map_err(|error| format!("无法创建状态目录 {}：{error}", state_dir.display()))?;
         let catalog = ProjectCatalog::open_with(&state_dir, config)
             .map_err(|error| format!("无法打开会话目录：{error}"))?;
+        // 打开目录时已经清掉上一进程遗留的运行时挂载：留一行诊断，避免「幽灵运行时」静默消失。
+        let recovered = catalog.recovered_stale_runtimes();
+        if recovered > 0 {
+            eprintln!("SOXU: 清理了 {recovered} 个上次异常退出遗留的运行时挂载");
+        }
         let retry = RetryStore::new(&state_dir);
         Ok(Self {
             supervisor: PiSupervisor::new(SupervisorConfig::default()),

@@ -132,6 +132,11 @@ function loadMore() {
   if (tab) void store.loadMore(tab.sessionId);
 }
 
+function promote() {
+  const tab = activeTab.value;
+  if (tab) void store.promote(tab.sessionId);
+}
+
 function setDraft(value: string) {
   const tab = activeTab.value;
   if (tab) store.setDraft(tab.sessionId, value);
@@ -276,6 +281,7 @@ onUnmounted(() => {
         @stop="stop"
         @load-more="loadMore"
         @retry="retry"
+        @promote="promote"
         @update:draft="setDraft"
       />
 

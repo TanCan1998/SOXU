@@ -15,9 +15,11 @@ import type {
   RetryStatus,
   RuntimeEvent,
   RuntimeStarted,
+  PromotedSession,
   RuntimeStatus,
   SessionId,
   SessionMode,
+  TemporarySessionView,
   WorktreeDiffView,
   WorktreeId,
   WorktreeRemovalView,
@@ -90,6 +92,15 @@ export class FakeBridge implements WorkspaceBridge {
   texts = new Map<number, EntryText>();
   startError: string | null = null;
   cancelError: string | null = null;
+  /** 临时会话：分配/绑定/转正的行为开关，用例按需覆盖。 */
+  temporarySequence = 0;
+  temporaryError: string | null = null;
+  promoteError: string | null = null;
+  promoteGate: Promise<void> | null = null;
+  bindError: string | null = null;
+  discardError: string | null = null;
+  /** 已结束的临时会话（discard 命中时记录）。 */
+  readonly discarded: SessionId[] = [];
   historyGate: Promise<void> | null = null;
   status: RuntimeStatus | null = null;
   /** 后端下发的重试预算快照；测试按需注入，默认没有（旧后端行为）。 */
@@ -179,6 +190,77 @@ export class FakeBridge implements WorkspaceBridge {
     };
     this.status = { ...started, exit: null };
     return started;
+  }
+
+  async openTemporarySession(projectId: ProjectId): Promise<TemporarySessionView> {
+    this.calls.push({ method: "openTemporarySession", args: [projectId] });
+    if (this.temporaryError) throw new Error(this.temporaryError);
+    this.temporarySequence += 1;
+    return {
+      sessionId: `ses_tmp_${this.temporarySequence}`,
+      projectId,
+      worktreeId: `wkt_${projectId}`,
+      mode: "temporary",
+      file: null,
+      bound: false,
+    };
+  }
+
+  async bindTemporaryFile(sessionId: SessionId, file: string): Promise<TemporarySessionView> {
+    this.calls.push({ method: "bindTemporaryFile", args: [sessionId, file] });
+    if (this.bindError) throw new Error(this.bindError);
+    return {
+      sessionId,
+      projectId: this.projects[0]?.id ?? "prj_1",
+      worktreeId: `wkt_${this.projects[0]?.id ?? "prj_1"}`,
+      mode: "temporary",
+      file,
+      bound: true,
+    };
+  }
+
+  async promoteSession(sessionId: SessionId): Promise<PromotedSession> {
+    this.calls.push({ method: "promoteSession", args: [sessionId] });
+    if (this.promoteGate) await this.promoteGate;
+    if (this.promoteError) throw new Error(this.promoteError);
+    const project = this.projects[0] ?? {
+      id: "prj_1",
+      name: "项目",
+      root: "F:/work/project",
+      worktreeCount: 1,
+      sessions: [],
+    };
+    const promotedId = `ses_promoted_${sessionId.replace(/^ses_tmp_/, "")}`;
+    const promoted = {
+      ...project,
+      sessions: [
+        ...project.sessions,
+        {
+          id: promotedId,
+          projectId: project.id,
+          worktreeId: `wkt_${project.id}`,
+          title: "已转存的临时会话",
+          fileName: `${promotedId}.jsonl`,
+          entryCount: 2,
+          updatedAtMs: 1,
+          missing: false,
+          runtimeId: null,
+          generation: 0,
+        },
+      ],
+    };
+    this.projects = this.projects.map((candidate) =>
+      candidate.id === project.id ? promoted : candidate,
+    );
+    return { sessionId: promotedId, project: promoted };
+  }
+
+  async discardTemporarySession(sessionId: SessionId): Promise<boolean> {
+    this.calls.push({ method: "discardTemporarySession", args: [sessionId] });
+    if (this.discardError) throw new Error(this.discardError);
+    if (this.discarded.includes(sessionId)) return false;
+    this.discarded.push(sessionId);
+    return true;
   }
 
   async sendPrompt(sessionId: SessionId, text: string): Promise<void> {

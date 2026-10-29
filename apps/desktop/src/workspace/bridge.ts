@@ -15,11 +15,13 @@ import type {
   HistoryPage,
   ProjectId,
   ProjectSummary,
+  PromotedSession,
   RuntimeEvent,
   RuntimeStarted,
   RuntimeStatus,
   SessionId,
   SessionMode,
+  TemporarySessionView,
   WorktreeDiffView,
   WorktreeId,
   WorktreeRemovalView,
@@ -47,6 +49,14 @@ export function createTauriBridge(): WorkspaceBridge {
       invoke<EntryText[]>("read_session_texts", { sessionId, entries: refs }),
     startRuntime: (sessionId: SessionId, mode: SessionMode) =>
       invoke<RuntimeStarted>("start_session", { sessionId, temporary: mode === "temporary" }),
+    openTemporarySession: (projectId: ProjectId) =>
+      invoke<TemporarySessionView>("open_temporary_session", { projectId }),
+    bindTemporaryFile: (sessionId: SessionId, file: string) =>
+      invoke<TemporarySessionView>("bind_temporary_session_file", { sessionId, file }),
+    promoteSession: (sessionId: SessionId) =>
+      invoke<PromotedSession>("promote_session", { sessionId }),
+    discardTemporarySession: (sessionId: SessionId) =>
+      invoke<boolean>("discard_temporary_session", { sessionId }),
     sendPrompt: (sessionId: SessionId, text: string) =>
       invoke<void>("send_prompt", { sessionId, text }),
     cancelRuntime: (sessionId: SessionId) => invoke<void>("cancel_session", { sessionId }),
@@ -104,6 +114,10 @@ export function createUnavailableBridge(reason: string): WorkspaceBridge {
     fetchHistory: fail,
     fetchTexts: fail,
     startRuntime: fail,
+    openTemporarySession: fail,
+    bindTemporaryFile: fail,
+    promoteSession: fail,
+    discardTemporarySession: fail,
     sendPrompt: fail,
     cancelRuntime: fail,
     stopRuntime: fail,

@@ -121,6 +121,18 @@ impl SessionId {
     pub fn from_legacy_fingerprint(fingerprint: u64) -> Self {
         Self(format!("ses_l_{}", hex16(fingerprint)))
     }
+
+    /// 临时会话的本地身份：`ses_tmp_<哈希>`。
+    ///
+    /// 临时会话只登记在内存的 `TemporaryRegistry`，从不写入 catalog.json；
+    /// 因此进程崩溃或正常退出后都不会留下历史条目。`sequence` 由目录单调分配，
+    /// 同一次运行内不会重复；跨进程重复也无害（内存登记表不持久化）。
+    pub fn temporary(sequence: u64) -> Self {
+        Self(format!(
+            "ses_tmp_{}",
+            hex16(fnv1a64_parts(&["temporary-session", &sequence.to_string()]))
+        ))
+    }
 }
 
 /// 运行时挂载：谁的进程正在写这个会话，属于哪一代。

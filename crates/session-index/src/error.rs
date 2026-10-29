@@ -24,6 +24,12 @@ pub enum ErrorCode {
     SessionsRootUnavailable,
     MetadataCorrupt,
     IoFailure,
+    TemporarySessionUnknown,
+    TemporarySessionLimit,
+    TemporarySessionUnpromotable,
+    TemporarySessionFileInvalid,
+    TemporarySessionFileConflict,
+    TemporarySessionRuntimeActive,
 }
 
 impl ErrorCode {
@@ -44,6 +50,12 @@ impl ErrorCode {
             Self::SessionsRootUnavailable => "E_SESSIONS_ROOT_UNAVAILABLE",
             Self::MetadataCorrupt => "E_METADATA_CORRUPT",
             Self::IoFailure => "E_IO_FAILURE",
+            Self::TemporarySessionUnknown => "E_TEMPORARY_SESSION_UNKNOWN",
+            Self::TemporarySessionLimit => "E_TEMPORARY_SESSION_LIMIT",
+            Self::TemporarySessionUnpromotable => "E_TEMPORARY_SESSION_UNPROMOTABLE",
+            Self::TemporarySessionFileInvalid => "E_TEMPORARY_SESSION_FILE_INVALID",
+            Self::TemporarySessionFileConflict => "E_TEMPORARY_SESSION_FILE_CONFLICT",
+            Self::TemporarySessionRuntimeActive => "E_TEMPORARY_SESSION_RUNTIME_ACTIVE",
         }
     }
 
@@ -56,6 +68,10 @@ impl ErrorCode {
                 | Self::StaleRuntimeGeneration
                 | Self::MetadataCorrupt
                 | Self::SessionsRootUnavailable
+                | Self::TemporarySessionLimit
+                | Self::TemporarySessionUnpromotable
+                | Self::TemporarySessionFileInvalid
+                | Self::TemporarySessionRuntimeActive
         )
     }
 }

@@ -27,6 +27,7 @@ ProjectId (项目根目录)
 | `ProjectId` | `prj_` | 规范化根路径的 FNV-1a 指纹 | 跨重启稳定；仅当项目目录换路径才变化 |
 | `WorktreeId` | `wkt_` | `projectId` + 规范化工作树路径 | 跨重启稳定；**切换分支不改变** |
 | `SessionId` | `ses_` / `ses_l_` | Pi 会话头部 `id`；无 id 的旧会话用头部行字节指纹 | 跨重启、**重命名与迁移后仍稳定** |
+| `SessionId`（临时） | `ses_tmp_` | 目录分配的内存序号（见「临时会话与转正」） | **仅本进程**；不持久化，重启即消失 |
 | `RuntimeId` | `rt_` | 由 Supervisor 分配 | **不持久化**，重启后不复用 |
 | `generation` | — | 每次挂载递增的水位 | 单调递增，用于丢弃迟到事件 |
 
@@ -52,11 +53,43 @@ Windows 的 `\\?\` 前缀，保证 ID 与 Pi 会话目录命名使用同一份�
 - 同一会话最多一个可写运行时：`claim_writable` 在已有其他 `RuntimeId` 持有时返回
   `E_SESSION_ALREADY_OWNED`，用错误而不是静默接管来防止双写 JSONL。
 - 进程退出：`release` 校验持有者一致，然后清空 `runtime` 并把 `generation_watermark` 抬到
-  `generation + 1`；崩溃遗留由 `release_stale_runtime` 在启动时清理，水位同样递增。
+  `generation + 1`；崩溃遗留的挂载在**打开目录时**统一清理（`ProjectCatalog::open_with`，
+  见 `recovered_stale_runtimes()`），水位同样递增；`release_stale_runtime` 保留为单个会话的显式入口。
+  不在打开时清理就会留下「幽灵运行时」：上一进程的 Pi 已经不存在，UI 却仍显示运行中，
+  旧 generation 的事件也还有机会被放行。
 - 迟到事件：`event_allowed` / `guard_event` 按 `(session, runtime, generation)` 三元组过滤，
   不匹配即 `E_STALE_RUNTIME_GENERATION`。**重启后旧 generation 永不复用**，所以 UI 不会把
   上一代进程的工具结果画到新会话上。
 - 归属与水印在 `sync` 时随既有记录保留，不因一次扫描丢失。
+
+## 临时会话与转正
+
+临时会话是「默认不进入持久化历史」的会话视图，用于一次性对话。它的登记**只存在于内存**
+（`TemporaryRegistry`），`save()` 不写它，因此崩溃、断电或正常退出后都不会出现幽灵历史。
+
+| 动作 | API | 行为 | 失败时 |
+| --- | --- | --- | --- |
+| 创建 | `open_temporary_session(project, worktree?)` | 分配 `ses_tmp_*` 身份，只进内存表 | 项目/工作树未登记、超出上限（`MAX_TEMPORARY_SESSIONS = 32`） |
+| 绑定 | `bind_temporary_file(session, file)` | 绑定一个合法 Pi 会话文件；绑定期间 `sync` 跳过它 | 非 `.jsonl`、首行不是 Pi 会话头部、版本为 0、文件已是普通会话落点或已被别的临时会话绑定 |
+| 归属 | `claim_temporary_writable(session, runtime)` / `release_temporary_writable(...)` | 声明/释放该临时会话的可写运行时（只存内存，不落盘） | 已有其他 runtime 持有时 `E_TEMPORARY_SESSION_RUNTIME_ACTIVE`；释放者与持有者不符时 `E_SESSION_RUNTIME_UNKNOWN` |
+| 转正 | `promote_temporary_session(session)` | 走 `upsert_session` 写入历史，身份改为 Pi 头部 id | 未绑定文件、身份冲突、**仍有运行时持有**；不写入任何东西，临时会话保留 |
+| 结束 | `discard_temporary_session(session)` | 清内存登记与该文件的索引快照 | 未登记时 `E_TEMPORARY_SESSION_UNKNOWN`；**仍有运行时持有**时 `E_TEMPORARY_SESSION_RUNTIME_ACTIVE` |
+
+规则：
+
+1. **默认不进入历史**：临时会话不出现在 `sessions(project)`、`list_projects` 或侧栏里；
+   打开它的历史返回空页，而不是「会话未登记」错误。
+2. **绑定即隔离**：绑定到临时会话的文件在扫描时被跳过（`SyncReport::temporary_skipped`），
+   所以「临时对话」不会在重启后变成普通历史。转正后绑定解除，文件才作为普通会话出现。
+3. **显式转正**：只有用户显式请求且文件已绑定才写历史；失败保留临时会话与内容，
+   错误文本带稳定错误码供 UI 显示原因。UI 不得在后端未确认前显示「已保存」。
+4. **不碰 Pi 的文件**：转正、结束都不移动、不删除、不改写 JSONL；结束只清可丢弃的索引快照。
+5. **有界**：内存表上限 32，超出返回 `E_TEMPORARY_SESSION_LIMIT`，不会无限增长。
+6. **可写归属先于转正**：临时会话启动运行时同样登记可写归属（与持久化会话的 `claim_writable` 同语义，
+   只是存在内存里）。只要有 Pi 持有它，转正与结束都必须被拒绝——否则旧进程会失去 owner
+   （「停止」变成 no-op 假成功，进程直到自己退出才被回收），转正后再启动还会对同一 JSONL 双写；
+   结束则会解除绑定，文件可能被下一次扫描当成普通会话（幽灵历史）。
+   正确顺序：停止运行时（释放归属）→ 再转正或结束。
 
 ## 持久化布局
 
@@ -138,6 +171,12 @@ Git 侧的枚举、创建与受确认删除见 [Git 工作树服务](worktree-se
 | `E_SESSIONS_ROOT_UNAVAILABLE` | 未配置 Pi 会话根目录 | 是 |
 | `E_METADATA_CORRUPT` | 目录或索引快照 JSON 无法解析 | 是 |
 | `E_IO_FAILURE` | 其他文件系统错误 | 否 |
+| `E_TEMPORARY_SESSION_UNKNOWN` | 临时会话不在内存登记表里（已转正、已结束或从未分配） | 否 |
+| `E_TEMPORARY_SESSION_LIMIT` | 临时会话数量达到上限 | 是 |
+| `E_TEMPORARY_SESSION_UNPROMOTABLE` | 还没有绑定 Pi 会话文件，暂无可持久化内容 | 是 |
+| `E_TEMPORARY_SESSION_FILE_INVALID` | 绑定目标不是合法 Pi 会话（扩展名/头部/版本） | 是 |
+| `E_TEMPORARY_SESSION_FILE_CONFLICT` | 文件已是普通会话落点，或已被另一个临时会话绑定 | 否 |
+| `E_TEMPORARY_SESSION_RUNTIME_ACTIVE` | 仍有运行时持有该临时会话（转正/结束/被别的 runtime 抢占归属） | 是 |
 
 `CatalogError` = 稳定错误码 + 人类可读上下文 + 可选底层原因（`kind: message`），
 三者都可在日志中出现，但只有错误码进入契约比较。
@@ -159,6 +198,10 @@ Git 侧的枚举、创建与受确认删除见 [Git 工作树服务](worktree-se
 | 写入半个 JSONL 行 | 尾部无 `\n` | 留在 `pending`，不进入索引 | `partial_line_writes_are_never_indexed_twice` |
 | 并发追加 | — | 分块顺序扫描，不丢不重 | `concurrent_appends_never_lose_or_duplicate_entries` |
 | 快照写入被中断 | — | write-temp + fsync + rename，临时文件名唯一 | `concurrent_writes_to_one_path_stay_parseable` |
+| 崩溃遗留运行时挂载 | 打开目录时 `runtime` 非空 | 清空并把水位抬到 `generation + 1` | `crash_leaves_no_ghost_runtime_and_no_temporary_history`、`restarted_app_reports_no_ghost_runtime` |
+| 临时会话未绑定文件就转正 | 无绑定文件 | 返回 `E_TEMPORARY_SESSION_UNPROMOTABLE`，保留临时会话，不写历史 | `promotion_without_a_bound_file_keeps_the_temporary_session` |
+| 临时会话的文件被扫描到 | 已绑定 | 跳过登记，记入 `temporary_skipped` | `bound_file_is_hidden_from_sync_until_promoted` |
+| 结束临时会话 | — | 清内存登记与索引快照，Pi 文件原样保留 | `temporary_registry_is_bounded_and_discard_keeps_pi_files` |
 
 ## 验收证据
 
@@ -174,6 +217,11 @@ Git 侧的枚举、创建与受确认删除见 [Git 工作树服务](worktree-se
 `oversized_line_is_skipped_with_bounded_memory`。
 **身份关系与错误码**：`error_codes_are_stable_and_specific`、`runtime_ownership_filters_stale_generations`、
 `worktrees_do_not_share_sessions`、`ids_and_index_survive_restart`，加上本文件。
+**临时会话生命周期**：`temporary_session_never_enters_persisted_history`、
+`bound_file_is_hidden_from_sync_until_promoted`、`promotion_without_a_bound_file_keeps_the_temporary_session`、
+`binding_rejects_invalid_and_already_registered_files`、`crash_leaves_no_ghost_runtime_and_no_temporary_history`、
+`temporary_sessions_are_isolated_between_projects_and_worktrees`、
+`temporary_registry_is_bounded_and_discard_keeps_pi_files`（`cargo test -p soxu-session-index`）。
 **越权路径**：`linked_session_file_outside_root_is_not_indexed`、
 `linked_session_directory_outside_root_is_not_indexed`、`attach_of_unregistered_worktree_is_rejected`、
 `project_registered_through_link_keeps_a_single_identity`。
@@ -194,6 +242,9 @@ cargo fmt --all -- --check
   按需资源接口的定位依据，由上层决定是否读取大块内容。
 - 本 crate 不订阅文件系统事件；实时性由调用方按需 `refresh` 的频率决定，没有后台线程。
 - 会话格式以 Pi session v3 为准；更高版本只记 `UnsupportedVersion` 告警并继续按已知字段解析。
+- 临时会话**不跨进程存活**：重启后内存登记表为空，Tab 需要重新创建；这是「无幽灵历史」的代价。
+- 转正需要显式绑定 Pi 会话文件。Pi 目前不会向 SOXU 回报它自己的会话文件路径，因此 UI 若拿不到
+  路径就只会得到 `E_TEMPORARY_SESSION_UNPROMOTABLE`（明确失败，而不是假装成功）。
 
 ## 相关文档
 
