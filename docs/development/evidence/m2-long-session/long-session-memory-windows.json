@@ -1,0 +1,161 @@
+{
+  "issue": 36,
+  "task": "P-04 长会话：50,000 条事件的首屏、DOM 与缓存边界",
+  "generatedAt": "2026-10-29T03:31:44.956Z",
+  "method": "node --expose-gc tests/perf/longSessionMemory.mjs",
+  "note": "V8 进程堆采样（Node），不是 Tauri WebView 进程 RSS，也不是实机验收",
+  "platform": {
+    "os": "win32",
+    "release": "10.0.26300",
+    "arch": "x64",
+    "cpus": 16,
+    "cpuModel": "AMD Ryzen 9 5900HX with Radeon Graphics        ",
+    "totalMemMiB": 15773,
+    "node": "v26.10.0",
+    "gcAvailable": true
+  },
+  "fixture": {
+    "events": 50000,
+    "pageSize": 40,
+    "pagesLoaded": 25,
+    "longOutputEvery": 10,
+    "longOutputChars": 20000
+  },
+  "limits": {
+    "maxTabHistoryMessages": 240,
+    "maxTabHistoryChars": 2000000,
+    "maxTabLiveMessages": 120,
+    "maxMessageChars": 20000
+  },
+  "samples": [
+    {
+      "label": "baseline",
+      "rssBytes": 82915328,
+      "heapTotalBytes": 12042240,
+      "heapUsedBytes": 9053312,
+      "externalBytes": 6023398,
+      "rssMiB": 79.1,
+      "heapUsedMiB": 8.6
+    },
+    {
+      "label": "first-screen",
+      "rssBytes": 81432576,
+      "heapTotalBytes": 12042240,
+      "heapUsedBytes": 9302488,
+      "externalBytes": 6044250,
+      "retained": {
+        "messages": 40,
+        "chars": 84320,
+        "maxMessageChars": 20000
+      },
+      "servedEntries": 40,
+      "servedTextChars": 84320,
+      "history": {
+        "loaded": 40,
+        "total": 50000,
+        "next": 40,
+        "loading": false,
+        "evicted": 0,
+        "evictedLive": 0
+      },
+      "rssMiB": 77.7,
+      "heapUsedMiB": 8.9
+    },
+    {
+      "label": "after-load-more",
+      "rssBytes": 94011392,
+      "heapTotalBytes": 29343744,
+      "heapUsedBytes": 10315416,
+      "externalBytes": 6258768,
+      "retained": {
+        "messages": 240,
+        "chars": 505920,
+        "maxMessageChars": 20000
+      },
+      "servedEntries": 1000,
+      "servedTextChars": 2108000,
+      "history": {
+        "loaded": 240,
+        "total": 50000,
+        "next": 1000,
+        "loading": false,
+        "evicted": 760,
+        "evictedLive": 0
+      },
+      "pagesLoaded": 25,
+      "rssMiB": 89.7,
+      "heapUsedMiB": 9.8
+    },
+    {
+      "label": "after-close-tab",
+      "rssBytes": 93634560,
+      "heapTotalBytes": 28033024,
+      "heapUsedBytes": 9228960,
+      "externalBytes": 5957802,
+      "tabs": 0,
+      "rssMiB": 89.3,
+      "heapUsedMiB": 8.8
+    }
+  ],
+  "liveWindow": {
+    "label": "live-300-rounds",
+    "rssBytes": 94269440,
+    "heapTotalBytes": 27246592,
+    "heapUsedBytes": 9545256,
+    "externalBytes": 6044250,
+    "retained": {
+      "messages": 160,
+      "chars": 85460,
+      "maxMessageChars": 20000
+    },
+    "liveMessages": 120,
+    "history": {
+      "loaded": 40,
+      "total": 40,
+      "next": null,
+      "loading": false,
+      "evicted": 0,
+      "evictedLive": 480
+    },
+    "rounds": 300,
+    "appendedLiveMessages": 600,
+    "rssMiB": 89.9,
+    "heapUsedMiB": 9.1
+  },
+  "controls": [
+    {
+      "label": "control-all-previews",
+      "rssBytes": 366637056,
+      "heapTotalBytes": 297140224,
+      "heapUsedBytes": 229520648,
+      "externalBytes": 9218010,
+      "retained": {
+        "messages": 50000,
+        "chars": 6605000,
+        "maxMessageChars": 241
+      },
+      "rssMiB": 349.7,
+      "heapUsedMiB": 218.9
+    },
+    {
+      "label": "control-full-text",
+      "rssBytes": 590831616,
+      "heapTotalBytes": 337510400,
+      "heapUsedBytes": 229361680,
+      "externalBytes": 6022638,
+      "retained": {
+        "messages": 50000,
+        "chars": 105400000,
+        "maxMessageChars": 20000
+      },
+      "rssMiB": 563.5,
+      "heapUsedMiB": 218.7
+    }
+  ],
+  "backend": {
+    "servedEntries": 1000,
+    "servedTextChars": 2108000,
+    "servedBytes": 2161200,
+    "requests": 25
+  }
+}

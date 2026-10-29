@@ -2,6 +2,11 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
 import type { ChatMessage, HistoryCursor } from "../workspace/types.ts";
+import {
+  MESSAGE_OVERSCAN_ROWS,
+  MESSAGE_ROW_ESTIMATE_PX,
+  MESSAGE_STICK_THRESHOLD_PX,
+} from "./messageVirtualizer.ts";
 
 const props = defineProps<{
   messages: ChatMessage[];
@@ -17,13 +22,14 @@ const stickToBottom = ref(true);
 /**
  * 虚拟列表：只渲染视口内的消息，长会话不会把整个 JSONL 拉进 DOM。
  * 行高由 `measureElement` 实测，避免流式输出导致的高度估算漂移。
+ * 参数来自 `messageVirtualizer.ts`，回归测试核对的是同一份数值。
  */
 const virtualizer = useVirtualizer<HTMLElement, HTMLElement>(
   computed(() => ({
     count: props.messages.length,
     getScrollElement: () => scrollRef.value,
-    estimateSize: () => 96,
-    overscan: 6,
+    estimateSize: () => MESSAGE_ROW_ESTIMATE_PX,
+    overscan: MESSAGE_OVERSCAN_ROWS,
     getItemKey: (index: number) => props.messages[index]?.id ?? index,
   })),
 );
@@ -36,7 +42,7 @@ function onScroll() {
   const element = scrollRef.value;
   if (!element) return;
   const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
-  stickToBottom.value = distance < 120;
+  stickToBottom.value = distance < MESSAGE_STICK_THRESHOLD_PX;
 }
 
 async function scrollToBottom() {
@@ -52,9 +58,30 @@ watch(
   },
 );
 
-/** 行高实测：Vue 的 ref 回调同时可能收到组件实例，这里只处理真实 DOM。 */
+/**
+ * 行高实测：Vue 的 ref 回调同时可能收到组件实例，这里只处理真实 DOM。
+ *
+ * 必须推迟到 `nextTick`：Vue 在元素挂载进文档**之前**就调用 ref 回调，此时
+ * `offsetHeight` 为 0。把 0 写进 tanstack 的尺寸缓存会让所有行叠在 0 位置、
+ * 滚动高度远小于真实内容（50,000 条时肉眼可见的滚动条错位），而且缓存不会自愈。
+ */
 function measure(element: unknown) {
-  if (element instanceof HTMLElement) virtualizer.value.measureElement(element);
+  if (!(element instanceof HTMLElement)) return;
+  void nextTick(() => {
+    // 卸载后才回调的元素不再测量，避免把已移除的节点重新登记进 observer。
+    if (!element.isConnected) return;
+    if (element.getBoundingClientRect().height > 0) {
+      virtualizer.value.measureElement(element);
+      return;
+    }
+    // 高度 0 说明这一帧还没有布局：绝不能把 0 写进 tanstack 的尺寸缓存，
+    // 否则所有行都会叠在 0 位置、滚动高度远小于真实内容且不会自愈。
+    // 下一帧再试一次，仍为 0 就保留估算行高（列表照常可用，只是不够精确）。
+    requestAnimationFrame(() => {
+      if (!element.isConnected) return;
+      if (element.getBoundingClientRect().height > 0) virtualizer.value.measureElement(element);
+    });
+  });
 }
 
 function labelFor(message: ChatMessage): string {
@@ -75,10 +102,25 @@ function labelFor(message: ChatMessage): string {
 
 <template>
   <div class="message-area">
-    <div v-if="history.next !== null" class="older-row">
-      <button class="older" type="button" :disabled="loading" @click="emit('load-more')">
-        {{ loading ? "正在加载更早的消息…" : `加载更早的消息（已载入 ${history.loaded}/${history.total}）` }}
+    <div
+      v-if="history.next !== null || history.evicted > 0 || history.evictedLive > 0"
+      class="older-row"
+    >
+      <button
+        v-if="history.next !== null"
+        class="older"
+        type="button"
+        :disabled="loading"
+        @click="emit('load-more')"
+      >
+        {{ loading ? "正在加载后续历史…" : `加载更多历史（已载入 ${history.loaded}/${history.total}）` }}
       </button>
+      <p v-if="history.evicted > 0" class="evicted-note" role="note">
+        更早的 {{ history.evicted }} 条已从内存释放，Pi 的会话文件未受影响
+      </p>
+      <p v-if="history.evictedLive > 0" class="evicted-note" role="note">
+        更早的 {{ history.evictedLive }} 条实时消息已从内存窗口释放，重新加载历史可查看
+      </p>
     </div>
     <div
       ref="scrollRef"
@@ -114,6 +156,9 @@ function labelFor(message: ChatMessage): string {
             <div v-else class="bubble">
               <span class="text">{{ messages[item.index]?.text || "（空内容）" }}</span>
               <span v-if="messages[item.index]?.partial" class="partial">预览，正文未载入</span>
+              <span v-if="messages[item.index]?.truncated" class="partial">
+                正文超过单条上限，已截断
+              </span>
               <span
                 v-if="messages[item.index]?.streaming"
                 class="streaming"
@@ -137,7 +182,9 @@ function labelFor(message: ChatMessage): string {
 
 .older-row {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   padding: 10px 0 0;
 }
 
@@ -152,6 +199,12 @@ function labelFor(message: ChatMessage): string {
 
 .older:hover:enabled {
   background: var(--soxu-hover);
+}
+
+.evicted-note {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--soxu-muted);
 }
 
 .message-scroll {

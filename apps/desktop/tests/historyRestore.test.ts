@@ -81,7 +81,7 @@ test("重复页不会产生重复消息，重叠页只补缺", () => {
     status: "ready" as const,
     error: null,
     messages: [],
-    history: { loaded: 0, total: 0, next: null, loading: false },
+    history: { loaded: 0, total: 0, next: null, loading: false, evicted: 0, evictedLive: 0 },
     runtime: { runtimeId: null, generation: 0, state: "idle", exitReason: null },
     draft: "",
     diagnostics: [],

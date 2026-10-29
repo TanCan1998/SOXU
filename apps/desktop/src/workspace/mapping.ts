@@ -7,6 +7,10 @@
 
 import {
   MAX_DIAGNOSTICS,
+  MAX_MESSAGE_CHARS,
+  MAX_TAB_HISTORY_CHARS,
+  MAX_TAB_HISTORY_MESSAGES,
+  MAX_TAB_LIVE_MESSAGES,
   type ChatMessage,
   type ChatRole,
   type EntryRole,
@@ -106,8 +110,124 @@ export function mergeHistory(tab: SessionTab, page: HistoryPage): void {
     total: page.total,
     next: page.next,
     loading: false,
+    evicted: tab.history.evicted,
+    evictedLive: tab.history.evictedLive,
   };
   dropLocalEchoes(tab);
+  enforceMessageWindow(tab);
+}
+
+/** Tab 内存窗口的三条上限；测试可以传入更小的值来验证释放逻辑。 */
+export interface MessageWindowLimits {
+  /** 保留的历史消息条数上限。 */
+  maxHistory: number;
+  /** 保留的实时消息条数上限。 */
+  maxLive: number;
+  /** 保留的历史正文字符预算。 */
+  maxChars: number;
+}
+
+export const DEFAULT_WINDOW_LIMITS: MessageWindowLimits = {
+  maxHistory: MAX_TAB_HISTORY_MESSAGES,
+  maxLive: MAX_TAB_LIVE_MESSAGES,
+  maxChars: MAX_TAB_HISTORY_CHARS,
+};
+
+export interface WindowReport {
+  droppedHistory: number;
+  droppedLive: number;
+  historyMessages: number;
+  historyChars: number;
+}
+
+/**
+ * 有界窗口：释放最旧的消息，让「加载更多」不会把整份长会话读进内存。
+ *
+ * 释放顺序固定为「先最旧的历史、再最旧的实时」，且**永不释放**正在流式的最后一条
+ * （否则用户会看到当前回复被截掉）。释放只是从内存窗口移出，Pi 的 JSONL 未受影响。
+ *
+ * 调用点必须覆盖两条增长路径：`mergeHistory`（加载更多）与实时追加（用户发问、
+ * 新的流式回复）。只在前者收敛，连续多轮对话仍会无限增长。
+ */
+export function enforceMessageWindow(
+  tab: SessionTab,
+  limits: MessageWindowLimits = DEFAULT_WINDOW_LIMITS,
+): WindowReport {
+  const liveIndexes: number[] = [];
+  const historyIndexes: number[] = [];
+  tab.messages.forEach((message, index) => {
+    if (message.source === "history") historyIndexes.push(index);
+    else liveIndexes.push(index);
+  });
+
+  const dropped = new Set<number>();
+  let liveCount = liveIndexes.length;
+  for (const index of liveIndexes) {
+    if (liveCount <= limits.maxLive) break;
+    const message = tab.messages[index];
+    if (!message || message.streaming) continue; // 流式中的最后一条保留
+    dropped.add(index);
+    liveCount -= 1;
+  }
+
+  let historyCount = historyIndexes.length;
+  let historyChars = historyIndexes.reduce(
+    (sum, index) => sum + (tab.messages[index]?.text.length ?? 0),
+    0,
+  );
+  for (const index of historyIndexes) {
+    if (historyCount <= limits.maxHistory && historyChars <= limits.maxChars) break;
+    if (historyCount <= 1) break; // 至少保留一条，避免窗口为空后无法继续翻页
+    const message = tab.messages[index];
+    if (!message) continue;
+    dropped.add(index);
+    historyCount -= 1;
+    historyChars -= message.text.length;
+  }
+
+  if (dropped.size === 0) {
+    return {
+      droppedHistory: 0,
+      droppedLive: 0,
+      historyMessages: historyCount,
+      historyChars,
+    };
+  }
+
+  const kept: ChatMessage[] = [];
+  let droppedHistory = 0;
+  let droppedLive = 0;
+  tab.messages.forEach((message, index) => {
+    if (dropped.has(index)) {
+      if (message.source === "history") droppedHistory += 1;
+      else droppedLive += 1;
+      return;
+    }
+    kept.push(message);
+  });
+  tab.messages = kept;
+  tab.history = {
+    ...tab.history,
+    loaded: historyCount,
+    evicted: tab.history.evicted + droppedHistory,
+    evictedLive: tab.history.evictedLive + droppedLive,
+  };
+  return { droppedHistory, droppedLive, historyMessages: historyCount, historyChars };
+}
+
+/**
+ * 按字符（码点）截断正文，UTF-8/代理对安全；与 Rust 的 `truncate` 口径一致。
+ *
+ * 目的不是隐藏内容，而是保证一条超长工具输出不会撑爆 Vue 状态与 DOM。
+ */
+export function capText(
+  text: string,
+  limit: number = MAX_MESSAGE_CHARS,
+): { text: string; truncated: boolean } {
+  if (text.length <= limit) return { text, truncated: false };
+  const points = Array.from(text);
+  if (points.length <= limit) return { text, truncated: false };
+  return { text: `${points.slice(0, limit).join("")}…`, truncated: true };
 }
 
 /**

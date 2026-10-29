@@ -16,6 +16,11 @@
   同一 JSONL 可能被双写；
   契约见[会话目录与 JSONL 索引契约](../architecture/session-catalog.md)，集成细节见
   [多会话工作区](multi-session-workspace.md)。
+- 长会话（P-04）的前端边界已实现并有 50,000 条离线夹具：首屏只读一页、Tab 最多保留
+  240 条历史 / 2,000,000 字符、单条正文 ≤ 20,000 字符、虚拟列表只渲染视口内的行。但分页方向仍是
+  「从最早一条往后」，打开长会话先看到最早一页；DOM 与内存数字来自 Chromium 开发服务器与 Node
+  夹具，**不是 Tauri WebView 实机验收**，macOS/Linux 与真实 5 万事件会话未验证。见
+  [长会话虚拟列表与 5 万事件回归](long-session-virtual-list.md)。
 - 未集成验证：当前构建环境无 Pi 模型认证；GitHub PR 权限及外部 API 尚需在实际开发机验证。
 - Windows 安装包已能在本机产出（MSI/NSIS，见[发布就绪核验](release-readiness.md)），但**安装/卸载冒烟、
   macOS 与 Linux 构建、签名与公证均未验证**；产物当前未签名。

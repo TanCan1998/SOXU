@@ -28,7 +28,9 @@ const retryText = computed(() => {
 const historyText = computed(() => {
   const history = props.tab?.history;
   if (!history) return "—";
-  return `${history.loaded} / ${history.total}${history.next === null ? "（已到底）" : "（可继续加载）"}`;
+  const released = history.evicted + history.evictedLive;
+  const evicted = released > 0 ? `（已释放 ${released} 条）` : "";
+  return `${history.loaded} / ${history.total}${evicted}${history.next === null ? "（已到底）" : "（可继续加载）"}`;
 });
 </script>
 

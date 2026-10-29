@@ -331,6 +331,8 @@ export interface ChatMessage {
   streaming: boolean;
   source: MessageSource;
   createdAt: string | null;
+  /** 正文超过 `MAX_MESSAGE_CHARS`，已被有界截断（不是加载失败）。 */
+  truncated?: boolean;
 }
 
 export type TabStatus =
@@ -341,11 +343,27 @@ export type TabStatus =
   | "cancelling"
   | "error";
 
+/**
+ * 历史分页游标。
+ *
+ * `loaded` 是**当前仍在内存里**的历史条数，不是累计加载过的条数：超过窗口上限后
+ * 最旧的历史消息会被释放（见 `MAX_TAB_HISTORY_MESSAGES`），释放数量记在 `evicted`。
+ * 这样长会话不会随着「加载更多」无限增长，UI 也能如实告诉用户释放了什么。
+ */
 export interface HistoryCursor {
   loaded: number;
   total: number;
   next: number | null;
   loading: boolean;
+  /** 已从内存释放的更早历史条数（窗口滑动，不是数据丢失）。 */
+  evicted: number;
+  /**
+   * 已从内存释放的更早**实时**条数（见 `MAX_TAB_LIVE_MESSAGES`）。
+   *
+   * 实时消息同样走有界窗口：连续多轮对话不会让 Tab 无限增长。释放的只是内存窗口，
+   * Pi 已经写出的 JSONL 未受影响，重新加载历史仍可读到同一批内容。
+   */
+  evictedLive: number;
 }
 
 export interface TabRuntime {
@@ -388,6 +406,35 @@ export interface WorkspaceState {
 
 export const HISTORY_PAGE_SIZE = 40;
 export const MAX_DIAGNOSTICS = 20;
+
+/**
+ * 单个 Tab 保留的历史消息条数上限（窗口化缓存）。
+ *
+ * 服务端分页本身有界（`MAX_PAGE_ENTRIES` + `MAX_PAGE_BYTES`），但「加载更多」会一直
+ * 往 Tab 里追加，50,000 条事件的会话迟早会把整份历史读进 Vue 状态。这里给前端再设一道
+ * 硬上限：超出后释放**最旧**的历史消息（用户已经读过、可重新加载），并累加 `evicted`。
+ */
+export const MAX_TAB_HISTORY_MESSAGES = 240;
+
+/**
+ * 单个 Tab 保留的实时消息上限；同样释放最旧的，绝不释放正在流式的最后一条。
+ *
+ * 这条上限**同时作用于两条路径**：合并历史后的窗口收敛，以及实时追加（用户发问、
+ * 新的流式回复）之后的窗口收敛。否则连续多轮对话会绕过窗口，让「有界缓存」只对
+ * 历史成立——见 `docs/development/long-session-virtual-list.md` 第 2 节。
+ */
+export const MAX_TAB_LIVE_MESSAGES = 120;
+
+/**
+ * 单个 Tab 保留的历史正文字符预算（按 UTF-16 码元计数，约 4 MB）。
+ *
+ * 只限条数不够：一条 20,000 字符的工具输出占的空间远大于 100 条短消息，
+ * 因此同时限制总字符数，保证内存边界与「消息多长」无关。
+ */
+export const MAX_TAB_HISTORY_CHARS = 2_000_000;
+
+/** 单条消息在 UI 状态里的字符上限；与 Rust `entry_text::MAX_TEXT_CHARS` 对齐。 */
+export const MAX_MESSAGE_CHARS = 20_000;
 
 export function createWorktreeState(): WorktreeState {
   return {

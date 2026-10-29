@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · 长会话虚拟列表夹具</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      #app {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #36）：
+      pnpm dev 后访问 /tests/harness/long-session.html?count=50000 ，
+      再用 moli fetch --eval 统计 .virtual-row 数量。
+      不参与生产构建（vite build 只构建 index.html）。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./long-session.ts"></script>
+  </body>
+</html>
