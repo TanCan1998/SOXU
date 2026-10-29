@@ -76,7 +76,11 @@ test("版本与平台信息只保留在「设置 → 关于」，不在主界面
   assert.ok(!app.includes("info.platform"), "顶部栏不应渲染平台名");
   assert.ok(app.includes("已连接"), "顶部栏仍需一眼可见的连接状态");
 
-  const settings = await readFile(join(SRC_ROOT, "components", "SettingsDialog.vue"), "utf8");
+  // Issue #116 起「关于」在系统页（设置 → 系统 → 关于），外壳只保留标题与说明。
+  const settings = await readFile(
+    join(SRC_ROOT, "components", "settings", "SettingsSystem.vue"),
+    "utf8",
+  );
   assert.ok(settings.includes("关于"), "版本信息收进「设置 → 关于」");
   assert.ok(settings.includes("appVersion"), "「关于」保留版本信息");
   assert.ok(settings.includes("连接状态"), "连接状态用状态表述，不写技术栈名词");

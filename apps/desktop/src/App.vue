@@ -1,3 +1,12 @@
+<!--
+  应用外壳（Issue #116 起约 720 行，超过 coding-standards 的 600 行提示线，理由如下）：
+  - 它只做「装配」：状态与副作用已经按域拆到 composable（useAppearance / useBusyDelivery /
+    useSessionSettings / useSystemSettings / useProjectDirectoryPick / useThemeTransition 等），
+    本文件剩下的是 props/事件接线与顶栏、欢迎页、弹窗的模板。
+  - 设置页的四个面板、工作树面板、会话面板都已是独立组件；再往下拆只能拆「模板片段」，
+    那会让「谁持有哪个状态」变得难以追踪，反而增加生命周期泄漏的风险。
+  - 主题切换（setTheme）与历史记录（history）必须留在壳层：它们是全应用唯一的入口。
+-->
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Plus } from "@lucide/vue";
@@ -11,7 +20,12 @@ import WorktreeDialog from "./components/WorktreeDialog.vue";
 import { useAppearance } from "./composables/useAppearance.ts";
 import { useBusyDelivery } from "./composables/useBusyDelivery.ts";
 import { useProjectDirectoryPick } from "./composables/useProjectDirectoryPick.ts";
+import { useSessionSettings } from "./composables/useSessionSettings.ts";
+import { useSystemSettings } from "./composables/useSystemSettings.ts";
+import { copyText } from "./services/clipboard.ts";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
+import { dataDirectoryHint } from "./settings/dataDirectory.ts";
+import type { Appearance } from "./theme/appearance.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
 import {
   applyDocumentTheme,
@@ -45,12 +59,20 @@ const settingsOpen = ref(false);
 const worktreeProjectId = ref<string | null>(null);
 const theme = ref<ThemeName>(resolveInitialTheme());
 /**
- * 外观（字号 + 字体族）：初始值与 main.ts 一致（挂载前就已写进 <html>），
- * 这里接管后续修改、持久化与 DOM 落地。
+ * 外观（字号 + 界面字体 + 代码字体 + 正文宽度 + 强调色）：初始值与 main.ts 一致
+ * （挂载前就已写进 <html>），这里接管后续修改、持久化与 DOM 落地。
  */
-const { appearance, setFontSize, setFontFamily } = useAppearance();
+const { appearance, patchAppearance } = useAppearance();
 /** 设置 → 会话 → 忙碌时发送的默认投递方式（V4-S1）。 */
 const { busyDelivery, setBusyDelivery } = useBusyDelivery();
+/** 设置 → 会话页其余偏好（Issue #116）：自动贴底、Enter 发送、工具输出、时间戳、思考强度。 */
+const { session, patchSession } = useSessionSettings();
+/** 设置 → 系统页开关（Issue #116）：只持久化，真实能力随对应切片接入。 */
+const { system, patchSystem } = useSystemSettings();
+/** Tauri 框架版本（「设置 → 系统 → 关于」用）；浏览器预览下保持 null。 */
+const tauriVersion = ref<string | null>(null);
+/** 「数据目录」复制按钮的结果回显。 */
+const copyState = ref<"idle" | "copied" | "failed">("idle");
 const {
   picking: pickingProject,
   pickError: pickProjectError,
@@ -220,7 +242,11 @@ function closeTab(sessionId: SessionId) {
 function send(payload: { text: string; mode: SendMode | null }) {
   const tab = activeTab.value;
   if (!tab) return;
-  void store.send(tab.sessionId, payload.text, payload.mode ? { mode: payload.mode } : undefined);
+  void store.send(tab.sessionId, payload.text, {
+    ...(payload.mode ? { mode: payload.mode } : {}),
+    // 设置 → 会话 → 默认思考强度（Issue #116）：每次发送都带上当前档位。
+    thinking: session.value.thinkingLevel,
+  });
 }
 
 function cancel() {
@@ -277,6 +303,73 @@ async function addProject() {
   await store.addProject(picked);
 }
 
+/** 「设置 → 系统 → 数据目录」展示的路径：按平台推导，与应用标识符一致。 */
+const dataDirectory = computed(() => dataDirectoryHint(info.value?.platform));
+
+/**
+ * 「清空当前会话」的可用条件（Issue #116）。
+ *
+ * 这个动作只释放界面内存里的消息缓存（关闭后立即从会话文件重新载入），
+ * 所以临时会话被排除：临时会话关闭即结束，拿它当「清缓存」会真的丢数据。
+ */
+const clearBlockedReason = computed(() => {
+  const tab = activeTab.value;
+  if (!tab) return "当前没有打开的会话";
+  if (tab.mode === "temporary") return "临时会话关闭即结束，不能只清界面缓存";
+  if (tab.status === "running" || tab.status === "cancelling") {
+    return "当前轮次还没结束，结束后再清空";
+  }
+  return null;
+});
+
+/**
+ * 清空界面缓存：关掉再打开同一个会话，内存里的消息对象随之释放并从 JSONL 重新载入。
+ * 不调用任何删除命令，会话文件保持原样（与设置页文案一致）。
+ *
+ * 草稿不是消息缓存：closeTab 会连 Tab 对象一起丢掉，用户正在写的半句话会凭空消失。
+ * 所以先取下来、重开后再写回——「清空」清的是已上屏的消息，不是用户没发出去的内容。
+ */
+async function clearSessionCache() {
+  const tab = activeTab.value;
+  if (!tab || clearBlockedReason.value !== null) return;
+  const meta = {
+    sessionId: tab.sessionId,
+    projectId: tab.projectId,
+    title: tab.title,
+    mode: tab.mode,
+    worktreeId: tab.worktreeId,
+  };
+  const draft = tab.draft;
+  const index = store.state.tabs.findIndex((candidate) => candidate.sessionId === meta.sessionId);
+  await store.closeTab(meta.sessionId);
+  try {
+    await store.openSession(meta);
+  } finally {
+    // 草稿不是消息缓存：重开后写回，用户没发出去的内容不能因为「清空」而消失。
+    if (draft) store.setDraft(meta.sessionId, draft);
+    // 重开会话会把 Tab 追加到末尾：搬回原位置，tab 栏顺序不因清缓存而跳动。
+    const reopened = store.state.tabs.findIndex((c) => c.sessionId === meta.sessionId);
+    if (index >= 0 && reopened >= 0) store.moveTab(reopened, index);
+  }
+}
+
+/**
+ * 恢复默认布局（Issue #116）：两个面板的宽度目前是固定 token（无法拖拽改宽），
+ * 所以这里重置的是「面板显隐 + 正文宽度」，并把这一点写进设置页的说明文案。
+ */
+function resetLayout() {
+  sidebarOpen.value = true;
+  inspectorOpen.value = true;
+  if (appearance.value.contentWidth !== "fixed") {
+    patchAppearance({ ...appearance.value, contentWidth: "fixed" });
+  }
+}
+
+/** 复制数据目录路径：打开文件夹需要后端命令，本切片只保证路径可复制。 */
+async function copyDataDirectory() {
+  copyState.value = (await copyText(dataDirectory.value)) ? "copied" : "failed";
+}
+
 function onKeydown(event: KeyboardEvent) {
   const mod = event.ctrlKey || event.metaKey;
   if (!mod) return;
@@ -299,6 +392,15 @@ onMounted(async () => {
     info.value = await runtimeInfo();
   } catch {
     info.value = null;
+  }
+  // Tauri 版本只在桌面端可读（core:app 的 getTauriVersion）；浏览器预览保持 null。
+  if (store.bridgeAvailable) {
+    try {
+      const { getTauriVersion } = await import("@tauri-apps/api/app");
+      tauriVersion.value = await getTauriVersion();
+    } catch {
+      tauriVersion.value = null;
+    }
   }
   await store.bootstrap();
   const first = lastSession.value;
@@ -417,6 +519,7 @@ onUnmounted(() => {
         :bridge-available="store.bridgeAvailable"
         :busy="store.busy"
         :default-delivery="busyDelivery"
+        :settings="session"
         @send="send"
         @cancel="cancel"
         @stop="stop"
@@ -493,16 +596,25 @@ onUnmounted(() => {
     <SettingsDialog
       :open="settingsOpen"
       :theme="theme"
-      :font-size="appearance.fontSize"
-      :font-family="appearance.fontFamily"
+      :appearance="appearance"
       :busy-delivery="busyDelivery"
+      :session="session"
+      :system="system"
       :info="info"
       :bridge-available="store.bridgeAvailable"
+      :tauri-version="tauriVersion"
+      :data-directory="dataDirectory"
+      :copy-state="copyState"
+      :clear-blocked-reason="clearBlockedReason"
       @close="settingsOpen = false"
       @update:theme="(value: ThemeName) => void setTheme(value)"
-      @update:fontSize="setFontSize"
-      @update:fontFamily="setFontFamily"
+      @update:appearance="(value: Appearance) => patchAppearance(value)"
       @update:busyDelivery="setBusyDelivery"
+      @update:session="patchSession"
+      @update:system="patchSystem"
+      @clear-session="clearSessionCache"
+      @reset-layout="resetLayout"
+      @copy-data-dir="copyDataDirectory"
     />
   </div>
 </template>

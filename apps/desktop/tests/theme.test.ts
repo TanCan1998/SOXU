@@ -198,6 +198,9 @@ test("深色 token 同时挂在 html 与 .app-shell 上，且不是近白色", a
   );
 
   const darkBlock = cssRule(css, ':root[data-theme="dark"],\n.app-shell[data-theme="dark"]');
+  // 只对「写死色值的大面积背景」判亮度；强调色派生色自 Issue #116 复审起由
+  // color-mix 从色板主色推导（深色比例 26% / 32%），色值随色板变化且带透明度，
+  // 不能按单一十六进制判亮度——它们由 settingsDialog.test.ts 的色板用例单独核对。
   const surfaces = [
     "--soxu-bg",
     "--soxu-sidebar",
@@ -205,14 +208,26 @@ test("深色 token 同时挂在 html 与 .app-shell 上，且不是近白色", a
     "--soxu-soft",
     "--soxu-input",
     "--soxu-hover",
-    "--soxu-selected",
-    "--soxu-accent-soft",
   ];
   for (const token of surfaces) {
     const match = new RegExp(`${token}:\\s*(#[0-9a-fA-F]{6})`).exec(darkBlock);
     assert.ok(match, `深色块缺少 ${token}`);
     const luminance = relativeLuminance(match[1] as string);
     assert.ok(luminance < 0.2, `${token} 在深色下亮度 ${luminance.toFixed(3)}，属于近白色大面积背景`);
+  }
+
+  // 强调色派生色在深色下切到 *-dark 那一套源值，且默认色的源值本身是深色（不是近白）
+  for (const alias of ["--soxu-accent-soft", "--soxu-selected"]) {
+    assert.match(darkBlock, new RegExp(`${alias}:\\s*var\\(\\${alias}-dark\\)`), `${alias} 应切到深色源值`);
+  }
+  const rootBlock = cssRule(css, ":root");
+  for (const source of ["--soxu-accent-soft-dark", "--soxu-selected-dark"]) {
+    const match = new RegExp(`${source}:\\s*(#[0-9a-fA-F]{6})`).exec(rootBlock);
+    assert.ok(match, `默认色缺少 ${source}`);
+    assert.ok(
+      relativeLuminance(match[1] as string) < 0.2,
+      `${source} 在深色下亮度过高，会被当成浅色大面积背景`,
+    );
   }
 
   // 顶部栏用的 token 在深色下必须真的有深色值，否则等于没改

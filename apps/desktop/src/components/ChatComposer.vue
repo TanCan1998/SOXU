@@ -31,6 +31,8 @@ const props = defineProps<{
   busy: boolean;
   /** 设置里的「忙碌时发送」默认投递方式。 */
   defaultDelivery: BusySendDelivery;
+  /** 设置 → 会话 → Enter 发送（Issue #116）：关掉后 Enter 换行、⌘/Ctrl+↵ 发送。 */
+  enterToSend: boolean;
   /** 当前会话是否有已登记的项目：并行发送需要一个落点。 */
   hasProject: boolean;
 }>();
@@ -55,10 +57,18 @@ const pendingMode = computed<SendMode | null>(
 );
 const defaultDeliveryLabel = computed(() => sendModeLabel(props.defaultDelivery));
 
+/**
+ * 发送快捷键（Issue #116）：文案必须与 onKeydown 的真实判定一致，
+ * 否则用户按提示按下去没反应。
+ */
+const sendShortcut = computed(() => (props.enterToSend ? "Enter" : "Ctrl/⌘+Enter"));
+
 const hint = computed(() =>
   running.value
     ? `本轮运行中 · 忙碌时默认「${defaultDeliveryLabel.value}」`
-    : "Enter 发送 · Shift+Enter 换行 · Esc 取消当前轮次",
+    : props.enterToSend
+      ? "Enter 发送 · Shift+Enter 换行 · Esc 取消当前轮次"
+      : "Ctrl/⌘+Enter 发送 · Enter 换行 · Esc 取消当前轮次",
 );
 
 function onInput(event: Event) {
@@ -66,10 +76,18 @@ function onInput(event: Event) {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
-    event.preventDefault();
-    if (canSend.value) send();
-    return;
+  if (event.key === "Enter" && !event.isComposing) {
+    // 输入法组合中（event.isComposing）一律不拦截：中文候选词确认也会发 Enter。
+    const modified = event.ctrlKey || event.metaKey;
+    const sendNow = props.enterToSend
+      ? !event.shiftKey
+      : // 关掉「Enter 发送」后 Enter 换行，⌘/Ctrl+↵ 才发送；Shift+Enter 始终换行。
+        modified && !event.shiftKey;
+    if (sendNow) {
+      event.preventDefault();
+      if (canSend.value) send();
+      return;
+    }
   }
   if (event.key === "Escape" && running.value) {
     event.preventDefault();
@@ -151,7 +169,7 @@ defineExpose({ focus: () => textarea.value?.focus() });
             {{ status === "cancelling" ? "取消中…" : "取消" }}
           </button>
           <div class="send-split">
-            <AppTooltip text="发送消息 (Enter)" side="top">
+            <AppTooltip :text="`发送消息 (${sendShortcut})`" side="top">
               <button
                 class="send-main"
                 type="button"
@@ -177,8 +195,9 @@ defineExpose({ focus: () => textarea.value?.focus() });
 </template>
 
 <style scoped>
+/* 输入区与消息列表共用同一个宽度上限（Issue #116 的正文宽度设置）。 */
 .composer-area {
-  width: min(100% - 48px, 780px);
+  width: min(100% - 48px, var(--soxu-content-max));
   margin: 0 auto 20px;
   flex: none;
   display: flex;

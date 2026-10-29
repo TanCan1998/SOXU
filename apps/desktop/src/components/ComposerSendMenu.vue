@@ -110,14 +110,23 @@ function choose(mode: SendMode) {
 </template>
 
 <style scoped>
-/* 与主钮拼成一个整体：右半是 caret，左侧一条分隔线（原型 send-split）。 */
+/*
+ * 与主钮拼成一个整体：右半是 caret，左侧一条分隔线（原型 send-split）。
+ *
+ * 前景与分隔线必须引用 --soxu-on-accent（Issue #116 复审阻塞点）：
+ * 上一版这里写死 #fff，在青绿/蓝绿/玫红/琥珀四个色板上是白字压浅底——
+ * 琥珀 2.15:1、蓝绿 2.49:1，低于 WCAG 1.4.11 的非文本 3:1。
+ * 色板自己在 base.css 里按「白/墨取对比度更高者」定义这个 token，
+ * 组件只消费它；实测见 tests/sendCaretContrast.test.ts 与
+ * docs/development/evidence/issue-116-v4-s2/README.md §3.7。
+ */
 .send-caret {
   display: grid;
   place-items: center;
   width: 26px;
   height: 30px;
-  color: #fff;
-  border-left: 1px solid rgb(255 255 255 / 28%);
+  color: var(--soxu-on-accent);
+  border-left: 1px solid color-mix(in srgb, var(--soxu-on-accent) 28%, transparent);
   transition:
     background-color var(--soxu-motion-fast) var(--soxu-motion-ease),
     transform var(--soxu-motion-fast) var(--ease-spring, var(--soxu-motion-ease));

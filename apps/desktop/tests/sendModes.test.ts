@@ -161,12 +161,21 @@ test("设置 → 会话：忙碌时发送两选一，默认「加入当前」", 
   );
   assert.equal(DEFAULT_BUSY_DELIVERY, "steer", "决策文档的默认值是加入当前");
 
+  // Issue #116 起会话页单独成组件：这一项从 SettingsDialog.vue 搬到了 SettingsSession.vue。
+  const session = await readSource("components/settings/SettingsSession.vue");
+  assert.ok(session.includes("忙碌时发送"), "设置面板必须有这一项");
+  assert.ok(session.includes("BUSY_DELIVERY_OPTIONS"), "选项表来自 busyDelivery.ts");
+  assert.ok(session.includes("SettingsChoice"), "两选一用共用的单选组组件");
+  const choice = await readSource("components/settings/SettingsChoice.vue");
+  assert.ok(choice.includes("RadioGroupRoot"), "单选组用 reka（自带 role=radiogroup）");
+  assert.ok(session.includes(":labelledby="), "单选组绑定行标题，读屏名字与可见标题一致");
+  assert.ok(session.includes('emit("update:busyDelivery"'), "选择要向上冒泡");
+  assert.ok(session.includes("isBusySendDelivery"), "冒泡前用守卫收窄，脏值不会写进状态");
+
+  // 外壳只负责把它透传给会话页，不再自己实现这一项
   const dialog = await readSource("components/SettingsDialog.vue");
-  assert.ok(dialog.includes("忙碌时发送"), "设置面板必须有这一项");
-  assert.ok(dialog.includes("BUSY_DELIVERY_OPTIONS"), "选项表来自 busyDelivery.ts");
-  assert.ok(dialog.includes("soxu-settings-busy-delivery"), "字段要有 aria-labelledby 的 id");
-  assert.ok(dialog.includes("role=\"radiogroup\""), "两选一是单选组");
-  assert.ok(dialog.includes("emit('update:busyDelivery'"), "选择要向上冒泡");
+  assert.ok(dialog.includes("SettingsSession"), "四页之一：会话页");
+  assert.ok(dialog.includes("@update:busyDelivery"), "外壳把改动继续向上冒泡");
 
   const app = await readSource("App.vue");
   assert.ok(app.includes("useBusyDelivery"), "App 持有投递方式状态");

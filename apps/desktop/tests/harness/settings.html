@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · V4-S2 设置页夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #116 · V4-S2）：
+      pnpm dev 后访问 /tests/harness/settings.html ，
+      再用 tests/harness/shoot-issue-116-settings.mjs 截图并量设置页状态。
+      不参与生产构建（vite build 只构建 index.html），也不连接 Pi：
+      四页里的数据全是常量，开关只改夹具自己的响应式状态与 localStorage。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./settings.ts"></script>
+  </body>
+</html>

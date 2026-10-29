@@ -5,6 +5,7 @@ import AppTooltip from "./AppTooltip.vue";
 import ChatComposer from "./ChatComposer.vue";
 import MessageList from "./MessageList.vue";
 import type { BusySendDelivery } from "../settings/busyDelivery.ts";
+import type { SessionSettings } from "../settings/sessionSettings.ts";
 import type { SendMode, SessionTab } from "../workspace/types.ts";
 
 const props = defineProps<{
@@ -13,6 +14,8 @@ const props = defineProps<{
   busy: boolean;
   /** 设置里的「忙碌时发送」默认投递方式，透传给 composer。 */
   defaultDelivery: BusySendDelivery;
+  /** 设置 → 会话：自动贴底、工具输出展开、时间戳、Enter 发送，透传给列表与输入区。 */
+  settings: SessionSettings;
 }>();
 
 const emit = defineEmits<{
@@ -142,6 +145,7 @@ const runtimeHint = computed(() => {
       :messages="tab.messages"
       :history="tab.history"
       :loading="tab.history.loading"
+      :settings="settings"
       @load-more="emit('load-more')"
     />
 
@@ -152,6 +156,7 @@ const runtimeHint = computed(() => {
       :disabled="!bridgeAvailable"
       :busy="busy"
       :default-delivery="defaultDelivery"
+      :enter-to-send="settings.enterToSend"
       :has-project="Boolean(tab.projectId)"
       @update:draft="emit('update:draft', $event)"
       @send="(mode: SendMode | null) => emit('send', { text: tab.draft, mode })"

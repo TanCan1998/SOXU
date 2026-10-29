@@ -10,6 +10,7 @@ import { createApp, h } from "vue";
 // 与桌面端一致的基础样式（.visually-scroll 的 overflow 等），由 Vite 注入。
 import "../../src/styles/base.css";
 import MessageList from "../../src/components/MessageList.vue";
+import { DEFAULT_SESSION_SETTINGS } from "../../src/settings/sessionSettings.ts";
 import { LongSessionFixture, LONG_SESSION_EVENTS } from "../support/longSession.ts";
 import type { ChatMessage, HistoryCursor } from "../../src/workspace/types.ts";
 
@@ -44,5 +45,6 @@ const history: HistoryCursor = {
 };
 
 createApp({
-  render: () => h(MessageList, { messages, history, loading: false }),
+  // Issue #116 起 MessageList 多了 settings（贴底 / 工具输出 / 时间戳），夹具用默认值即可。
+  render: () => h(MessageList, { messages, history, loading: false, settings: DEFAULT_SESSION_SETTINGS }),
 }).mount("#app");

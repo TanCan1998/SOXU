@@ -10,8 +10,22 @@
   --soxu-sidebar: #f5f5f6;
   --soxu-panel: #fcfcfc;
   --soxu-accent: #3a83f7;
-  --soxu-accent-soft: #e8f0ff;
-  --soxu-selected: #e8f0ff;
+  /*
+   * 强调色的派生色（Issue #116 复审修复）：soft / selected / focus 不直接写死颜色，
+   * 而是「色板主色 + 主题比例」推导出来的两级源值：
+   *   --soxu-*-light / --soxu-*-dark  ← 色板与主题各自只改这一层
+   *   --soxu-accent-soft / --soxu-selected / --soxu-focus  ← 组件只认这一层别名
+   * 深色主题因此不再重复声明 --soxu-accent。上一版在 .app-shell[data-theme="dark"]
+   * 里写死 --soxu-accent: #3a83f7，那条声明落在 app-shell 元素上、优先级高于
+   * <html> 上的色板，导致深色下切换色板时 app-shell 子树仍然是蓝色（两套色）。
+   * 默认色 blue 的四个源值保持改动前的手调值，默认观感零变化。
+   */
+  --soxu-accent-soft-light: #e8f0ff;
+  --soxu-selected-light: #e8f0ff;
+  --soxu-accent-soft-dark: #23324b;
+  --soxu-selected-dark: #2c3445;
+  --soxu-accent-soft: var(--soxu-accent-soft-light);
+  --soxu-selected: var(--soxu-selected-light);
   --soxu-fg: #191919;
   --soxu-subtext: #575757;
   --soxu-muted: #757575;
@@ -21,12 +35,18 @@
   --soxu-input: #ffffff;
   --soxu-ink: #191919;
   --soxu-on-ink: #fcfcfc;
-  /* 强调色底上的文字（发送主钮）：两套主题都用白色，不在组件里写死颜色。 */
+  /*
+   * 强调色底上的前景（发送主钮图标、色板勾选）：默认色 blue 沿用既有白色；
+   * 每个色板按「白/墨取对比度更高者」在自己的块里覆盖，组件里不写死颜色。
+   */
   --soxu-on-accent: #ffffff;
   --soxu-ok: #2f8f68;
   --soxu-warn: #a8762a;
   --soxu-danger: #c0392b;
-  --soxu-focus: #3a83f7;
+  --soxu-focus-light: #3a83f7;
+  /* 深色下焦点环需要提亮才看得清（蓝 → 浅蓝）；其余色板由色板自己推导。 */
+  --soxu-focus-dark: #7aa9f9;
+  --soxu-focus: var(--soxu-focus-light);
   --soxu-radius: 10px;
   /*
    * 交互动效 token（Issue #96）：hover 反馈只允许引用这些值，
@@ -48,6 +68,11 @@
   --soxu-font-family-ui: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
   --soxu-font-family-body: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
   --soxu-font-family-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
+  /*
+   * 会话正文与输入区的内容宽度上限（Issue #116）：默认「固定 768」直接引用 V4 token
+   * --content-max，data-content-width="fluid" 时覆盖成 100%（见文件下方的宽度档）。
+   */
+  --soxu-content-max: var(--content-max);
   /*
    * 字号倍率：标准档 = 1，即 1rem 仍是浏览器默认的 16px，默认观感与改动前完全一致
    * （组件里原本的 px 字号都按 16px 基准换成了 rem，分母是 2 的幂，没有亚像素舍入）。
@@ -86,11 +111,30 @@ html {
  * （选哪一档都是等宽），会话正文与输入框用 --soxu-font-family-body，都不受字体档影响。
  */
 :root[data-font-family="sans"] {
-  --soxu-font-family-ui: "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", sans-serif;
+  --soxu-font-family-ui: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+}
+
+/* 衬线档（Issue #116）：中文回退宋体，西文用 Georgia/Times，长文阅读更接近纸面。 */
+:root[data-font-family="serif"] {
+  --soxu-font-family-ui: Georgia, "Times New Roman", "Songti SC", "SimSun", "Noto Serif CJK SC", serif;
 }
 
 :root[data-font-family="mono"] {
   --soxu-font-family-ui: var(--soxu-font-family-mono);
+}
+
+/*
+ * 代码字体档位（Issue #116）：只改 --soxu-font-family-mono，代码块、工具输出、
+ * 终端类内容一起跟随；界面字体与正文不受影响。
+ * 默认档 system 沿用 :root 上的系统等宽栈，因此不写覆盖规则（与字体族的 system 档同理）。
+ * 这两档不打包字体文件：本机未安装时浏览器逐级回退到系统等宽栈，不会出现空白字形。
+ */
+:root[data-code-font="jetbrains"] {
+  --soxu-font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
+}
+
+:root[data-code-font="fira"] {
+  --soxu-font-family-mono: "Fira Code", ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
 }
 
 /*
@@ -105,9 +149,18 @@ html {
   --soxu-bg: #191717;
   --soxu-sidebar: #222020;
   --soxu-panel: #191717;
-  --soxu-accent: #3a83f7;
-  --soxu-accent-soft: #23324b;
-  --soxu-selected: #2c3445;
+  /*
+   * 强调色本身不在这里声明：色相永远来自 <html> 的 :root[data-accent="…"] 色板，
+   * 深色主题只把派生色切到 *-dark 那一套源值（比例更高，深底上才看得出层次）。
+   * 在这里再写一次 --soxu-accent 会让 app-shell 子树与 <html> 出现两套色（见 :root 的说明）。
+   */
+  --soxu-accent-soft: var(--soxu-accent-soft-dark);
+  --soxu-selected: var(--soxu-selected-dark);
+  /*
+   * V4 token（--accent-soft，设置页的选中底色在用）同样切到深色比例：
+   * tokens.css 的默认值是浅色的 14%，深底上太淡，几乎看不出「已选中」。
+   */
+  --accent-soft: color-mix(in srgb, var(--accent) 26%, transparent);
   --soxu-fg: #f4f3f3;
   --soxu-subtext: #c4bebe;
   --soxu-muted: #9b9494;
@@ -117,14 +170,107 @@ html {
   --soxu-input: #211f1f;
   --soxu-ink: #f4f3f3;
   --soxu-on-ink: #191717;
-  --soxu-on-accent: #ffffff;
   --soxu-ok: #6fbf9a;
   --soxu-warn: #d3a55a;
   --soxu-danger: #e0725f;
-  --soxu-focus: #7aa9f9;
+  --soxu-focus: var(--soxu-focus-dark);
   /* 深色背景需要更强的阴影才看得出层次，仍是同一个 token 名。 */
   --soxu-shadow-raised: 0 8px 22px rgb(0 0 0 / 45%);
   color-scheme: dark;
+}
+
+/*
+ * 强调色色板（Issue #116）：六色都只改「强调色 token」，不改任何布局。
+ * 默认色 blue 不写覆盖规则（它就是 :root 里的原值），因此默认观感零变化；
+ * 其余五色同时改 V3 token（--soxu-*，现有组件在用）与 V4 token（--accent*，S0 那套），
+ * 避免出现「侧栏还是蓝的、Tailwind 组件已经变绿」的两套色。
+ *
+ * 每个色板声明四件事，缺一不可：
+ * 1. --soxu-accent：主色（V3 与 V4 两个 token 名都要写）；
+ * 2. *-light / *-dark 派生源值：soft / selected 由主色 color-mix 推导，浅深两套比例，
+ *    深色主题只切别名（见上面的 :root 与深色 token 块），因此不需要第二份主色；
+ * 3. --soxu-on-accent：主色底上的前景（发送钮图标、色板勾选）。取白/墨两者中
+ *    对比度更高的一侧，实测值见 tests/appearance.test.ts 的色板对比度用例；
+ * 4. --accent / --accent-hover：S0 那套 Tailwind token，与 V3 token 同步切换。
+ */
+
+:root[data-accent="green"] {
+  --soxu-accent: #10a37f;
+  --soxu-accent-soft-light: color-mix(in srgb, var(--soxu-accent) 14%, transparent);
+  --soxu-selected-light: color-mix(in srgb, var(--soxu-accent) 16%, transparent);
+  --soxu-accent-soft-dark: color-mix(in srgb, var(--soxu-accent) 26%, transparent);
+  --soxu-selected-dark: color-mix(in srgb, var(--soxu-accent) 32%, transparent);
+  --soxu-focus-light: var(--soxu-accent);
+  --soxu-focus-dark: var(--soxu-accent);
+  /* 与 #10a37f 的实测对比度 5.58:1（白/墨取高者，见 tests/appearance.test.ts）。 */
+  --soxu-on-accent: #191717;
+  --accent: #10a37f;
+  --accent-hover: #0d8a6b;
+}
+
+:root[data-accent="teal"] {
+  --soxu-accent: #14b8a6;
+  --soxu-accent-soft-light: color-mix(in srgb, var(--soxu-accent) 14%, transparent);
+  --soxu-selected-light: color-mix(in srgb, var(--soxu-accent) 16%, transparent);
+  --soxu-accent-soft-dark: color-mix(in srgb, var(--soxu-accent) 26%, transparent);
+  --soxu-selected-dark: color-mix(in srgb, var(--soxu-accent) 32%, transparent);
+  --soxu-focus-light: var(--soxu-accent);
+  --soxu-focus-dark: var(--soxu-accent);
+  /* 与 #14b8a6 的实测对比度 7.17:1（白/墨取高者，见 tests/appearance.test.ts）。 */
+  --soxu-on-accent: #191717;
+  --accent: #14b8a6;
+  --accent-hover: #0f9b8c;
+}
+
+:root[data-accent="violet"] {
+  --soxu-accent: #8b5cf6;
+  --soxu-accent-soft-light: color-mix(in srgb, var(--soxu-accent) 14%, transparent);
+  --soxu-selected-light: color-mix(in srgb, var(--soxu-accent) 16%, transparent);
+  --soxu-accent-soft-dark: color-mix(in srgb, var(--soxu-accent) 26%, transparent);
+  --soxu-selected-dark: color-mix(in srgb, var(--soxu-accent) 32%, transparent);
+  --soxu-focus-light: var(--soxu-accent);
+  --soxu-focus-dark: var(--soxu-accent);
+  /* 与 #8b5cf6 的实测对比度 4.23:1（白/墨取高者，见 tests/appearance.test.ts）。 */
+  --soxu-on-accent: #ffffff;
+  --accent: #8b5cf6;
+  --accent-hover: #7c4deb;
+}
+
+:root[data-accent="rose"] {
+  --soxu-accent: #f43f5e;
+  --soxu-accent-soft-light: color-mix(in srgb, var(--soxu-accent) 14%, transparent);
+  --soxu-selected-light: color-mix(in srgb, var(--soxu-accent) 16%, transparent);
+  --soxu-accent-soft-dark: color-mix(in srgb, var(--soxu-accent) 26%, transparent);
+  --soxu-selected-dark: color-mix(in srgb, var(--soxu-accent) 32%, transparent);
+  --soxu-focus-light: var(--soxu-accent);
+  --soxu-focus-dark: var(--soxu-accent);
+  /* 与 #f43f5e 的实测对比度 4.86:1（白/墨取高者，见 tests/appearance.test.ts）。 */
+  --soxu-on-accent: #191717;
+  --accent: #f43f5e;
+  --accent-hover: #e11d48;
+}
+
+:root[data-accent="amber"] {
+  --soxu-accent: #f59e0b;
+  --soxu-accent-soft-light: color-mix(in srgb, var(--soxu-accent) 14%, transparent);
+  --soxu-selected-light: color-mix(in srgb, var(--soxu-accent) 16%, transparent);
+  --soxu-accent-soft-dark: color-mix(in srgb, var(--soxu-accent) 26%, transparent);
+  --soxu-selected-dark: color-mix(in srgb, var(--soxu-accent) 32%, transparent);
+  --soxu-focus-light: var(--soxu-accent);
+  --soxu-focus-dark: var(--soxu-accent);
+  /* 与 #f59e0b 的实测对比度 8.31:1（白/墨取高者，见 tests/appearance.test.ts）。 */
+  --soxu-on-accent: #191717;
+  --accent: #f59e0b;
+  --accent-hover: #d97706;
+}
+
+/*
+ * 会话正文宽度（Issue #116）：组件只写 min(100% - 48px, var(--soxu-content-max))，
+ * 因此「固定 768」是默认值（--soxu-content-max 在文件顶部的 :root 里指向 V4 的
+ * --content-max），「自适应」把上限放开到 100%。
+ */
+:root[data-content-width="fluid"] {
+  --soxu-content-max: 100%;
 }
 
 * {
