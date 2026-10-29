@@ -21,6 +21,11 @@
   「从最早一条往后」，打开长会话先看到最早一页；DOM 与内存数字来自 Chromium 开发服务器与 Node
   夹具，**不是 Tauri WebView 实机验收**，macOS/Linux 与真实 5 万事件会话未验证。见
   [长会话虚拟列表与 5 万事件回归](long-session-virtual-list.md)。
+- 系统托盘已实现（Issue #90）：点窗口关闭只隐藏到托盘，进程与运行中的 Pi 会话继续存活；
+  托盘左键与菜单「显示窗口」恢复窗口，菜单「退出」才真正结束进程（仍走 `RunEvent::Exit` 回收受管 Pi 进程）。
+  只在 Windows 本机做了**消息级**验证（见[托盘实机证据](evidence/issue-90-tray/README.md)），
+  真实鼠标点击与「图标是否露在任务栏」未肉眼确认；托盘创建失败时回落到「关闭即退出」，
+  Linux 需要运行时存在 `libayatana-appindicator`，macOS 未验证。
 - 未集成验证：当前构建环境无 Pi 模型认证；GitHub PR 权限及外部 API 尚需在实际开发机验证。
 - Windows 安装包已能在本机产出（MSI/NSIS，见[发布就绪核验](release-readiness.md)），但**安装/卸载冒烟、
   macOS 与 Linux 构建、签名与公证均未验证**；产物当前未签名。
