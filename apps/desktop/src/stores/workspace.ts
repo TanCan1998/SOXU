@@ -9,7 +9,10 @@ import { computed, reactive, ref } from "vue";
 import { defineStore } from "pinia";
 
 import { createTauriBridge, createUnavailableBridge, isTauriRuntime } from "../workspace/bridge.ts";
-import { WorkspaceSession } from "../workspace/sessionWorkspace.ts";
+import {
+  WorkspaceSession,
+  type RuntimeEventObserver,
+} from "../workspace/sessionWorkspace.ts";
 import { WorktreeCatalog } from "../workspace/worktreeWorkspace.ts";
 import {
   createWorkspaceState,
@@ -105,6 +108,16 @@ export const useWorkspaceStore = defineStore("workspace", () => {
 
   function setActive(sessionId: SessionId | null): void {
     session.setActive(sessionId);
+  }
+
+  /**
+   * 订阅运行时事件（已按 generation 过滤），返回取消订阅函数。
+   *
+   * 通知层（`useNotifications`）用它接上同一条事件流，不另开 Tauri 监听器；
+   * 取消订阅由调用方在作用域销毁时执行。
+   */
+  function onRuntimeEvent(observer: RuntimeEventObserver): () => void {
+    return session.onRuntimeEvent(observer);
   }
 
   function setDraft(sessionId: SessionId, draft: string): void {
@@ -215,6 +228,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     openTemporary,
     promote,
     setActive,
+    onRuntimeEvent,
     setDraft,
     moveTab,
     send,

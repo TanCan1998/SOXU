@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · V4-S2b 通知夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #117 · V4-S2b）：
+      pnpm dev 后访问 /tests/harness/notification-toasts.html ，
+      再用 tests/harness/shoot-issue-117-toast.mjs 截图并采集指标。
+      不参与生产构建（vite build 只构建 index.html），也不连接 Pi：
+      通知全部由 window.__soxuToast 的调试入口推入。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./notification-toasts.ts"></script>
+  </body>
+</html>
