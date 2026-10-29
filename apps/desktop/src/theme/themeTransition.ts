@@ -14,7 +14,10 @@
 
 import { nextTick } from "vue";
 
-export type ThemeName = "light" | "dark";
+import type { ThemeName } from "./theme.ts";
+
+// 主题名的唯一定义在 theme.ts；这里转发一次，保持既有导入路径可用。
+export type { ThemeName };
 
 /** 扩散时长（毫秒）；CSS 通过 --soxu-theme-duration 读取同一数值。 */
 export const THEME_TRANSITION_DURATION_MS = 420;

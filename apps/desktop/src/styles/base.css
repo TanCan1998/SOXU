@@ -29,6 +29,14 @@
   color-scheme: light;
 }
 
+/*
+ * 深色 token 挂两个选择器，语义只有一个：
+ * - :root[data-theme="dark"]：启动时由 theme.ts 写到 <html>，让 body 背景、
+ *   color-scheme、原生滚动条和表单控件一起跟随（与 V3 tokens.css 的写法一致）；
+ * - .app-shell[data-theme="dark"]：组件级兜底，单独渲染 App.vue 时也能拿到深色 token。
+ * 只写后者会让 <html>/<body> 停留在浅色，深色主题下顶部与滚动条仍偏浅。
+ */
+:root[data-theme="dark"],
 .app-shell[data-theme="dark"] {
   --soxu-bg: #191717;
   --soxu-sidebar: #222020;

@@ -10,7 +10,15 @@ import WorktreeDialog from "./components/WorktreeDialog.vue";
 import { useProjectDirectoryPick } from "./composables/useProjectDirectoryPick.ts";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
-import { runThemeTransition, type ThemeName } from "./theme/themeTransition.ts";
+import {
+  applyDocumentTheme,
+  persistTheme,
+  resolveInitialTheme,
+  syncWindowTheme,
+  type ThemeName,
+} from "./theme/theme.ts";
+import { runThemeTransition } from "./theme/themeTransition.ts";
+import { currentWindowTarget } from "./theme/windowTheme.ts";
 import type { CreateWorktreeInput, SessionId, WorktreeId } from "./workspace/types.ts";
 
 const store = useWorkspaceStore();
@@ -21,7 +29,7 @@ const settingsOpen = ref(false);
 /** 工作树面板观察的项目；null 表示面板关闭。 */
 const worktreeProjectId = ref<string | null>(null);
 const rootPath = ref("");
-const theme = ref<ThemeName>(initialTheme());
+const theme = ref<ThemeName>(resolveInitialTheme());
 const {
   picking: pickingProject,
   pickError: pickProjectError,
@@ -38,17 +46,26 @@ const lastSession = computed(() =>
   [...store.sessionList].sort((left, right) => right.updatedAtMs - left.updatedAtMs)[0] ?? null,
 );
 
-function initialTheme(): ThemeName {
-  const stored = typeof localStorage === "undefined" ? null : localStorage.getItem("soxu.theme");
-  if (stored === "light" || stored === "dark") return stored;
-  const prefersDark =
-    typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
-  return prefersDark ? "dark" : "light";
-}
-
+/** 持久化只发生在用户切换时；没选过的用户继续跟随系统偏好，不被首次启动写死。 */
 watch(theme, (value) => {
-  if (typeof localStorage !== "undefined") localStorage.setItem("soxu.theme", value);
+  persistTheme(value);
 });
+
+/**
+ * 主题落地：写 <html data-theme>（:root token 与 color-scheme）并同步原生窗口标题栏。
+ *
+ * - flush: "sync"：属性必须在提交的同一帧写进 <html>，否则主题过渡的新快照会拍到旧配色；
+ * - immediate：启动时（Vue 挂载前）就生效，避免深色主题先闪一帧浅色；
+ * - 两个副作用互不阻塞：窗口同步失败（Linux/浏览器预览）只记 failed，应用内主题照常。
+ */
+watch(
+  theme,
+  (value) => {
+    applyDocumentTheme(value);
+    void syncWindowTheme(value, currentWindowTarget());
+  },
+  { flush: "sync", immediate: true },
+);
 
 /**
  * 主题切换统一入口：有点击坐标就从按钮位置圆形扩散，没有坐标（设置对话框）从视口中心扩散。
@@ -416,6 +433,15 @@ onUnmounted(() => {
   gap: 16px;
   padding: 10px 18px;
   min-height: 52px;
+  flex: none;
+  min-width: 0;
+  /*
+   * 必须显式给背景：不写背景时顶部栏没有自己的底色，深色主题下会透出
+   * 窗口 backgroundColor（tauri.conf.json 里的纯白），形成一条浅色带。
+   * 取值与 V3 设计的 rail 一致，等同侧栏，保证顶部与左栏同色。
+   */
+  background: var(--soxu-sidebar);
+  color: var(--soxu-fg);
   border-bottom: 1px solid var(--soxu-border);
 }
 
@@ -436,6 +462,8 @@ onUnmounted(() => {
 .location-name {
   font-weight: 700;
   letter-spacing: 0.4px;
+  /* 显式声明主题文字色：将来改 .app-header 的 color 时标题不会退回浏览器默认黑 */
+  color: var(--soxu-fg);
 }
 
 .location-sep {
