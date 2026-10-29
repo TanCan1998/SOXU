@@ -264,15 +264,19 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="header-end">
-          <span class="badge" :data-tone="store.bridgeAvailable ? undefined : 'danger'">
-            {{ store.bridgeAvailable ? "Rust 运行时" : "浏览器预览" }}
+          <span
+            class="badge"
+            :data-tone="store.bridgeAvailable ? undefined : 'danger'"
+            :title="store.bridgeAvailable ? '已连接本机运行时' : '浏览器预览：未连接本机运行时'"
+          >
+            {{ store.bridgeAvailable ? "已连接" : "未连接" }}
           </span>
           <button
             class="icon-button"
             type="button"
-            :aria-label="inspectorOpen ? '关闭运行检查器' : '打开运行检查器'"
+            :aria-label="inspectorOpen ? '关闭会话状态面板' : '打开会话状态面板'"
             :aria-expanded="inspectorOpen"
-            title="运行检查器 (Ctrl+I)"
+            title="会话状态 (Ctrl+I)"
             aria-keyshortcuts="Control+I"
             @click="inspectorOpen = !inspectorOpen"
           >
@@ -346,7 +350,6 @@ onUnmounted(() => {
       :project-count="store.state.projects.length"
       :session-count="store.sessionList.length"
       :bridge-available="store.bridgeAvailable"
-      :info="info"
       @close="inspectorOpen = false"
       @refresh-projects="() => void store.refreshProjects()"
       @stop="stop"

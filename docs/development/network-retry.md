@@ -124,7 +124,7 @@ SOXU 有两条独立的自动化链路，重试预算必须分开说，否则容
 
 ## 控制台可见性
 
-右侧「运行检查器」新增**重试预算**卡片，数据来自后端 `RetryStatus`
+右侧「会话状态」面板新增**重试预算**卡片，数据来自后端 `RetryStatus`
 （`dto::RuntimeStarted` / `RuntimeStatus` 的 `retry` 字段）：
 
 | 字段 | 含义 |
