@@ -87,7 +87,10 @@ fn tree_sums_parent_and_grandchild() {
     let mut usage = monitor
         .tree_usage(&sampler, hog.pid(), &[])
         .expect("进程树可采样");
-    while usage.resident_bytes < 100 * MIB && Instant::now() < deadline {
+    // 父进程与子进程各承诺分配 32 MiB，工作集之和的下界是 64 MiB。
+    // 上限取决于分配器与 /proc 统计口径：Linux CI 实测约 97 MiB，旧断言写死
+    // 100 MiB 会随 runner 镜像更新而假失败（见 #80 的 CI）。
+    while usage.resident_bytes < 64 * MIB && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(100));
         usage = monitor
             .tree_usage(&sampler, hog.pid(), &[])
@@ -105,8 +108,8 @@ fn tree_sums_parent_and_grandchild() {
 
     assert!(usage.processes >= 2, "父进程 + 子进程都应计入：{usage:?}");
     assert!(
-        usage.resident_bytes >= 100 * MIB,
-        "两个 32 MiB 夹具的工作集之和不应低于 100 MiB"
+        usage.resident_bytes >= 64 * MIB,
+        "父进程 + 子进程各 32 MiB，工作集之和不应低于 64 MiB：{usage:?}"
     );
     assert!(usage.is_complete(), "不应有采样不到的进程：{usage:?}");
     #[cfg(windows)]
