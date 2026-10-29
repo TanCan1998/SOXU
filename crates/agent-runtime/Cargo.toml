@@ -17,3 +17,12 @@ tokio = { version = "1", features = [
   "sync",
   "time",
 ] }
+
+# 仅测试用：P-03 进程树清理验收需要判断「某个 PID 是否还活着」。
+# 不引入新的第三方包——windows-sys 0.61 已在 Cargo.lock（tauri 依赖树）中，
+# 且只用于 Windows 的 OpenProcess / GetExitCodeProcess 查询。
+[target.'cfg(windows)'.dev-dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_Threading",
+] }

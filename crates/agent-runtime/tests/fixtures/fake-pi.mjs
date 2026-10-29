@@ -12,20 +12,42 @@
 //   garbage   首条命令前写一行坏 JSON 与一条扩展 UI 请求
 //   noisy     启动即写 120 行带密钥形态的 stderr
 //   mute      启动即静默，任何命令都不回复（模拟握手超时）
+//   tree      额外拉起两个孙进程（行为良好，随管道 EOF 退出），用于进程树清理冒烟
+//   tree-stubborn  同上但孙进程不跟随、根进程也不随 stdin 关闭退出，强制走 kill 路径
 //
 // 可选第 4 个参数 logPath：把「启动 / 收到命令」追加写入该文件，
 // 让有界重试的用例可以精确统计实际尝试次数，而不必依赖计时。
+// 可选第 5 个参数 leafReleasePath：仅 tree-stubborn 使用，出现该文件时孙进程退出。
+import { spawn } from "node:child_process";
 import { appendFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import readline from "node:readline";
+import { fileURLToPath } from "node:url";
 
-const [mode = "ok", label = "default", logPath] = process.argv.slice(2);
+const [mode = "ok", label = "default", logPath, leafReleasePath] = process.argv.slice(2);
 
 // 只有显式给了 logPath 才写文件；正常用例不产生任何磁盘副作用。
 const note = (text) => {
   if (logPath) appendFileSync(logPath, text + String.fromCharCode(10));
 };
 note("start");
+
+// 进程树夹具：模拟真实 Pi 自己拉起的工具子进程。结构化行让冒烟测试按 PID
+// 还原「root → leaf」的完整树，而不是靠平台命令行枚举猜测。
+if (mode === "tree" || mode === "tree-stubborn") {
+  const leafMode = mode === "tree-stubborn" ? "stubborn" : "follow";
+  const leafScript = join(dirname(fileURLToPath(import.meta.url)), "fake-pi-leaf.mjs");
+  for (let index = 0; index < 2; index += 1) {
+    const child = spawn(
+      process.execPath,
+      [leafScript, String(index), leafMode, logPath ?? "", leafReleasePath ?? ""],
+      { stdio: ["pipe", "ignore", "ignore"], windowsHide: true },
+    );
+    note(JSON.stringify({ event: "leaf-spawn", index, pid: child.pid }));
+  }
+  note(JSON.stringify({ event: "root-start", mode, pid: process.pid }));
+}
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // 让出一轮事件循环：每次 write 都是独立系统调用，足以把一条记录拆到多次读取里。
@@ -156,6 +178,9 @@ rl.on("line", (line) => {
   void handleCommand(line.trim()).catch(() => {});
 });
 rl.on("close", () => {
+  // tree-stubborn 是故意的：根进程拒绝随 stdin 关闭退出，逼迫 supervisor 走
+  // shutdown_grace → start_kill 的强制终止路径。孙进程句柄本身会让事件循环继续存活。
+  if (mode === "tree-stubborn") return;
   // 先把已排队的 stdout 写完再退出，避免最后一条记录被截断。
   void chain.then(() => process.exit(0));
 });

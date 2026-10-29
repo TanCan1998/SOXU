@@ -169,11 +169,13 @@ cargo test -p soxu-pi-protocol -p soxu-agent-runtime
 ```
 
 夹具模式（`node fake-pi.mjs <mode> <label> [logPath]`）：`ok`、`fragment`（2 字节切片 + 一次写两条记录）、`reverse`（乱序回复）、`chatty`、`slow`、`crash`、`noreply`、`garbage`、`noisy`、`mute`（任何命令都不回复，
-用于握手超时/有界重试用例）。可选的 `logPath` 让夹具把「启动 / 收到命令」追加写入文件，
-重试用例据此精确统计实际尝试次数，不依赖计时。
+用于握手超时/有界重试用例）、`tree` / `tree-stubborn`（额外拉起两个孙进程，后者拒绝随 stdin
+关闭退出，用于 P-03 进程树清理验收）。可选的 `logPath` 让夹具把「启动 / 收到命令 / 进程树结构」
+追加写入文件，重试用例据此精确统计实际尝试次数，进程树用例据此还原 root→leaf 关系，均不依赖计时。
 
 | 验收点 | 用例 |
 | --- | --- |
+| P-03 进程树清理（正常关闭/强杀，含孙进程） | `tests/process_tree.rs`（2 个用例，见[进程树清理验收](process-tree-cleanup.md)） |
 | JSONL 粘包/拆包 | `frame::tests::*`（确定性单测）+ `coalesced_and_fragmented_frames_round_trip` |
 | 并发 request correlation | `concurrent_requests_are_correlated_by_id_not_arrival_order`、`duplicate_request_id_is_rejected_without_dropping_the_in_flight_request` |
 | 超时 / 取消 / 异常退出 | `timeout_then_stop_then_restart_stays_consistent`、`cancel_ends_the_turn_and_keeps_the_runtime_usable`、`abrupt_exit_fails_pending_requests_and_stop_is_idempotent` |
@@ -194,7 +196,7 @@ cargo test -p soxu-pi-protocol -p soxu-agent-runtime
 
 ## 已知限制
 
-1. **进程树回收**：停止路径先 abort、再关 stdin、超时才 `start_kill`。Windows 上 `start_kill` 只保证结束直接子进程；如果 Pi 再拉起自己的子进程树，需要后续的平台级 Job Object / 进程组治理（`ExitReason::KillTimeout` 就是为这条路径留的诊断）。
+1. **进程树回收（强杀路径的后代）**：停止路径先 abort、再关 stdin、超时才 `start_kill`。Windows 上 `start_kill` 只保证结束直接子进程；实测读父管道的孙进程会随管道断裂退出（P-03 夹具验收归零，见[进程树清理验收](process-tree-cleanup.md)），但脱离 stdio 的后代仍可能存活，需要后续的平台级 Job Object / 进程组治理（`ExitReason::KillTimeout` 就是为这条路径留的诊断）。
 2. **扩展 UI 未实现**：审批请求一律按拒绝处理并告警，不做交互。
 3. **不保存完整 stdout 历史**：只保留有界 stderr 环与结构性事件；完整会话内容以 Pi 自己的 JSONL 为准。
 4. **重启不重放上下文**：进程崩溃后未持久化的上下文不会恢复；已写入工作树的文件不受影响。

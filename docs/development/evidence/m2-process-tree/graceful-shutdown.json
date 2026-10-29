@@ -1,0 +1,69 @@
+{
+  "environment": {
+    "arch": "x86_64",
+    "pidProbe": "OpenProcess + GetExitCodeProcess",
+    "platform": "windows"
+  },
+  "kind": "soxu-m2-process-tree-cleanup",
+  "limits": [
+    "进程树由夹具模拟（Node 孙进程），不是真实 pi 进程树；真实 pi 的工具子进程行为需另行观察。",
+    "macOS 没有 PID 存活探测实现，用例自动跳过；申报前不得声称 macOS 已验证。",
+    "正常路径验证的是「随管道 EOF 退出的后代」；自行重定向 stdio 或脱离管道的后代不适用。",
+    "强杀只终结根进程：本机 Windows 观测到读 stdin 的孙进程随管道断裂退出，但未做 Job Object / 进程组治理，脱离 stdio 的后代仍可能残留（见 docs/development/process-tree-cleanup.md）。"
+  ],
+  "recordedAtUnixMs": 1793234342631,
+  "result": {
+    "exitReasons": [
+      {
+        "code": 0,
+        "reason": "child_exited",
+        "runtimeId": "session-tree-b#2"
+      },
+      {
+        "code": 0,
+        "reason": "child_exited",
+        "runtimeId": "session-tree-a#1"
+      }
+    ],
+    "managedPids": 6,
+    "managedPidsBeforeShutdown": 6,
+    "reclaimMs": 0,
+    "residualCount": 0,
+    "residualPids": [],
+    "shutdownMs": 18
+  },
+  "scenario": "graceful-shutdown",
+  "trees": [
+    {
+      "leaves": [
+        {
+          "parentPid": 16436,
+          "pid": 8792
+        },
+        {
+          "parentPid": 16436,
+          "pid": 22720
+        }
+      ],
+      "rootPid": 16436,
+      "runtimeId": "session-tree-a#1",
+      "sessionId": "session-tree-a"
+    },
+    {
+      "leaves": [
+        {
+          "parentPid": 12844,
+          "pid": 2300
+        },
+        {
+          "parentPid": 12844,
+          "pid": 13136
+        }
+      ],
+      "rootPid": 12844,
+      "runtimeId": "session-tree-b#2",
+      "sessionId": "session-tree-b"
+    }
+  ],
+  "verdict": "pass"
+}
