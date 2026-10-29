@@ -23,7 +23,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const bridgeAvailable = isTauriRuntime();
   const bridge = bridgeAvailable
     ? createTauriBridge()
-    : createUnavailableBridge("当前是浏览器预览，未连接 Rust 运行时；请用 pnpm tauri:dev 启动桌面端");
+    : createUnavailableBridge("当前是浏览器预览，尚未连接本机运行时；请用 pnpm tauri:dev 启动桌面端");
   const state = reactive(createWorkspaceState());
   state.bridgeAvailable = bridgeAvailable;
   const session = new WorkspaceSession(bridge, state);

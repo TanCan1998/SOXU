@@ -25,5 +25,16 @@ Pi native settings/auth/session files remain Pi-owned.
 - Tauri 权限最小化；不向 WebView 暴露任意 shell。
 - 实现新平台前先做签名、权限、窗口与 WebView 行为兼容测试。
 
+## Tauri 能力清单（最小化）
+
+原生能力只在 `apps/desktop/src-tauri/capabilities/default.json` 授予，逐条评估后再加：
+
+| 能力 | 用途 | 威胁评估 |
+| --- | --- | --- |
+| `core:default` | 窗口、事件、路径等基础 IPC | 不涉及任意文件读写，也不暴露 shell |
+| `dialog:allow-open` | 「添加项目」时由用户挑选项目目录（`tauri-plugin-dialog`） | 只打开系统选择器、只返回用户亲自选中的路径；不授予 `dialog:allow-save`/`allow-message`/`allow-ask`，也不授予 `fs:*`。返回值仍走原有的项目登记路径守卫，选择器不绕过越界检查。 |
+
+取消选择（返回 `null`）必须保持界面与已登记项目不变，不产生错误提示。
+
 ## ADR
 参见 `docs/architecture/adr/`，首次复杂架构变化先写 ADR。

@@ -158,7 +158,7 @@ test("卸载时释放订阅并清掉临时会话登记", async () => {
 
 test("后端不可用时临时会话仍可打开，但不假装已持久化", async () => {
   const bridge = new FakeBridge();
-  bridge.temporaryError = "未连接 Rust 运行时";
+  bridge.temporaryError = "未连接本机运行时";
   const session = new WorkspaceSession(bridge);
 
   await session.openTemporary("prj_1");

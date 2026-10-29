@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { RefreshCw, X } from "@lucide/vue";
-import type { RuntimeInfo } from "../services/native.ts";
 import type { SessionTab } from "../workspace/types.ts";
 
 const props = defineProps<{
@@ -9,7 +8,6 @@ const props = defineProps<{
   projectCount: number;
   sessionCount: number;
   bridgeAvailable: boolean;
-  info: RuntimeInfo | null;
 }>();
 
 const emit = defineEmits<{
@@ -35,13 +33,13 @@ const historyText = computed(() => {
 </script>
 
 <template>
-  <aside class="inspector" aria-label="运行检查器">
+  <aside class="inspector" aria-label="会话状态">
     <div class="inspector-head">
       <div>
-        <strong>运行检查器</strong>
+        <strong>会话状态</strong>
         <p>真实状态 · 无演示数据</p>
       </div>
-      <button class="icon-button" type="button" aria-label="关闭检查器" @click="emit('close')">
+      <button class="icon-button" type="button" aria-label="关闭会话状态面板" @click="emit('close')">
         <X :size="18" :stroke-width="1.75" aria-hidden="true" />
       </button>
     </div>
@@ -52,16 +50,14 @@ const historyText = computed(() => {
         <div class="row">
           <span class="row-title">
             <span class="state-dot" :data-state="bridgeAvailable ? 'ready' : 'error'" aria-hidden="true"></span>
-            Rust 运行时
+            {{ bridgeAvailable ? "已连接" : "未连接" }}
           </span>
-          <span class="badge">{{ bridgeAvailable ? "已连接" : "浏览器预览" }}</span>
+          <span class="badge">{{ bridgeAvailable ? "桌面端" : "浏览器预览" }}</span>
         </div>
-        <p class="note">
-          {{ info ? `${info.appName} ${info.appVersion} · ${info.platform}` : "未获取到应用信息" }}
-        </p>
+        <p v-if="!bridgeAvailable" class="note">浏览器预览不会加载真实会话，也无法启动运行时。</p>
         <div class="row sub">
-          <span>项目 / 会话</span>
-          <strong>{{ projectCount }} / {{ sessionCount }}</strong>
+          <span>已扫描</span>
+          <strong>{{ projectCount }} 个项目 · {{ sessionCount }} 个会话</strong>
         </div>
         <button class="link-button" type="button" :disabled="!bridgeAvailable" @click="emit('refresh-projects')">
           <RefreshCw :size="14" :stroke-width="1.9" aria-hidden="true" /> 重新扫描全部项目

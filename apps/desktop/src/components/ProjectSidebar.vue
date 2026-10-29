@@ -12,6 +12,7 @@ import {
   Settings,
   Sun,
 } from "@lucide/vue";
+import { useProjectDirectoryPick } from "../composables/useProjectDirectoryPick.ts";
 import type { ProjectSummary, SessionId, WorktreeId } from "../workspace/types.ts";
 
 const props = defineProps<{
@@ -39,6 +40,7 @@ const emit = defineEmits<{
 
 const search = ref("");
 const rootPath = ref("");
+const { picking, pickError, pick } = useProjectDirectoryPick();
 
 const visibleProjects = computed(() => {
   const needle = search.value.trim().toLowerCase();
@@ -60,10 +62,21 @@ const totalSessions = computed(() =>
   props.projects.reduce((sum, project) => sum + project.sessions.length, 0),
 );
 
-function submitProject() {
-  const value = rootPath.value.trim();
-  if (!value) return;
-  emit("add-project", value);
+/**
+ * 表单提交的统一入口：输入框有内容就按手输路径登记；为空才弹系统目录选择器。
+ * 选中后先把路径填回输入框，再走同一条 emit，登记逻辑只有一份。
+ *
+ * 登记完成后清空输入框（沿用原有手输语义）：否则下次点击会把刚添加的目录
+ * 再登记一遍，用户就没法再弹出选择器挑另一个目录了。
+ */
+async function submitProject() {
+  if (!rootPath.value.trim()) {
+    const picked = await pick();
+    // 取消或选择器不可用：pick 返回 null，输入框与已登记项目都保持不变。
+    if (!picked) return;
+    rootPath.value = picked;
+  }
+  emit("add-project", rootPath.value.trim());
   rootPath.value = "";
 }
 </script>
@@ -91,7 +104,7 @@ function submitProject() {
 
     <nav class="nav-sections visually-scroll" aria-label="项目与会话">
       <p v-if="!bridgeAvailable" class="side-note" role="status">
-        未连接 Rust 运行时：这是浏览器预览，不会加载真实会话。
+        未连接：这是浏览器预览，不会加载真实会话。
       </p>
 
       <section v-for="project in visibleProjects" :key="project.id" class="project-group">
@@ -169,18 +182,21 @@ function submitProject() {
       <button
         class="icon-button"
         type="submit"
-        :disabled="!rootPath.trim() || !bridgeAvailable || busy"
+        :disabled="!bridgeAvailable || busy || picking"
+        :aria-busy="picking"
         aria-label="添加项目"
-        title="添加项目目录"
+        title="添加项目目录：留空时打开系统目录选择器"
       >
         <Plus :size="18" :stroke-width="1.75" aria-hidden="true" />
       </button>
     </form>
 
+    <p v-if="pickError" class="side-note pick-error" role="alert">{{ pickError }}</p>
+
     <div class="side-bottom">
       <p class="connection" :data-online="bridgeAvailable">
         <span class="state-dot" :data-state="bridgeAvailable ? 'ready' : 'error'" aria-hidden="true"></span>
-        {{ bridgeAvailable ? `已连接 Rust 运行时 · ${totalSessions} 个会话` : "浏览器预览 · 未连接运行时" }}
+        {{ bridgeAvailable ? `已连接 · ${totalSessions} 个会话` : "未连接 · 浏览器预览" }}
       </p>
       <div class="side-bottom-row">
         <button class="icon-button" type="button" aria-label="设置" title="设置" @click="emit('open-settings')">
@@ -386,6 +402,11 @@ function submitProject() {
   border-radius: 10px;
   padding: 2px 4px 2px 10px;
   background: var(--soxu-input);
+}
+
+.pick-error {
+  color: var(--soxu-danger);
+  overflow-wrap: anywhere;
 }
 
 .add-project input {

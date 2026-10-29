@@ -102,7 +102,7 @@ export function createTauriBridge(): WorkspaceBridge {
   };
 }
 
-/** 浏览器预览：所有调用都显式失败，界面据此显示「未连接 Rust 运行时」。 */
+/** 浏览器预览：所有调用都显式失败，界面据此显示「未连接」。 */
 export function createUnavailableBridge(reason: string): WorkspaceBridge {
   const fail = async (): Promise<never> => {
     throw new Error(reason);

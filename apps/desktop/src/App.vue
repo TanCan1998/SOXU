@@ -7,6 +7,7 @@ import RuntimeInspector from "./components/RuntimeInspector.vue";
 import SessionTabs from "./components/SessionTabs.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import WorktreeDialog from "./components/WorktreeDialog.vue";
+import { useProjectDirectoryPick } from "./composables/useProjectDirectoryPick.ts";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
 import {
@@ -29,6 +30,11 @@ const settingsOpen = ref(false);
 const worktreeProjectId = ref<string | null>(null);
 const rootPath = ref("");
 const theme = ref<ThemeName>(resolveInitialTheme());
+const {
+  picking: pickingProject,
+  pickError: pickProjectError,
+  pick: pickProjectDirectory,
+} = useProjectDirectoryPick();
 
 const activeTab = computed(() => store.activeTab);
 const worktreeProject = computed(
@@ -194,11 +200,21 @@ function retry() {
   })();
 }
 
-function addProject() {
+/**
+ * 欢迎页的添加项目入口，语义与侧栏一致：有内容按手输路径登记，
+ * 为空才打开系统目录选择器；选中后填回输入框并走同一条登记流程。
+ * 登记后清空输入框，保证下一次点击仍然能弹出选择器挑别的目录。
+ */
+async function addProject() {
+  if (!rootPath.value.trim()) {
+    const picked = await pickProjectDirectory();
+    // 取消或选择器不可用：不改输入框、不登记、不报错。
+    if (!picked) return;
+    rootPath.value = picked;
+  }
   const value = rootPath.value.trim();
-  if (!value) return;
   rootPath.value = "";
-  void store.addProject(value);
+  await store.addProject(value);
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -281,15 +297,19 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="header-end">
-          <span class="badge" :data-tone="store.bridgeAvailable ? undefined : 'danger'">
-            {{ store.bridgeAvailable ? "Rust 运行时" : "浏览器预览" }}
+          <span
+            class="badge"
+            :data-tone="store.bridgeAvailable ? undefined : 'danger'"
+            :title="store.bridgeAvailable ? '已连接本机运行时' : '浏览器预览：未连接本机运行时'"
+          >
+            {{ store.bridgeAvailable ? "已连接" : "未连接" }}
           </span>
           <button
             class="icon-button"
             type="button"
-            :aria-label="inspectorOpen ? '关闭运行检查器' : '打开运行检查器'"
+            :aria-label="inspectorOpen ? '关闭会话状态面板' : '打开会话状态面板'"
             :aria-expanded="inspectorOpen"
-            title="运行检查器 (Ctrl+I)"
+            title="会话状态 (Ctrl+I)"
             aria-keyshortcuts="Control+I"
             @click="inspectorOpen = !inspectorOpen"
           >
@@ -347,10 +367,17 @@ onUnmounted(() => {
             :disabled="!store.bridgeAvailable"
             autocomplete="off"
           />
-          <button type="submit" :disabled="!rootPath.trim() || !store.bridgeAvailable">
+          <button
+            type="submit"
+            :disabled="!store.bridgeAvailable || pickingProject"
+            :aria-busy="pickingProject"
+            title="留空时打开系统目录选择器"
+          >
             <Plus :size="16" :stroke-width="1.9" aria-hidden="true" /> 添加项目
           </button>
         </form>
+
+        <p v-if="pickProjectError" class="welcome-error" role="alert">{{ pickProjectError }}</p>
         <button class="welcome-secondary" type="button" @click="newTemporary">
           先开一个临时会话
         </button>
@@ -363,7 +390,6 @@ onUnmounted(() => {
       :project-count="store.state.projects.length"
       :session-count="store.sessionList.length"
       :bridge-available="store.bridgeAvailable"
-      :info="info"
       @close="inspectorOpen = false"
       @refresh-projects="() => void store.refreshProjects()"
       @stop="stop"

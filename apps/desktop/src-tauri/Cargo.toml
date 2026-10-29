@@ -14,6 +14,8 @@ tauri-build = { version = "=2.7.4", features = [] }
 
 [dependencies]
 tauri = { version = "=2.12.5", features = [] }
+# 系统目录选择器：只用来让用户挑「添加项目」的目录，不开放其他文件访问。
+tauri-plugin-dialog = "=2.8.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 soxu-pi-protocol = { path = "../../../crates/pi-protocol" }
