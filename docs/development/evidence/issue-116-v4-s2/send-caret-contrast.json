@@ -1,0 +1,380 @@
+{
+  "generatedAt": "2026-10-29T22:55:32.043Z",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "browser": "Edg/156.0.4314.50",
+  "fixture": "tests/harness/v4-session.html",
+  "threshold": 3,
+  "note": "色板通过 documentElement.dataset.accent 设置，与生产 applyDocumentAppearance 同一属性；量的是 ChatPanel 里真实 composer 的计算样式。",
+  "samples": [
+    {
+      "theme": "light",
+      "accent": "blue",
+      "accentHex": "#3a83f7",
+      "onAccentHex": "#ffffff",
+      "caretColor": "rgb(255, 255, 255)",
+      "mainColor": "rgb(255, 255, 255)",
+      "splitBg": "rgb(58, 131, 247)",
+      "caretBorderColor": "color(srgb 1 1 1 / 0.28)",
+      "contrast": 3.64
+    },
+    {
+      "theme": "light",
+      "accent": "green",
+      "accentHex": "#10a37f",
+      "onAccentHex": "#191717",
+      "caretColor": "rgb(25, 23, 23)",
+      "mainColor": "rgb(25, 23, 23)",
+      "splitBg": "rgb(16, 163, 127)",
+      "caretBorderColor": "color(srgb 0.0980392 0.0901961 0.0901961 / 0.28)",
+      "contrast": 5.58
+    },
+    {
+      "theme": "light",
+      "accent": "teal",
+      "accentHex": "#14b8a6",
+      "onAccentHex": "#191717",
+      "caretColor": "rgb(25, 23, 23)",
+      "mainColor": "rgb(25, 23, 23)",
+      "splitBg": "rgb(20, 184, 166)",
+      "caretBorderColor": "color(srgb 0.0980392 0.0901961 0.0901961 / 0.28)",
+      "contrast": 7.17
+    },
+    {
+      "theme": "light",
+      "accent": "violet",
+      "accentHex": "#8b5cf6",
+      "onAccentHex": "#ffffff",
+      "caretColor": "rgb(255, 255, 255)",
+      "mainColor": "rgb(255, 255, 255)",
+      "splitBg": "rgb(139, 92, 246)",
+      "caretBorderColor": "color(srgb 1 1 1 / 0.28)",
+      "contrast": 4.23
+    },
+    {
+      "theme": "light",
+      "accent": "rose",
+      "accentHex": "#f43f5e",
+      "onAccentHex": "#191717",
+      "caretColor": "rgb(25, 23, 23)",
+      "mainColor": "rgb(25, 23, 23)",
+      "splitBg": "rgb(244, 63, 94)",
+      "caretBorderColor": "color(srgb 0.0980392 0.0901961 0.0901961 / 0.28)",
+      "contrast": 4.86
+    },
+    {
+      "theme": "light",
+      "accent": "amber",
+      "accentHex": "#f59e0b",
+      "onAccentHex": "#191717",
+      "caretColor": "rgb(25, 23, 23)",
+      "mainColor": "rgb(25, 23, 23)",
+      "splitBg": "rgb(245, 158, 11)",
+      "caretBorderColor": "color(srgb 0.0980392 0.0901961 0.0901961 / 0.28)",
+      "contrast": 8.31
+    },
+    {
+      "theme": "dark",
+      "accent": "blue",
+      "accentHex": "#3a83f7",
+      "onAccentHex": "#ffffff",
+      "caretColor": "rgb(255, 255, 255)",
+      "mainColor": "rgb(255, 255, 255)",
+      "splitBg": "rgb(58, 131, 247)",
+      "caretBorderColor": "color(srgb 1 1 1 / 0.28)",
+      "contrast": 3.64
+    },
+    {
+      "theme": "dark",
+      "accent": "green",
+      "accentHex": "#10a37f",
+      "onAccentHex": "#191717",
+      "caretColor": "rgb(25, 23, 23)",
+      "mainColor": "rgb(25, 23, 23)",
+      "splitBg": "rgb(16, 163, 127)",
+      "caretBorderColor": "color(srgb 0.0980392 0.0901961 0.0901961 / 0.28)",
+      "contrast": 5.58
+    },
+    {
+      "theme": "dark",
+      "accent": "teal",
+      "accentHex": "#14b8a6",
+      "onAccentHex": "#191717",
+      "caretColor": "rgb(25, 23, 23)",
+      "mainColor": "rgb(25, 23, 23)",
+      "splitBg": "rgb(20, 184, 166)",
+      "caretBorderColor": "color(srgb 0.0980392 0.0901961 0.0901961 / 0.28)",
+      "contrast": 7.17
+    },
+    {
+      "theme": "dark",
+      "accent": "violet",
+      "accentHex": "#8b5cf6",
+      "onAccentHex": "#ffffff",
+      "caretColor": "rgb(255, 255, 255)",
+      "mainColor": "rgb(255, 255, 255)",
+      "splitBg": "rgb(139, 92, 246)",
+      "caretBorderColor": "color(srgb 1 1 1 / 0.28)",
+      "contrast": 4.23
+    },
+    {
+      "theme": "dark",
+      "accent": "rose",
+      "accentHex": "#f43f5e",
+      "onAccentHex": "#191717",
+      "caretColor": "rgb(25, 23, 23)",
+      "mainColor": "rgb(25, 23, 23)",
+      "splitBg": "rgb(244, 63, 94)",
+      "caretBorderColor": "color(srgb 0.0980392 0.0901961 0.0901961 / 0.28)",
+      "contrast": 4.86
+    },
+    {
+      "theme": "dark",
+      "accent": "amber",
+      "accentHex": "#f59e0b",
+      "onAccentHex": "#191717",
+      "caretColor": "rgb(25, 23, 23)",
+      "mainColor": "rgb(25, 23, 23)",
+      "splitBg": "rgb(245, 158, 11)",
+      "caretBorderColor": "color(srgb 0.0980392 0.0901961 0.0901961 / 0.28)",
+      "contrast": 8.31
+    }
+  ],
+  "shots": [
+    "09-send-caret-amber.png",
+    "10-send-caret-teal.png"
+  ],
+  "pageErrors": [],
+  "checks": [
+    {
+      "name": "light/blue：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 3.64,
+      "caret": "rgb(255, 255, 255)",
+      "bg": "rgb(58, 131, 247)"
+    },
+    {
+      "name": "light/blue：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(255, 255, 255)",
+      "main": "rgb(255, 255, 255)"
+    },
+    {
+      "name": "light/blue：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(255, 255, 255)",
+      "onAccent": "#ffffff"
+    },
+    {
+      "name": "light/green：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 5.58,
+      "caret": "rgb(25, 23, 23)",
+      "bg": "rgb(16, 163, 127)"
+    },
+    {
+      "name": "light/green：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "main": "rgb(25, 23, 23)"
+    },
+    {
+      "name": "light/green：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "onAccent": "#191717"
+    },
+    {
+      "name": "light/teal：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 7.17,
+      "caret": "rgb(25, 23, 23)",
+      "bg": "rgb(20, 184, 166)"
+    },
+    {
+      "name": "light/teal：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "main": "rgb(25, 23, 23)"
+    },
+    {
+      "name": "light/teal：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "onAccent": "#191717"
+    },
+    {
+      "name": "light/violet：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 4.23,
+      "caret": "rgb(255, 255, 255)",
+      "bg": "rgb(139, 92, 246)"
+    },
+    {
+      "name": "light/violet：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(255, 255, 255)",
+      "main": "rgb(255, 255, 255)"
+    },
+    {
+      "name": "light/violet：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(255, 255, 255)",
+      "onAccent": "#ffffff"
+    },
+    {
+      "name": "light/rose：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 4.86,
+      "caret": "rgb(25, 23, 23)",
+      "bg": "rgb(244, 63, 94)"
+    },
+    {
+      "name": "light/rose：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "main": "rgb(25, 23, 23)"
+    },
+    {
+      "name": "light/rose：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "onAccent": "#191717"
+    },
+    {
+      "name": "light/amber：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 8.31,
+      "caret": "rgb(25, 23, 23)",
+      "bg": "rgb(245, 158, 11)"
+    },
+    {
+      "name": "light/amber：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "main": "rgb(25, 23, 23)"
+    },
+    {
+      "name": "light/amber：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "onAccent": "#191717"
+    },
+    {
+      "name": "dark/blue：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 3.64,
+      "caret": "rgb(255, 255, 255)",
+      "bg": "rgb(58, 131, 247)"
+    },
+    {
+      "name": "dark/blue：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(255, 255, 255)",
+      "main": "rgb(255, 255, 255)"
+    },
+    {
+      "name": "dark/blue：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(255, 255, 255)",
+      "onAccent": "#ffffff"
+    },
+    {
+      "name": "dark/green：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 5.58,
+      "caret": "rgb(25, 23, 23)",
+      "bg": "rgb(16, 163, 127)"
+    },
+    {
+      "name": "dark/green：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "main": "rgb(25, 23, 23)"
+    },
+    {
+      "name": "dark/green：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "onAccent": "#191717"
+    },
+    {
+      "name": "dark/teal：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 7.17,
+      "caret": "rgb(25, 23, 23)",
+      "bg": "rgb(20, 184, 166)"
+    },
+    {
+      "name": "dark/teal：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "main": "rgb(25, 23, 23)"
+    },
+    {
+      "name": "dark/teal：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "onAccent": "#191717"
+    },
+    {
+      "name": "dark/violet：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 4.23,
+      "caret": "rgb(255, 255, 255)",
+      "bg": "rgb(139, 92, 246)"
+    },
+    {
+      "name": "dark/violet：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(255, 255, 255)",
+      "main": "rgb(255, 255, 255)"
+    },
+    {
+      "name": "dark/violet：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(255, 255, 255)",
+      "onAccent": "#ffffff"
+    },
+    {
+      "name": "dark/rose：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 4.86,
+      "caret": "rgb(25, 23, 23)",
+      "bg": "rgb(244, 63, 94)"
+    },
+    {
+      "name": "dark/rose：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "main": "rgb(25, 23, 23)"
+    },
+    {
+      "name": "dark/rose：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "onAccent": "#191717"
+    },
+    {
+      "name": "dark/amber：caret 前景对底色达到非文本 3:1",
+      "ok": true,
+      "actual": 8.31,
+      "caret": "rgb(25, 23, 23)",
+      "bg": "rgb(245, 158, 11)"
+    },
+    {
+      "name": "dark/amber：caret 与主钮前景一致",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "main": "rgb(25, 23, 23)"
+    },
+    {
+      "name": "dark/amber：caret 前景等于色板的 --soxu-on-accent",
+      "ok": true,
+      "caret": "rgb(25, 23, 23)",
+      "onAccent": "#191717"
+    }
+  ]
+}

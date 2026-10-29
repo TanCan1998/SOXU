@@ -14,6 +14,7 @@ import { TooltipProvider } from "reka-ui";
 import "../../src/styles/base.css";
 import ChatPanel from "../../src/components/ChatPanel.vue";
 import { TOOLTIP_DELAY_MS, TOOLTIP_SKIP_DELAY_MS } from "../../src/components/tooltipConfig.ts";
+import { DEFAULT_SESSION_SETTINGS } from "../../src/settings/sessionSettings.ts";
 import type { ChatMessage, SessionTab, TabStatus } from "../../src/workspace/types.ts";
 
 const ASSISTANT_MARKDOWN = [
@@ -129,6 +130,8 @@ const Harness = {
             bridgeAvailable: true,
             busy: false,
             defaultDelivery: defaultDelivery.value,
+            // Issue #116 起 ChatPanel 多了 settings（会话页四项偏好），夹具用默认值即可。
+            settings: DEFAULT_SESSION_SETTINGS,
             onSend,
             onCancel: () => {
               status.value = "ready";

@@ -17,8 +17,9 @@ const initialTheme = resolveInitialTheme();
 applyDocumentTheme(initialTheme);
 void syncWindowTheme(initialTheme, currentWindowTarget());
 
-// 外观（字号 / 字体族）同样在挂载前落地：<html data-font-size data-font-family>
-// 决定 rem 基准与字体栈 token，晚一帧就等于先按基准字号排一遍再重排，能看见文字跳动。
+// 外观（字号 / 界面字体 / 代码字体 / 正文宽度 / 强调色）同样在挂载前落地：
+// <html data-font-size data-font-family data-code-font data-content-width data-accent>
+// 决定 rem 基准、字体栈与强调色 token，晚一帧就等于先按基准值排一遍再重排，能看见跳动。
 applyDocumentAppearance(resolveInitialAppearance());
 
 /**

@@ -1,0 +1,623 @@
+{
+  "generatedAt": "2026-10-29T22:23:47.183Z",
+  "viewport": {
+    "width": 1280,
+    "height": 760
+  },
+  "browser": "Edg/156.0.4314.50",
+  "shots": [
+    "01-appearance-light.png",
+    "02-appearance-violet.png",
+    "03-session-light.png",
+    "04-extensions-light.png",
+    "05-system-light.png",
+    "06-appearance-dark.png",
+    "07-keyboard-tabs.png",
+    "08-after-reload-dark-violet.png"
+  ],
+  "tabs": [
+    {
+      "label": "外观",
+      "selected": "true",
+      "focused": false
+    },
+    {
+      "label": "会话",
+      "selected": "false",
+      "focused": false
+    },
+    {
+      "label": "扩展",
+      "selected": "false",
+      "focused": false
+    },
+    {
+      "label": "系统",
+      "selected": "false",
+      "focused": false
+    }
+  ],
+  "initial": {
+    "open": true,
+    "theme": "light",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "system",
+      "contentWidth": "fixed",
+      "accent": "blue"
+    },
+    "session": {
+      "sendAfterScroll": true,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": true,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "idle",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "system",
+      "contentWidth": "fixed",
+      "accent": "blue",
+      "theme": "light"
+    },
+    "accent": "#3a83f7",
+    "accentInShell": "#3a83f7",
+    "accentSoftInShell": "#e8f0ff",
+    "onAccentInShell": "#ffffff",
+    "accentSoft": "#e8f0ff",
+    "activeTabBorder": "rgb(58, 131, 247)",
+    "contentMax": "768px",
+    "fontMono": "ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": "rgb(255, 255, 255)",
+    "storage": {
+      "appearance": null,
+      "session": null,
+      "system": null,
+      "theme": null
+    }
+  },
+  "accentViolet": {
+    "open": true,
+    "theme": "light",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "system",
+      "contentWidth": "fixed",
+      "accent": "violet"
+    },
+    "session": {
+      "sendAfterScroll": true,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": true,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "idle",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "system",
+      "contentWidth": "fixed",
+      "accent": "violet",
+      "theme": "light"
+    },
+    "accent": "#8b5cf6",
+    "accentInShell": "#8b5cf6",
+    "accentSoftInShell": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "onAccentInShell": "#ffffff",
+    "accentSoft": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "activeTabBorder": "rgb(139, 92, 246)",
+    "contentMax": "768px",
+    "fontMono": "ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": "rgb(255, 255, 255)",
+    "storage": {
+      "appearance": "{\"fontSize\":\"standard\",\"fontFamily\":\"system\",\"codeFont\":\"system\",\"contentWidth\":\"fixed\",\"accent\":\"violet\"}",
+      "session": null,
+      "system": null,
+      "theme": null
+    }
+  },
+  "accentAmber": {
+    "open": true,
+    "theme": "light",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "system",
+      "contentWidth": "fixed",
+      "accent": "amber"
+    },
+    "session": {
+      "sendAfterScroll": true,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": true,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "idle",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "system",
+      "contentWidth": "fixed",
+      "accent": "amber",
+      "theme": "light"
+    },
+    "accent": "#f59e0b",
+    "accentInShell": "#f59e0b",
+    "accentSoftInShell": "color-mix(in srgb, #f59e0b 14%, transparent)",
+    "onAccentInShell": "#191717",
+    "accentSoft": "color-mix(in srgb, #f59e0b 14%, transparent)",
+    "activeTabBorder": "rgb(245, 158, 11)",
+    "contentMax": "768px",
+    "fontMono": "ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": "rgb(255, 255, 255)",
+    "storage": {
+      "appearance": "{\"fontSize\":\"standard\",\"fontFamily\":\"system\",\"codeFont\":\"system\",\"contentWidth\":\"fixed\",\"accent\":\"amber\"}",
+      "session": null,
+      "system": null,
+      "theme": null
+    }
+  },
+  "codeFontAndWidth": {
+    "open": true,
+    "theme": "light",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet"
+    },
+    "session": {
+      "sendAfterScroll": true,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": true,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "idle",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet",
+      "theme": "light"
+    },
+    "accent": "#8b5cf6",
+    "accentInShell": "#8b5cf6",
+    "accentSoftInShell": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "onAccentInShell": "#ffffff",
+    "accentSoft": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "activeTabBorder": "rgb(139, 92, 246)",
+    "contentMax": "100%",
+    "fontMono": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": "rgb(255, 255, 255)",
+    "storage": {
+      "appearance": "{\"fontSize\":\"standard\",\"fontFamily\":\"system\",\"codeFont\":\"jetbrains\",\"contentWidth\":\"fluid\",\"accent\":\"violet\"}",
+      "session": null,
+      "system": null,
+      "theme": null
+    }
+  },
+  "sessionPanel": {
+    "tabs": [
+      {
+        "label": "外观",
+        "selected": "false",
+        "focused": false
+      },
+      {
+        "label": "会话",
+        "selected": "true",
+        "focused": true
+      },
+      {
+        "label": "扩展",
+        "selected": "false",
+        "focused": false
+      },
+      {
+        "label": "系统",
+        "selected": "false",
+        "focused": false
+      }
+    ],
+    "panels": [
+      {
+        "hidden": true,
+        "rows": 0
+      },
+      {
+        "hidden": false,
+        "rows": 7
+      },
+      {
+        "hidden": true,
+        "rows": 0
+      },
+      {
+        "hidden": true,
+        "rows": 0
+      }
+    ],
+    "switches": [
+      "true",
+      "true",
+      "false",
+      "false"
+    ],
+    "select": "medium"
+  },
+  "sessionToggled": {
+    "open": true,
+    "theme": "light",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet"
+    },
+    "session": {
+      "sendAfterScroll": false,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": true,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "idle",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet",
+      "theme": "light"
+    },
+    "accent": "#8b5cf6",
+    "accentInShell": "#8b5cf6",
+    "accentSoftInShell": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "onAccentInShell": "#ffffff",
+    "accentSoft": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "activeTabBorder": "rgb(139, 92, 246)",
+    "contentMax": "100%",
+    "fontMono": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": "rgb(255, 255, 255)",
+    "storage": {
+      "appearance": "{\"fontSize\":\"standard\",\"fontFamily\":\"system\",\"codeFont\":\"jetbrains\",\"contentWidth\":\"fluid\",\"accent\":\"violet\"}",
+      "session": "{\"sendAfterScroll\":false,\"enterToSend\":true,\"showToolCalls\":false,\"showTimestamps\":false,\"thinkingLevel\":\"medium\"}",
+      "system": null,
+      "theme": null
+    }
+  },
+  "extensions": {
+    "items": 20,
+    "switches": 12,
+    "tags": [
+      "已启用",
+      "已启用",
+      "已启用"
+    ]
+  },
+  "system": {
+    "rows": 7,
+    "checkUpdateDisabled": true,
+    "about": "关于SOXU 0.1.0 · Tauri 2.12.5 · Pi RPC已连接 连接状态：已连接本机运行时 · 平台：windows · 会话文件由 Pi 管理，SOXU 只读索引。"
+  },
+  "systemToggled": {
+    "open": true,
+    "theme": "light",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet"
+    },
+    "session": {
+      "sendAfterScroll": false,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": false,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "idle",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet",
+      "theme": "light"
+    },
+    "accent": "#8b5cf6",
+    "accentInShell": "#8b5cf6",
+    "accentSoftInShell": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "onAccentInShell": "#ffffff",
+    "accentSoft": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "activeTabBorder": "rgb(139, 92, 246)",
+    "contentMax": "100%",
+    "fontMono": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": "rgb(255, 255, 255)",
+    "storage": {
+      "appearance": "{\"fontSize\":\"standard\",\"fontFamily\":\"system\",\"codeFont\":\"jetbrains\",\"contentWidth\":\"fluid\",\"accent\":\"violet\"}",
+      "session": "{\"sendAfterScroll\":false,\"enterToSend\":true,\"showToolCalls\":false,\"showTimestamps\":false,\"thinkingLevel\":\"medium\"}",
+      "system": "{\"autoUpdate\":false,\"notifyOnComplete\":true,\"minimizeToTray\":true}",
+      "theme": null
+    }
+  },
+  "copy": {
+    "open": true,
+    "theme": "light",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet"
+    },
+    "session": {
+      "sendAfterScroll": false,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": false,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "copied",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet",
+      "theme": "light"
+    },
+    "accent": "#8b5cf6",
+    "accentInShell": "#8b5cf6",
+    "accentSoftInShell": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "onAccentInShell": "#ffffff",
+    "accentSoft": "color-mix(in srgb, #8b5cf6 14%, transparent)",
+    "activeTabBorder": "rgb(139, 92, 246)",
+    "contentMax": "100%",
+    "fontMono": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": "rgb(255, 255, 255)",
+    "storage": {
+      "appearance": "{\"fontSize\":\"standard\",\"fontFamily\":\"system\",\"codeFont\":\"jetbrains\",\"contentWidth\":\"fluid\",\"accent\":\"violet\"}",
+      "session": "{\"sendAfterScroll\":false,\"enterToSend\":true,\"showToolCalls\":false,\"showTimestamps\":false,\"thinkingLevel\":\"medium\"}",
+      "system": "{\"autoUpdate\":false,\"notifyOnComplete\":true,\"minimizeToTray\":true}",
+      "theme": null
+    }
+  },
+  "dark": {
+    "open": true,
+    "theme": "dark",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet"
+    },
+    "session": {
+      "sendAfterScroll": false,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": false,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "copied",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet",
+      "theme": "dark"
+    },
+    "accent": "#8b5cf6",
+    "accentInShell": "#8b5cf6",
+    "accentSoftInShell": "color-mix(in srgb, #8b5cf6 26%, transparent)",
+    "onAccentInShell": "#ffffff",
+    "accentSoft": "color-mix(in srgb, #8b5cf6 26%, transparent)",
+    "activeTabBorder": "rgb(139, 92, 246)",
+    "contentMax": "100%",
+    "fontMono": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": "rgb(33, 33, 33)",
+    "storage": {
+      "appearance": "{\"fontSize\":\"standard\",\"fontFamily\":\"system\",\"codeFont\":\"jetbrains\",\"contentWidth\":\"fluid\",\"accent\":\"violet\"}",
+      "session": "{\"sendAfterScroll\":false,\"enterToSend\":true,\"showToolCalls\":false,\"showTimestamps\":false,\"thinkingLevel\":\"medium\"}",
+      "system": "{\"autoUpdate\":false,\"notifyOnComplete\":true,\"minimizeToTray\":true}",
+      "theme": "dark"
+    }
+  },
+  "keyboard": {
+    "tabs": [
+      {
+        "label": "外观",
+        "selected": "false",
+        "focused": false
+      },
+      {
+        "label": "会话",
+        "selected": "true",
+        "focused": true
+      },
+      {
+        "label": "扩展",
+        "selected": "false",
+        "focused": false
+      },
+      {
+        "label": "系统",
+        "selected": "false",
+        "focused": false
+      }
+    ],
+    "panels": [
+      {
+        "hidden": true,
+        "rows": 0
+      },
+      {
+        "hidden": false,
+        "rows": 7
+      },
+      {
+        "hidden": true,
+        "rows": 0
+      },
+      {
+        "hidden": true,
+        "rows": 0
+      }
+    ],
+    "afterTab": {
+      "tag": "DIV",
+      "role": "tabpanel",
+      "insidePanel": true,
+      "text": "发送后滚动新消息到达时自动贴底Enter"
+    }
+  },
+  "afterReload": {
+    "open": false,
+    "theme": "dark",
+    "appearance": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet"
+    },
+    "session": {
+      "sendAfterScroll": false,
+      "enterToSend": true,
+      "showToolCalls": false,
+      "showTimestamps": false,
+      "thinkingLevel": "medium"
+    },
+    "system": {
+      "autoUpdate": false,
+      "notifyOnComplete": true,
+      "minimizeToTray": true
+    },
+    "busyDelivery": "steer",
+    "copyState": "idle",
+    "dataset": {
+      "fontSize": "standard",
+      "fontFamily": "system",
+      "codeFont": "jetbrains",
+      "contentWidth": "fluid",
+      "accent": "violet",
+      "theme": "dark"
+    },
+    "accent": "#8b5cf6",
+    "accentInShell": "#8b5cf6",
+    "accentSoftInShell": "color-mix(in srgb, #8b5cf6 26%, transparent)",
+    "onAccentInShell": "#ffffff",
+    "accentSoft": "color-mix(in srgb, #8b5cf6 26%, transparent)",
+    "activeTabBorder": null,
+    "contentMax": "100%",
+    "fontMono": "\"JetBrains Mono\", ui-monospace, SFMono-Regular, \"Cascadia Mono\", Consolas, monospace",
+    "dialogBg": null,
+    "storage": {
+      "appearance": "{\"fontSize\":\"standard\",\"fontFamily\":\"system\",\"codeFont\":\"jetbrains\",\"contentWidth\":\"fluid\",\"accent\":\"violet\"}",
+      "session": "{\"sendAfterScroll\":false,\"enterToSend\":true,\"showToolCalls\":false,\"showTimestamps\":false,\"thinkingLevel\":\"medium\"}",
+      "system": "{\"autoUpdate\":false,\"notifyOnComplete\":true,\"minimizeToTray\":true}",
+      "theme": "dark"
+    }
+  },
+  "pageErrors": [],
+  "checks": [
+    {
+      "name": "默认强调色在 app-shell 子树内也是索序蓝",
+      "ok": true,
+      "actual": "#3a83f7"
+    },
+    {
+      "name": "浅色下切到紫罗兰：<html> 与 app-shell 子树同时变紫",
+      "ok": true,
+      "html": "#8b5cf6",
+      "shell": "#8b5cf6"
+    },
+    {
+      "name": "选中 tab 的下划线取到紫罗兰",
+      "ok": true,
+      "actual": "rgb(139, 92, 246)"
+    },
+    {
+      "name": "琥珀色板的前景切到深墨色（白字 2.15:1 不可用）",
+      "ok": true,
+      "actual": "#191717"
+    },
+    {
+      "name": "深色下 app-shell 子树的强调色仍是紫罗兰（不再退回蓝色）",
+      "ok": true,
+      "actual": "#8b5cf6"
+    },
+    {
+      "name": "深色下组件实际渲染的强调色也是紫罗兰",
+      "ok": true,
+      "actual": "rgb(139, 92, 246)"
+    },
+    {
+      "name": "深色下派生色用深色比例（26%），不是浅色的 14%",
+      "ok": true,
+      "dark": "color-mix(in srgb, #8b5cf6 26%, transparent)",
+      "light": "color-mix(in srgb, #8b5cf6 14%, transparent)"
+    }
+  ]
+}

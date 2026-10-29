@@ -3,6 +3,8 @@ import { computed, nextTick, ref, watch } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
 import MarkdownContent from "./MarkdownContent.vue";
 import MessageActions from "./MessageActions.vue";
+import { formatMessageTime } from "./messageTime.ts";
+import type { SessionSettings } from "../settings/sessionSettings.ts";
 import type { ChatMessage, HistoryCursor } from "../workspace/types.ts";
 import {
   MESSAGE_OVERSCAN_ROWS,
@@ -14,6 +16,11 @@ const props = defineProps<{
   messages: ChatMessage[];
   history: HistoryCursor;
   loading: boolean;
+  /**
+   * 设置 → 会话（Issue #116）：自动贴底、工具输出默认展开、消息时间戳。
+   * 三项都只影响显示，不改变消息内容本身。
+   */
+  settings: SessionSettings;
 }>();
 
 const emit = defineEmits<{ (event: "load-more"): void }>();
@@ -53,10 +60,15 @@ async function scrollToBottom() {
   if (element) element.scrollTop = element.scrollHeight;
 }
 
+/**
+ * 自动贴底（Issue #116）：设置里关掉「发送后滚动」后，滚动位置完全交给用户，
+ * 新消息只会在用户本来就贴着底部时才跟随——这条判断仍然要保留，
+ * 否则关掉开关后从底部往上翻历史会被硬拽回底部。
+ */
 watch(
   () => [props.messages.length, lastText.value],
   () => {
-    if (stickToBottom.value) void scrollToBottom();
+    if (props.settings.sendAfterScroll && stickToBottom.value) void scrollToBottom();
   },
 );
 
@@ -96,6 +108,21 @@ const TOOL_FOLD_CHARS = 360;
 
 function isFoldedTool(message: ChatMessage | undefined): boolean {
   return message?.role === "tool" && (message.text.length ?? 0) > TOOL_FOLD_CHARS;
+}
+
+/**
+ * 「显示工具调用」开关（Issue #116）：开着时工具输出块默认展开，
+ * 默认关闭 = 改动前的行为（超过 TOOL_FOLD_CHARS 的输出块保持折叠）。
+ * 开关只决定默认状态，用户仍然可以点 <summary> 手动折叠/展开。
+ */
+function toolExpandedByDefault(): boolean {
+  return props.settings.showToolCalls;
+}
+
+/** 消息时间戳：设置关掉或时间缺失/非法时返回 null，界面不渲染。 */
+function messageTime(message: ChatMessage | undefined): string | null {
+  if (!props.settings.showTimestamps) return null;
+  return formatMessageTime(message?.createdAt);
 }
 
 /** 只有 agent 消息有 hover 操作（复制/重试/回退），且必须真的有正文。 */
@@ -164,8 +191,21 @@ function labelFor(message: ChatMessage): string {
             class="message"
             :data-role="messages[item.index]?.role"
           >
-            <p class="message-label">{{ labelFor(messages[item.index]!) }}</p>
-            <details v-if="isFoldedTool(messages[item.index])" class="tool-block">
+            <p class="message-label">
+              {{ labelFor(messages[item.index]!) }}
+              <time
+                v-if="messageTime(messages[item.index])"
+                class="message-time"
+                :datetime="messages[item.index]?.createdAt ?? undefined"
+              >
+                {{ messageTime(messages[item.index]) }}
+              </time>
+            </p>
+            <details
+              v-if="isFoldedTool(messages[item.index])"
+              class="tool-block"
+              :open="toolExpandedByDefault()"
+            >
               <summary>展开工具输出</summary>
               <pre>{{ messages[item.index]?.text }}</pre>
             </details>
@@ -240,9 +280,13 @@ function labelFor(message: ChatMessage): string {
   padding: 8px 0 20px;
 }
 
+/*
+ * 正文宽度（Issue #116）：上限来自 --soxu-content-max —— 默认「固定 768」，
+ * 设置选「自适应」时 base.css 把它改成 100%，组件不需要判断档位。
+ */
 .virtual-canvas {
   position: relative;
-  width: min(100% - 48px, 780px);
+  width: min(100% - 48px, var(--soxu-content-max));
   margin: 0 auto;
 }
 
@@ -264,10 +308,20 @@ function labelFor(message: ChatMessage): string {
 }
 
 .message-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   font-size: 0.65625rem;
   letter-spacing: 0.3px;
   color: var(--soxu-muted);
+}
+
+/* 时间戳（Issue #116）：与消息标签同一行、弱化一档，不新增一行高度。 */
+.message-time {
+  font-size: 0.625rem;
+  color: var(--soxu-muted);
+  opacity: 0.85;
 }
 
 .bubble {

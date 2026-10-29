@@ -1,40 +1,72 @@
 <script setup lang="ts">
+/**
+ * 设置弹窗外壳（Issue #116 · V4-S2）：外观 / 会话 / 扩展 / 系统 四页。
+ *
+ * 分工：
+ * - 外壳只管弹窗、Esc、焦点与 tab 切换；四个页面各自在自己的组件里，
+ *   避免单个文件涨到几百行后没人敢改（上一版 304 行只有两项）。
+ * - 所有偏好由 App.vue 持有（useAppearance / useSessionSettings / useSystemSettings），
+ *   本组件只把改动原样冒泡，不写存储、不碰 DOM —— 因此设置页没有任何隐藏副作用。
+ *
+ * 键盘可达：reka-ui Tabs 提供 role=tablist/tab/tabpanel、方向键在标签间移动、
+ * 只有当前标签在 Tab 序列里（roving focus）；Tab 键从标签栏进入面板内容。
+ */
+
 import { nextTick, ref, watch } from "vue";
 import { X } from "@lucide/vue";
+import { TabsContent, TabsList, TabsRoot, TabsTrigger } from "reka-ui";
+
 import AppTooltip from "./AppTooltip.vue";
+import SettingsAppearance from "./settings/SettingsAppearance.vue";
+import SettingsExtensions from "./settings/SettingsExtensions.vue";
+import SettingsSession from "./settings/SettingsSession.vue";
+import SettingsSystem from "./settings/SettingsSystem.vue";
 import type { RuntimeInfo } from "../services/native.ts";
-import {
-  BUSY_DELIVERY_OPTIONS,
-  type BusySendDelivery,
-} from "../settings/busyDelivery.ts";
-// 外观档位只在 theme/appearance.ts 定义一次，这里只渲染数组，
-// 避免设置面板的「小/标准/大/特大」与保存逻辑各写一份而漂移。
-import {
-  FONT_FAMILY_OPTIONS,
-  FONT_SIZE_OPTIONS,
-  type FontFamilyName,
-  type FontSizeName,
-} from "../theme/appearance.ts";
+import type { BusySendDelivery } from "../settings/busyDelivery.ts";
+import type { SessionSettings } from "../settings/sessionSettings.ts";
+import type { SystemSettings } from "../settings/systemSettings.ts";
+import type { Appearance } from "../theme/appearance.ts";
+import type { ThemeName } from "../theme/theme.ts";
 
 const props = defineProps<{
   open: boolean;
-  theme: "light" | "dark";
-  fontSize: FontSizeName;
-  fontFamily: FontFamilyName;
+  theme: ThemeName;
+  appearance: Appearance;
   /** 设置 → 会话 → 忙碌时发送（V4-S1）。 */
   busyDelivery: BusySendDelivery;
+  session: SessionSettings;
+  system: SystemSettings;
   info: RuntimeInfo | null;
   bridgeAvailable: boolean;
+  tauriVersion: string | null;
+  dataDirectory: string;
+  copyState: "idle" | "copied" | "failed";
+  /** 会话页「清空当前会话」的禁用原因；null 表示可以点。 */
+  clearBlockedReason: string | null;
 }>();
 
 const emit = defineEmits<{
   (event: "close"): void;
-  (event: "update:theme", value: "light" | "dark"): void;
-  (event: "update:fontSize", value: FontSizeName): void;
-  (event: "update:fontFamily", value: FontFamilyName): void;
+  (event: "update:theme", value: ThemeName): void;
+  (event: "update:appearance", value: Appearance): void;
   (event: "update:busyDelivery", value: BusySendDelivery): void;
+  (event: "update:session", value: Partial<SessionSettings>): void;
+  (event: "update:system", value: Partial<SystemSettings>): void;
+  (event: "clear-session"): void;
+  (event: "reset-layout"): void;
+  (event: "copy-data-dir"): void;
 }>();
 
+/** 四个页面；顺序即界面顺序，与原型一致。 */
+const TABS = [
+  { value: "appearance", label: "外观" },
+  { value: "session", label: "会话" },
+  { value: "extensions", label: "扩展" },
+  { value: "system", label: "系统" },
+] as const;
+
+/** 打开时停留在上次看的页面（设置页常被用来反复调同一项）。 */
+const tab = ref<string>("appearance");
 const dialog = ref<HTMLElement | null>(null);
 
 watch(
@@ -74,135 +106,56 @@ function onKeydown(event: KeyboardEvent) {
         </AppTooltip>
       </header>
 
-      <section class="group">
-        <p class="group-title">外观</p>
+      <TabsRoot v-model="tab" class="tabs">
+        <TabsList class="tab-list" aria-label="设置分类">
+          <TabsTrigger
+            v-for="item in TABS"
+            :key="item.value"
+            :value="item.value"
+            class="tab"
+          >
+            {{ item.label }}
+          </TabsTrigger>
+        </TabsList>
 
-        <div class="field">
-          <p id="soxu-settings-theme" class="field-label">主题</p>
-          <div class="options" role="radiogroup" aria-labelledby="soxu-settings-theme">
-            <label class="option" :class="{ chosen: theme === 'light' }">
-              <input
-                type="radio"
-                name="soxu-theme"
-                value="light"
-                :checked="theme === 'light'"
-                @change="emit('update:theme', 'light')"
-              />
-              浅色
-            </label>
-            <label class="option" :class="{ chosen: theme === 'dark' }">
-              <input
-                type="radio"
-                name="soxu-theme"
-                value="dark"
-                :checked="theme === 'dark'"
-                @change="emit('update:theme', 'dark')"
-              />
-              深色
-            </label>
-          </div>
-        </div>
+        <TabsContent value="appearance" class="tab-panel">
+          <SettingsAppearance
+            :theme="theme"
+            :appearance="appearance"
+            @update:theme="(value: ThemeName) => emit('update:theme', value)"
+            @update:appearance="(value: Appearance) => emit('update:appearance', value)"
+          />
+        </TabsContent>
 
-        <div class="field">
-          <p id="soxu-settings-font-size" class="field-label">字号</p>
-          <div class="options" role="radiogroup" aria-labelledby="soxu-settings-font-size">
-            <label
-              v-for="option in FONT_SIZE_OPTIONS"
-              :key="option.value"
-              class="option"
-              :class="{ chosen: fontSize === option.value }"
-            >
-              <input
-                type="radio"
-                name="soxu-font-size"
-                :value="option.value"
-                :checked="fontSize === option.value"
-                @change="emit('update:fontSize', option.value)"
-              />
-              {{ option.label }}
-            </label>
-          </div>
-        </div>
+        <TabsContent value="session" class="tab-panel">
+          <SettingsSession
+            :settings="session"
+            :busy-delivery="busyDelivery"
+            :clear-blocked-reason="clearBlockedReason"
+            @update:settings="(value: Partial<SessionSettings>) => emit('update:session', value)"
+            @update:busyDelivery="(value: BusySendDelivery) => emit('update:busyDelivery', value)"
+            @clear-session="emit('clear-session')"
+          />
+        </TabsContent>
 
-        <div class="field">
-          <p id="soxu-settings-font-family" class="field-label">字体</p>
-          <div class="options" role="radiogroup" aria-labelledby="soxu-settings-font-family">
-            <label
-              v-for="option in FONT_FAMILY_OPTIONS"
-              :key="option.value"
-              class="option"
-              :class="{ chosen: fontFamily === option.value }"
-            >
-              <input
-                type="radio"
-                name="soxu-font-family"
-                :value="option.value"
-                :checked="fontFamily === option.value"
-                @change="emit('update:fontFamily', option.value)"
-              />
-              {{ option.label }}
-            </label>
-          </div>
-          <!--
-            文案必须与 base.css 的实际作用域一致（Issue #98 复审意见）：
-            「等宽」改的是界面字体 token，代码块与工具输出本来就是等宽栈（不受本项影响），
-            会话正文用独立 token 也不变。声称「只影响代码块」是错的：代码块恒等宽，
-            那样说等于这一档什么都不做。改文案时同步 tests/appearance.test.ts 的断言。
-          -->
-          <!-- prettier-ignore: 单行是刻意的，中文折行会引入一个被折叠成空格的换行，看着别扭 -->
-          <p class="field-note">「等宽」切换的是界面字体（侧栏、按钮、设置等）；代码块与工具输出始终等宽，会话正文不随这一项变化。</p>
-        </div>
-      </section>
+        <TabsContent value="extensions" class="tab-panel">
+          <SettingsExtensions />
+        </TabsContent>
 
-      <section class="group">
-        <p class="group-title">会话</p>
-
-        <div class="field">
-          <p id="soxu-settings-busy-delivery" class="field-label">忙碌时发送</p>
-          <div class="options" role="radiogroup" aria-labelledby="soxu-settings-busy-delivery">
-            <label
-              v-for="option in BUSY_DELIVERY_OPTIONS"
-              :key="option.value"
-              class="option"
-              :class="{ chosen: busyDelivery === option.value }"
-            >
-              <input
-                type="radio"
-                name="soxu-busy-delivery"
-                :value="option.value"
-                :checked="busyDelivery === option.value"
-                @change="emit('update:busyDelivery', option.value)"
-              />
-              {{ option.label }}
-            </label>
-          </div>
-          <!--
-            说明必须与真实行为一致：本切片后端只接收 mode 参数、不改变投递行为，
-            所以这里写「决定点发送时的默认投递方式」，不承诺已经会插队或排队。
-          -->
-          <p class="field-note">
-            决定 agent 忙碌时点发送的默认投递方式：「加入当前」插进正在进行的回答，「排到下轮」等本轮结束后自动发送。
-          </p>
-        </div>
-      </section>
-
-      <section class="group">
-        <p class="group-title">关于</p>
-        <dl class="facts">
-          <div>
-            <dt>应用</dt>
-            <dd>{{ info ? `${info.appName} ${info.appVersion}` : "未获取" }}</dd>
-          </div>
-          <div>
-            <dt>平台</dt>
-            <dd>{{ info?.platform ?? "未知" }}</dd>
-          </div>
-          <div>
-            <dt>连接状态</dt>
-            <dd>{{ bridgeAvailable ? "已连接" : "未连接（浏览器预览）" }}</dd>
-          </div>
-        </dl>
-      </section>
+        <TabsContent value="system" class="tab-panel">
+          <SettingsSystem
+            :settings="system"
+            :info="info"
+            :bridge-available="bridgeAvailable"
+            :tauri-version="tauriVersion"
+            :data-directory="dataDirectory"
+            :copy-state="copyState"
+            @update:settings="(value: Partial<SystemSettings>) => emit('update:system', value)"
+            @reset-layout="emit('reset-layout')"
+            @copy-data-dir="emit('copy-data-dir')"
+          />
+        </TabsContent>
+      </TabsRoot>
 
       <p class="footnote">
         会话文件由 Pi 管理，SOXU 只读索引；本对话框不收集任何凭据。
@@ -223,12 +176,16 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 .dialog {
-  width: min(420px, 100%);
-  border-radius: 16px;
-  border: 1px solid var(--soxu-border);
-  background: var(--soxu-panel);
-  box-shadow: 0 20px 60px rgb(0 0 0 / 22%);
-  padding: 18px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  width: min(680px, 100%);
+  max-height: min(88vh, 720px);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--fg);
+  box-shadow: var(--shadow-modal);
+  padding: 16px 18px 14px;
 }
 
 .dialog:focus-visible {
@@ -239,7 +196,7 @@ function onKeydown(event: KeyboardEvent) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .dialog-head h2 {
@@ -248,96 +205,53 @@ function onKeydown(event: KeyboardEvent) {
   font-weight: 640;
 }
 
-.group {
-  margin-bottom: 16px;
-}
-
-.group-title {
-  margin: 0 0 8px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--soxu-muted);
-}
-
-.field + .field {
-  margin-top: 12px;
-}
-
-.field-label {
-  margin: 0 0 6px;
-  font-size: 0.75rem;
-  color: var(--soxu-subtext);
-}
-
-/* 字号档位有四个、字体档位有三个：允许换行，避免「特大」字号下挤成一行溢出。 */
-.options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.option {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border: 1px solid var(--soxu-border);
-  border-radius: 10px;
-  font-size: 0.78125rem;
-  cursor: pointer;
-  transition:
-    background-color var(--soxu-motion-fast) var(--soxu-motion-ease),
-    border-color var(--soxu-motion-fast) var(--soxu-motion-ease);
-}
-
-.option:hover {
-  background: var(--soxu-hover);
-  border-color: var(--soxu-muted);
-}
-
-.option.chosen {
-  border-color: var(--soxu-accent);
-  background: var(--soxu-accent-soft);
-}
-
-.option input {
-  accent-color: var(--soxu-accent);
-}
-
-.field-note {
-  margin: 6px 0 0;
-  font-size: 0.65625rem;
-  line-height: 1.6;
-  color: var(--soxu-muted);
-}
-
-.facts {
-  margin: 0;
+.tabs {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 0.75rem;
+  min-height: 0;
 }
 
-.facts div {
+/* 标签栏：底部一条分隔线，选中项用强调色下划线（原型 modal-tabs）。 */
+.tab-list {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
 }
 
-.facts dt {
-  color: var(--soxu-muted);
+.tab {
+  position: relative;
+  padding: 8px 12px;
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  border-bottom: 2px solid transparent;
+  transition: color var(--dur-fast) var(--ease);
 }
 
-.facts dd {
-  margin: 0;
-  color: var(--soxu-fg);
+.tab:hover {
+  color: var(--fg);
+}
+
+.tab[data-state="active"] {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+}
+
+/*
+ * 面板区滚动：四页内容高度不同（扩展页最长），外壳高度固定、只有面板滚动，
+ * 这样切换页面时弹窗不会跟着跳。
+ */
+.tab-panel {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .footnote {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   font-size: 0.65625rem;
   line-height: 1.7;
-  color: var(--soxu-muted);
+  color: var(--fg-subtle);
 }
 </style>
