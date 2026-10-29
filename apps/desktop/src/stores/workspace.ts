@@ -110,6 +110,11 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     session.setDraft(sessionId, draft);
   }
 
+  /** 拖拽排序后写回顺序；activeSessionId 保持不动（整理栏位不是切换会话）。 */
+  function moveTab(fromIndex: number, toIndex: number): boolean {
+    return session.moveTab(fromIndex, toIndex);
+  }
+
   function send(sessionId: SessionId, text: string): Promise<void> {
     return session.sendPrompt(sessionId, text);
   }
@@ -190,6 +195,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     promote,
     setActive,
     setDraft,
+    moveTab,
     send,
     cancel,
     stop,

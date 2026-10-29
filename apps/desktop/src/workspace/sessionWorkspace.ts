@@ -111,6 +111,28 @@ export class WorkspaceSession {
     if (tab) tab.draft = draft;
   }
 
+  /**
+   * 改变 Tab 的排列顺序（Issue #99 的拖拽排序）。
+   *
+   * 只重排数组、不碰 `activeSessionId`：拖 Tab 是整理栏位，不是切换会话。
+   * 越界、原地移动、非整数索引一律返回 false，调用方（拖拽组件）不必自己判边界；
+   * Tab 对象本身原样搬运，因此消息窗口、运行时状态与草稿都不会因为重排而重建。
+   */
+  moveTab(fromIndex: number, toIndex: number): boolean {
+    if (this.disposed) return false;
+    const total = this.state.tabs.length;
+    if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return false;
+    if (fromIndex < 0 || fromIndex >= total) return false;
+    const target = Math.min(Math.max(toIndex, 0), total - 1);
+    if (target === fromIndex) return false;
+    const next = this.state.tabs.slice();
+    const [moved] = next.splice(fromIndex, 1);
+    if (!moved) return false;
+    next.splice(target, 0, moved);
+    this.state.tabs = next;
+    return true;
+  }
+
   async loadProjects(): Promise<void> {
     this.state.projectsLoading = true;
     try {

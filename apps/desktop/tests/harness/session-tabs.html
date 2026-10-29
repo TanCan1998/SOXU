@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · 会话 Tab 栏夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #99）：
+      pnpm dev 后访问 /tests/harness/session-tabs.html?count=8 ，
+      再用 tests/harness/shoot-session-tabs.mjs 量宽度、拖拽并截图。
+      不参与生产构建（vite build 只构建 index.html）。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./session-tabs.ts"></script>
+  </body>
+</html>
