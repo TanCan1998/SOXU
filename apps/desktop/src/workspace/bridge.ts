@@ -19,9 +19,11 @@ import type {
   RuntimeEvent,
   RuntimeStarted,
   RuntimeStatus,
+  SearchOptions,
   SessionId,
   SendPromptOptions,
   SessionMode,
+  SessionSearchResult,
   TemporarySessionView,
   WorktreeDiffView,
   WorktreeId,
@@ -48,6 +50,13 @@ export function createTauriBridge(): WorkspaceBridge {
       invoke<HistoryPage>("open_session_history", { sessionId, offset, limit }),
     fetchTexts: (sessionId: SessionId, refs: EntryRef[]) =>
       invoke<EntryText[]>("read_session_texts", { sessionId, entries: refs }),
+    searchSession: (sessionId: SessionId, query: string, options: SearchOptions = {}) =>
+      invoke<SessionSearchResult>("search_session", {
+        sessionId,
+        query,
+        limit: options.limit ?? null,
+        afterOrdinal: options.afterOrdinal ?? null,
+      }),
     startRuntime: (sessionId: SessionId, mode: SessionMode) =>
       invoke<RuntimeStarted>("start_session", { sessionId, temporary: mode === "temporary" }),
     openTemporarySession: (projectId: ProjectId) =>
@@ -121,6 +130,7 @@ export function createUnavailableBridge(reason: string): WorkspaceBridge {
     refreshProject: fail,
     fetchHistory: fail,
     fetchTexts: fail,
+    searchSession: fail,
     startRuntime: fail,
     openTemporarySession: fail,
     bindTemporaryFile: fail,

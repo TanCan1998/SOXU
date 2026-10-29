@@ -57,6 +57,7 @@ pub fn run() {
             commands::prune_worktrees,
             commands::open_session_history,
             commands::read_session_texts,
+            commands::search_session,
             commands::open_temporary_session,
             commands::bind_temporary_session_file,
             commands::promote_session,

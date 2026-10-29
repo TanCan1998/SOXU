@@ -17,7 +17,9 @@ import type {
   RuntimeStarted,
   PromotedSession,
   RuntimeStatus,
+  SearchOptions,
   SendPromptOptions,
+  SessionSearchResult,
   SessionId,
   SessionMode,
   TemporarySessionView,
@@ -76,6 +78,23 @@ export function sampleWorktree(overrides: Partial<WorktreeSummary> = {}): Worktr
   };
 }
 
+export function emptySearchResult(
+  sessionId: SessionId,
+  overrides: Partial<SessionSearchResult> = {},
+): SessionSearchResult {
+  return {
+    sessionId,
+    hits: [],
+    totalHits: 0,
+    scannedEntries: 0,
+    truncated: false,
+    degraded: false,
+    tookMs: 0,
+    rebuilt: false,
+    ...overrides,
+  };
+}
+
 export function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve: () => void = () => {};
   const promise = new Promise<void>((settle) => {
@@ -103,6 +122,10 @@ export class FakeBridge implements WorkspaceBridge {
   /** 已结束的临时会话（discard 命中时记录）。 */
   readonly discarded: SessionId[] = [];
   historyGate: Promise<void> | null = null;
+  /** 搜索：按查询词排队的结果，未命中时返回空结果。 */
+  readonly searchResults = new Map<string, SessionSearchResult>();
+  searchError: string | null = null;
+  searchGate: Promise<void> | null = null;
   status: RuntimeStatus | null = null;
   /** 后端下发的重试预算快照；测试按需注入，默认没有（旧后端行为）。 */
   retry: RetryStatus | null = null;
@@ -177,6 +200,17 @@ export class FakeBridge implements WorkspaceBridge {
     return refs
       .map((ref) => this.texts.get(ref.ordinal))
       .filter((item): item is EntryText => item !== undefined);
+  }
+
+  async searchSession(
+    sessionId: SessionId,
+    query: string,
+    options: SearchOptions = {},
+  ): Promise<SessionSearchResult> {
+    this.calls.push({ method: "searchSession", args: [sessionId, query, options] });
+    if (this.searchGate) await this.searchGate;
+    if (this.searchError) throw new Error(this.searchError);
+    return this.searchResults.get(query) ?? emptySearchResult(sessionId);
   }
 
   async startRuntime(sessionId: SessionId, mode: SessionMode): Promise<RuntimeStarted> {

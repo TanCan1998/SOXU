@@ -146,6 +146,18 @@ Pi 会话目录命名规则（默认布局，`SOXU_PI_SESSIONS_DIR` 可覆盖根
 唯一 owner，因此同一时刻只有一个写者，本层不需要额外加锁。需要并发只读分页时用
 `open_session_log` + `SessionLog::page`（`&self`，可在多个线程各自持有独立 `SessionLog`）。
 
+## 会话内搜索缓存
+
+分页只读「当前这一页」，搜索要回答「整份会话里有没有」。两者互补、不重复：
+搜索不建倒排索引，用**正文缓存 + 线性扫描**（详见 [会话内搜索](../development/session-search.md)）。
+
+- 只缓存正文，不缓存 JSON 原文；单会话 8 MiB、全局 24 MiB 两级硬上限。
+- 序号与分页索引同源：空行不产生条目、超长行与损坏行各产生一个「无正文条目」，
+  因此 `SearchHit.ordinal` 可以直接用于翻页定位。
+- 追加即缓存：`(mtime_ms, size)` 指纹判定「变大 → 只追加」「变小 / mtime 倒退 / 等长改写 → 整份重建」。
+- 单会话超预算时丢**最旧**条目的正文（条目保留），并用 `degraded` 如实标记结果可能不完整。
+- 单次查询超过 50 ms 记诊断事件，不静默变慢。
+
 ## 错误码
 
 错误码是机器可读契约：**字符串值一旦发布不可更改，只能追加**。说明文字允许本地化，不属于契约。
@@ -177,6 +189,7 @@ Git 侧的枚举、创建与受确认删除见 [Git 工作树服务](worktree-se
 | `E_TEMPORARY_SESSION_FILE_INVALID` | 绑定目标不是合法 Pi 会话（扩展名/头部/版本） | 是 |
 | `E_TEMPORARY_SESSION_FILE_CONFLICT` | 文件已是普通会话落点，或已被另一个临时会话绑定 | 否 |
 | `E_TEMPORARY_SESSION_RUNTIME_ACTIVE` | 仍有运行时持有该临时会话（转正/结束/被别的 runtime 抢占归属） | 是 |
+| `E_SEARCH_QUERY_TOO_LONG` | 会话内搜索的查询超过 200 字符（缩短即可重试） | 是 |
 
 `CatalogError` = 稳定错误码 + 人类可读上下文 + 可选底层原因（`kind: message`），
 三者都可在日志中出现，但只有错误码进入契约比较。

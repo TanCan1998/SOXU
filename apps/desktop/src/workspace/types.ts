@@ -131,6 +131,45 @@ export interface PromotedSession {
   project: ProjectSummary;
 }
 
+/** 会话内搜索的一条命中（Rust `SessionSearchHit` 的镜像）。 */
+export interface SessionSearchHit {
+  ordinal: number;
+  kind: EntryKind;
+  role: EntryRole | null;
+  /** 命中位置前后各 40 个字符的片段。 */
+  snippet: string;
+  /** 片段内命中的起始**字符**偏移（后端给，前端不重新算）。 */
+  matchStart: number;
+  /** 片段内命中的结束字符偏移（左闭右开）。 */
+  matchEnd: number;
+  /** 该条目内的命中次数（后端上限 20）。 */
+  totalMatches: number;
+  /** 该条目正文被裁剪过（超长条目或缓存预算淘汰），片段不是全文。 */
+  truncated: boolean;
+}
+
+/** 一次会话内搜索的结果。 */
+export interface SessionSearchResult {
+  sessionId: SessionId;
+  hits: SessionSearchHit[];
+  /** 会话内命中条目总数，与 `limit` / 分页无关。 */
+  totalHits: number;
+  scannedEntries: number;
+  /** 命中数超过 `limit`（还有下一页）。 */
+  truncated: boolean;
+  /** 缓存因预算丢弃了部分正文：结果可能不完整，界面必须如实说明。 */
+  degraded: boolean;
+  tookMs: number;
+  /** 本次调用是否重建了缓存（验收用：追加不应触发重建）。 */
+  rebuilt: boolean;
+}
+
+/** 搜索请求的可选参数：`afterOrdinal` 用于按时间序翻页。 */
+export interface SearchOptions {
+  limit?: number;
+  afterOrdinal?: number | null;
+}
+
 export interface RuntimeStarted {
   sessionId: SessionId;
   runtimeId: string;
@@ -305,6 +344,12 @@ export interface WorkspaceBridge {
   refreshProject(projectId: ProjectId): Promise<ProjectSummary>;
   fetchHistory(sessionId: SessionId, offset: number, limit: number): Promise<HistoryPage>;
   fetchTexts(sessionId: SessionId, refs: EntryRef[]): Promise<EntryText[]>;
+  /** 会话内搜索：搜整份会话（不是已加载的一页）；空查询由调用方拦在前面。 */
+  searchSession(
+    sessionId: SessionId,
+    query: string,
+    options?: SearchOptions,
+  ): Promise<SessionSearchResult>;
   startRuntime(sessionId: SessionId, mode: SessionMode): Promise<RuntimeStarted>;
   /** 分配一个临时会话：只在内存里，默认不进入历史。 */
   openTemporarySession(projectId: ProjectId): Promise<TemporarySessionView>;
@@ -398,6 +443,25 @@ export interface TabRuntime {
   retry: RetryStatus | null;
 }
 
+/**
+ * 单个 Tab 的搜索结果状态。
+ *
+ * `seq` 是请求序号：输入防抖 + 异步返回意味着响应可能乱序到达，
+ * 只有序号匹配的结果才能写回状态（迟到响应整条丢弃）。
+ */
+export interface SearchState {
+  query: string;
+  loading: boolean;
+  error: string | null;
+  hits: SessionSearchHit[];
+  totalHits: number;
+  scannedEntries: number;
+  truncated: boolean;
+  degraded: boolean;
+  tookMs: number;
+  seq: number;
+}
+
 export interface SessionTab {
   sessionId: SessionId;
   projectId: ProjectId;
@@ -414,6 +478,8 @@ export interface SessionTab {
   diagnostics: string[];
   /** 转正请求正在进行：UI 必须等后端结果，不能先显示「已保存」。 */
   promoting: boolean;
+  /** 会话内搜索状态；与消息窗口相互独立，只保留有界的一页命中。 */
+  search: SearchState;
 }
 
 export interface WorkspaceState {
@@ -458,6 +524,28 @@ export const MAX_TAB_HISTORY_CHARS = 2_000_000;
 
 /** 单条消息在 UI 状态里的字符上限；与 Rust `entry_text::MAX_TEXT_CHARS` 对齐。 */
 export const MAX_MESSAGE_CHARS = 20_000;
+
+/** 搜索输入的防抖窗口（毫秒）：快速输入只发一次请求。 */
+export const SEARCH_DEBOUNCE_MS = 200;
+/** 查询字符上限；与 Rust `MAX_QUERY_CHARS` 对齐。 */
+export const SEARCH_QUERY_MAX_CHARS = 200;
+/** 单次搜索返回的命中上限；与 Rust `DEFAULT_SEARCH_HITS` 对齐。 */
+export const SEARCH_HIT_LIMIT = 50;
+
+export function createSearchState(): SearchState {
+  return {
+    query: "",
+    loading: false,
+    error: null,
+    hits: [],
+    totalHits: 0,
+    scannedEntries: 0,
+    truncated: false,
+    degraded: false,
+    tookMs: 0,
+    seq: 0,
+  };
+}
 
 export function createWorktreeState(): WorktreeState {
   return {

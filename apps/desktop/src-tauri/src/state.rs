@@ -7,6 +7,8 @@
 //! - `pending_starts`：启动还没完成时（含重试退避窗口）的取消句柄，
 //!   让「停止」在中止启动这件事上也有唯一的落点。
 //! - `statuses` / `titles` / `gate` / `fanout`：有界内存表，不含会话正文。
+//! - `search`：会话内搜索的正文缓存，自带单会话 8 MiB / 全局 24 MiB 预算，
+//!   不需要额外清理任务；预算是它自己的 owner。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -14,7 +16,7 @@ use std::sync::{Arc, Mutex};
 
 use soxu_agent_runtime::retry::RetryCancel;
 use soxu_agent_runtime::{PiSupervisor, SupervisorConfig};
-use soxu_session_index::{CatalogConfig, ProjectCatalog};
+use soxu_session_index::{CatalogConfig, ProjectCatalog, SearchCache};
 use tokio::sync::mpsc;
 
 use crate::driver::{RunCommand, RunStatus};
@@ -33,6 +35,8 @@ pub struct AppState {
     /// 每会话重试预算的持久化：进程重启后不重置已用次数。
     pub retry: RetryStore,
     pub catalog: tokio::sync::Mutex<ProjectCatalog>,
+    /// 会话内搜索的正文缓存：CPU 密集，调用方在 `spawn_blocking` 里使用它。
+    pub search: Arc<Mutex<SearchCache>>,
     pub runs: tokio::sync::Mutex<HashMap<String, RunHandle>>,
     pub statuses: Arc<Mutex<HashMap<String, RunStatus>>>,
     pub gate: Arc<GenerationGate>,
@@ -69,6 +73,7 @@ impl AppState {
             supervisor: PiSupervisor::new(SupervisorConfig::default()),
             retry,
             catalog: tokio::sync::Mutex::new(catalog),
+            search: Arc::new(Mutex::new(SearchCache::new())),
             runs: tokio::sync::Mutex::new(HashMap::new()),
             statuses: Arc::new(Mutex::new(HashMap::new())),
             gate: Arc::new(GenerationGate::new()),
