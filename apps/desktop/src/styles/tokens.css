@@ -1,0 +1,211 @@
+/*
+ * SOXU V4 设计 token（V4-S0，Issue #110）。
+ *
+ * 视觉基准是原型 `F:\\workplace\\pi\\soxu-prototype\\style.css` 的前 120 行变量区，
+ * 本文件把那一批变量原样搬进桌面端，并注册到 Tailwind 4 的 CSS-first `@theme`。
+ * 决策文档见 docs/design/UIUX/V4/DESIGN.md 与 interaction-decisions.md。
+ *
+ * 三条不可违反的约定：
+ * 1. 变量名与原型保持一字不差（`--surface` / `--r-sm` / `--fs-micro` / `--shadow-pop` …），
+ *    后续切片可以直接把原型 CSS 贴过来，不需要改名；
+ * 2. 不写 tailwind.config.*。Tailwind 4 的配置就是这里的 `@theme`，唯一真源是本文件；
+ * 3. 不引入 Preflight。见下一段。
+ *
+ * 为什么不 import "tailwindcss" 整包：整包会带上 Preflight，那套 reset 会把 h1/button/列表
+ * 的浏览器默认样式一起抹掉，等于顺手改了 10 个既有组件的样式——本切片明确不动组件。
+ * 这里按 Tailwind 官方「Disabling Preflight」配方只取 theme + utilities 两层。
+ *
+ * 与既有 V3 token 的关系：`src/styles/base.css` 里的 `--soxu-*` 是 V3 遗留，组件仍在使用；
+ * 本文件是 V4 的并行 token 层，S1 起逐切片迁移组件，届时再删 V3 那一套。
+ * 两套变量同名不同值（例如深色下 `--soxu-fg` 是 #f4f3f3、V4 `--fg` 是 #ececec）是有意为之：
+ * 迁移未完成的组件观感必须保持不变，不能因为换 token 就悄悄改配色。
+ */
+
+/* 层顺序与官方配方一致：utilities 在最后，仍低于未分层的既有样式（base.css 全部未分层），
+ * 因此新增的工具类不可能反过来覆盖组件里已经生效的规则。 */
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* ──────────────────────────────────────────────────────────────
+ * 1. 静态 token：深浅色下取同一个值，只在这里定义一次
+ * ────────────────────────────────────────────────────────────── */
+:root {
+  /* 字号：原型 style.css 的实际值（DESIGN.md 的表格是设计稿四舍五入，以原型为准）。
+   * --fs-body 是界面正文，--fs-chat 是会话语义正文（16px），两者刻意不同档。 */
+  --fs-micro: 11.5px;
+  --fs-caption: 12.5px;
+  --fs-control: 13.5px;
+  --fs-body: 14.5px;
+  --fs-chat: 16px;
+  --fs-title: 16px;
+  --fs-heading: 20px;
+  --lh-chat: 1.68;
+
+  /* 字体：界面与正文同一栈（V4 原则「无衬线单字体」），只有代码/终端用等宽 */
+  --font-ui:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
+    "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  --font-code:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    "Microsoft YaHei UI", "PingFang SC", monospace;
+
+  /* 圆角 */
+  --r-sm: 7px;
+  --r-md: 9px;
+  --r-lg: 13px;
+  --r-full: 999px;
+
+  /* 动效：--ease 是标准缓动（对应 DESIGN.md 的 ease-out），--ease-spring 用于出现/弹层。
+   * --ease-spring 与 Tailwind 的 --ease-* 命名空间同名，真值放在 -value 后缀里，
+   * 由下一行的 --ease-spring 转发；原因见文件末尾 @theme 的说明。 */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring-value: cubic-bezier(0.34, 1.42, 0.64, 1);
+  --ease-spring: var(--ease-spring-value);
+  --dur-fast: 140ms;
+  --dur-base: 200ms;
+  --dur-slow: 260ms;
+
+  /* 强调色：深浅色共用同一组（原型同样只在 :root 定义，由 data-accent 切换色板）。
+   * 默认取 SOXU 蓝；DESIGN.md 的 GPT 绿是另一套待选定色板，等用户拍板后再加 data-accent 分支。 */
+  --accent: #3a83f7;
+  --accent-hover: #2f70d8;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+
+  /* 模态阴影：原型同样只在 :root 定义，深浅色共用一个值 */
+  --shadow-modal: 0 28px 72px rgb(0 0 0 / 30%);
+
+  /* 语义色：原型与 DESIGN.md 都把它当作不随主题变化的固定值 */
+  --ok: #10a37f;
+  --warn: #d97706;
+  --danger: #dc2626;
+
+  /* 布局与图标尺寸 */
+  --sb-w: 272px;
+  --insp-w: 320px;
+  --icon-lg: 17px;
+  --icon-md: 15px;
+  --icon-sm: 13px;
+  --content-max: 768px;
+  --content-pad: calc(var(--fs-body) * 2.2);
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * 2. 主题 token：浅色（默认值）
+ *
+ * 三选择器语义相同，理由与 base.css 一致：
+ * - :root：没有 data-theme 时（首帧、单元测试、静态预览）就是浅色；
+ * - :root[data-theme="light"]：显式选择浅色，同时覆盖 color-scheme 之外的 token；
+ * - .app-shell[data-theme="light"]：只挂 App.vue 时也能拿到整套浅色 token。
+ * ────────────────────────────────────────────────────────────── */
+:root,
+:root[data-theme="light"],
+.app-shell[data-theme="light"] {
+  --surface: #ffffff;
+  /* --bg 是原型/DESIGN.md 的名字，--surface 是 Issue #110 要求的名字，指向同一个值。 */
+  --bg: var(--surface);
+  --bg-sidebar: #f7f7f8;
+  --bg-panel: #ffffff;
+  --bg-raised: #f2f2f3;
+  --bg-hover: #ececed;
+  --bg-active: #e3e3e5;
+  --border: #e5e5e7;
+  --border-strong: #d4d4d8;
+  --fg: #1a1a1a;
+  --fg-muted: #6b6b70;
+  --fg-subtle: #9a9aa0;
+  --code-bg: #f6f6f7;
+  --inset: inset 0 1px 0 rgb(255 255 255 / 70%);
+  --glass: rgb(255 255 255 / 72%);
+  --glass-border: rgb(0 0 0 / 6%);
+  /* --shadow-pop 同样与 Tailwind 的 --shadow-* 命名空间同名，真值放在 -value 里。 */
+  --shadow-pop-value: 0 10px 28px rgb(0 0 0 / 12%), 0 1px 2px rgb(0 0 0 / 5%);
+  --shadow-pop: var(--shadow-pop-value);
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * 3. 主题 token：深色
+ * ────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"],
+.app-shell[data-theme="dark"] {
+  --surface: #212121;
+  --bg: var(--surface);
+  --bg-sidebar: #191919;
+  --bg-panel: #212121;
+  --bg-raised: #2f2f2f;
+  --bg-hover: #2a2a2a;
+  --bg-active: #353535;
+  --border: #383838;
+  --border-strong: #4a4a4a;
+  --fg: #ececec;
+  --fg-muted: #a0a0a5;
+  --fg-subtle: #6e6e73;
+  --code-bg: #1a1a1a;
+  --inset: inset 0 1px 0 rgb(255 255 255 / 4.5%);
+  --glass: rgb(28 28 28 / 68%);
+  --glass-border: rgb(255 255 255 / 7%);
+  --shadow-pop-value: 0 10px 28px rgb(0 0 0 / 46%), 0 1px 2px rgb(0 0 0 / 30%);
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * 4. Tailwind @theme 注册（CSS-first，无 tailwind.config）
+ *
+ * 命名空间决定工具类名：--color-* → bg-/text-/border-*，--radius-* → rounded-*，
+ * --text-* → text-*，--shadow-* → shadow-*，--ease-* → ease-*。
+ * 原型 token 名多数不在 Tailwind 命名空间里（--surface 不是 --color-surface），
+ * 所以这里做一层 inline 别名：工具类里内联成 var(--surface)，深浅色切换时
+ * 直接在元素上重算，不需要重新生成 CSS。
+ * ────────────────────────────────────────────────────────────── */
+@theme inline {
+  /* 色彩 */
+  --color-surface: var(--surface);
+  --color-bg-sidebar: var(--bg-sidebar);
+  --color-bg-panel: var(--bg-panel);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-active: var(--bg-active);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-code-bg: var(--code-bg);
+
+  /* 圆角：--r-sm/md/lg/full → rounded-sm/md/lg/full（覆盖 Tailwind 默认刻度，以原型为准） */
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-full: var(--r-full);
+
+  /* 字号：--fs-* → text-micro/caption/control/body/chat/title/heading */
+  --text-micro: var(--fs-micro);
+  --text-caption: var(--fs-caption);
+  --text-control: var(--fs-control);
+  --text-body: var(--fs-body);
+  --text-chat: var(--fs-chat);
+  --text-title: var(--fs-title);
+  --text-heading: var(--fs-heading);
+  /* 会话正文的行高跟着 text-chat 一起给，避免每处手写 leading-* */
+  --text-chat--line-height: var(--lh-chat);
+
+  /* 字体：font-sans / font-mono 指回本项目的字体栈 */
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
+
+  /* --shadow-pop 与 --ease-spring 本身就在 Tailwind 的 --shadow-* / --ease-* 命名空间里，
+   * 直接写 --shadow-pop: var(--shadow-pop) 会自引用（计算值失效），另起 popover / bounce
+   * 这类别名又会让工具类名与原型 token 名对不上。所以真值放在 --*-value 里，
+   * 这里只做一次转发：工具类内联成 var(--shadow-pop-value)，深浅色切换照常生效。 */
+  --shadow-pop: var(--shadow-pop-value);
+  --ease-spring: var(--ease-spring-value);
+
+  /* 裸 --ease 没有后缀，进不了 --ease-* 命名空间，所以工具类名是 ease-standard。 */
+  --ease-standard: var(--ease);
+}

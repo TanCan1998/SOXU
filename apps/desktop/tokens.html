@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SOXU · V4 设计 token 色板（开发验证）</title>
+  </head>
+  <body>
+    <!--
+      Issue #110 的临时验证面（V4-S0）。
+      只跑 `pnpm dev` 时可用：http://127.0.0.1:1420/tokens.html
+      不进生产构建（vite build 只打包 index.html），也不改 App.vue 与其余 9 个既有组件。
+    -->
+    <div id="tokens"></div>
+    <script type="module" src="/src/styles/tokensPreview.ts"></script>
+  </body>
+</html>
