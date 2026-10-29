@@ -16,6 +16,9 @@ const props = defineProps<{
   defaultDelivery: BusySendDelivery;
   /** 设置 → 会话：自动贴底、工具输出展开、时间戳、Enter 发送，透传给列表与输入区。 */
   settings: SessionSettings;
+  /** 搜索抽屉（Issue #118）的跳转目标，原样透传给消息列表。 */
+  focusMessageId?: string | null;
+  focusNonce?: number;
 }>();
 
 const emit = defineEmits<{
@@ -146,6 +149,8 @@ const runtimeHint = computed(() => {
       :history="tab.history"
       :loading="tab.history.loading"
       :settings="settings"
+      :focus-message-id="focusMessageId ?? null"
+      :focus-nonce="focusNonce ?? 0"
       @load-more="emit('load-more')"
     />
 

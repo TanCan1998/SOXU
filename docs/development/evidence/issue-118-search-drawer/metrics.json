@@ -1,0 +1,249 @@
+{
+  "generatedAt": "2026-10-29T23:24:16.195Z",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browser": "Edg/156.0.4314.50",
+  "shots": [
+    "01-light-empty.png",
+    "02-light-results.png",
+    "03-light-jumped.png",
+    "04-light-searching.png",
+    "05-light-no-results.png",
+    "06-light-error.png",
+    "07-light-truncated.png",
+    "08-dark-results.png"
+  ],
+  "checks": [
+    {
+      "name": "empty-state",
+      "ok": true,
+      "actual": {
+        "status": "empty",
+        "count": "",
+        "hits": 0,
+        "ordinals": [],
+        "marks": 0,
+        "markText": null,
+        "notice": null
+      }
+    },
+    {
+      "name": "debounce-budget",
+      "ok": true,
+      "actual": {
+        "debounceMs": 200,
+        "latencyMs": 231.30000001192093
+      }
+    },
+    {
+      "name": "latency-within-250ms",
+      "ok": true,
+      "actual": 231.30000001192093
+    },
+    {
+      "name": "hits-rendered",
+      "ok": true,
+      "actual": 6
+    },
+    {
+      "name": "newest-first",
+      "ok": true,
+      "actual": [
+        54,
+        45,
+        36,
+        27,
+        18,
+        9
+      ]
+    },
+    {
+      "name": "match-highlight",
+      "ok": true,
+      "actual": {
+        "marks": 6,
+        "markText": "扩散"
+      }
+    },
+    {
+      "name": "count-text",
+      "ok": true,
+      "actual": "6 条匹配 · 扫描 60 条"
+    },
+    {
+      "name": "jump-highlight",
+      "ok": true,
+      "actual": {
+        "present": true,
+        "text": "Agent 第 54 条：讨论扩散模型的采样步数与显存占用"
+      }
+    },
+    {
+      "name": "searching-state",
+      "ok": true,
+      "actual": {
+        "status": "searching",
+        "count": "搜索中…",
+        "hits": 0,
+        "ordinals": [],
+        "marks": 0,
+        "markText": null,
+        "notice": null
+      }
+    },
+    {
+      "name": "no-results-state",
+      "ok": true,
+      "actual": {
+        "status": "no-results",
+        "count": "0 条匹配 · 扫描 60 条",
+        "hits": 0,
+        "ordinals": [],
+        "marks": 0,
+        "markText": null,
+        "notice": null
+      }
+    },
+    {
+      "name": "error-state",
+      "ok": true,
+      "actual": {
+        "status": "error",
+        "count": "搜索失败",
+        "hits": 0,
+        "ordinals": [],
+        "marks": 0,
+        "markText": null,
+        "notice": null
+      }
+    },
+    {
+      "name": "truncated-notice",
+      "ok": true,
+      "actual": {
+        "status": "results",
+        "count": "206 条匹配（已返回最早的 6 条） · 扫描 60 条",
+        "hits": 6,
+        "ordinals": [
+          54,
+          45,
+          36,
+          27,
+          18,
+          9
+        ],
+        "marks": 6,
+        "markText": "扩散",
+        "notice": "命中 206 条，这里只拿到最早的 6 条；加长关键词可以把范围缩小。"
+      }
+    },
+    {
+      "name": "dark-drawer",
+      "ok": true,
+      "actual": "rgb(33, 33, 33)"
+    },
+    {
+      "name": "a11y",
+      "ok": true,
+      "actual": {
+        "inputLabel": "搜索本会话",
+        "metaRole": "status",
+        "closeLabel": "关闭搜索",
+        "drawerLabel": "会话搜索"
+      }
+    },
+    {
+      "name": "no-page-errors",
+      "ok": true,
+      "actual": []
+    }
+  ],
+  "empty": {
+    "status": "empty",
+    "count": "",
+    "hits": 0,
+    "ordinals": [],
+    "marks": 0,
+    "markText": null,
+    "notice": null
+  },
+  "timing": {
+    "debounceMs": 200,
+    "latencyMs": 231.30000001192093
+  },
+  "results": {
+    "status": "results",
+    "count": "6 条匹配 · 扫描 60 条",
+    "hits": 6,
+    "ordinals": [
+      54,
+      45,
+      36,
+      27,
+      18,
+      9
+    ],
+    "marks": 6,
+    "markText": "扩散",
+    "notice": null
+  },
+  "jump": {
+    "present": true,
+    "text": "Agent 第 54 条：讨论扩散模型的采样步数与显存占用"
+  },
+  "searching": {
+    "status": "searching",
+    "count": "搜索中…",
+    "hits": 0,
+    "ordinals": [],
+    "marks": 0,
+    "markText": null,
+    "notice": null
+  },
+  "noResults": {
+    "status": "no-results",
+    "count": "0 条匹配 · 扫描 60 条",
+    "hits": 0,
+    "ordinals": [],
+    "marks": 0,
+    "markText": null,
+    "notice": null
+  },
+  "error": {
+    "status": "error",
+    "count": "搜索失败",
+    "hits": 0,
+    "ordinals": [],
+    "marks": 0,
+    "markText": null,
+    "notice": null
+  },
+  "truncated": {
+    "status": "results",
+    "count": "206 条匹配（已返回最早的 6 条） · 扫描 60 条",
+    "hits": 6,
+    "ordinals": [
+      54,
+      45,
+      36,
+      27,
+      18,
+      9
+    ],
+    "marks": 6,
+    "markText": "扩散",
+    "notice": "命中 206 条，这里只拿到最早的 6 条；加长关键词可以把范围缩小。"
+  },
+  "dark": {
+    "background": "rgb(33, 33, 33)"
+  },
+  "a11y": {
+    "inputLabel": "搜索本会话",
+    "metaRole": "status",
+    "closeLabel": "关闭搜索",
+    "drawerLabel": "会话搜索"
+  },
+  "ok": true
+}

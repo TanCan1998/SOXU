@@ -1,19 +1,23 @@
 <!--
-  应用外壳（Issue #116 起约 720 行，超过 coding-standards 的 600 行提示线，理由如下）：
+  应用外壳（Issue #118 起约 790 行，超过 coding-standards 的 600 行提示线，理由如下）：
   - 它只做「装配」：状态与副作用已经按域拆到 composable（useAppearance / useBusyDelivery /
     useSessionSettings / useSystemSettings / useProjectDirectoryPick / useThemeTransition 等），
     本文件剩下的是 props/事件接线与顶栏、欢迎页、弹窗的模板。
-  - 设置页的四个面板、工作树面板、会话面板都已是独立组件；再往下拆只能拆「模板片段」，
+  - 设置页的四个面板、工作树面板、会话面板、搜索抽屉都已是独立组件；再往下拆只能拆「模板片段」，
     那会让「谁持有哪个状态」变得难以追踪，反而增加生命周期泄漏的风险。
+  - 搜索抽屉（Issue #118）只留下「接线」：打开/关闭、输入转发、跳转目标（focusMessageId + nonce），
+    定位规则本身在 components/searchPanel.ts 里，可脱离 DOM 测试。
   - 主题切换（setTheme）与历史记录（history）必须留在壳层：它们是全应用唯一的入口。
 -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Plus } from "@lucide/vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Plus, Search } from "@lucide/vue";
 import AppTooltip from "./components/AppTooltip.vue";
 import ChatPanel from "./components/ChatPanel.vue";
 import ProjectSidebar from "./components/ProjectSidebar.vue";
 import RuntimeInspector from "./components/RuntimeInspector.vue";
+import SearchDrawer from "./components/SearchDrawer.vue";
+import { resolveJumpTarget } from "./components/searchPanel.ts";
 import SessionTabs from "./components/SessionTabs.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import WorktreeDialog from "./components/WorktreeDialog.vue";
@@ -47,6 +51,7 @@ import type {
   CreateWorktreeInput,
   SendMode,
   SessionId,
+  SessionSearchHit,
   WorktreeId,
 } from "./workspace/types.ts";
 
@@ -55,6 +60,14 @@ const info = ref<RuntimeInfo | null>(null);
 const sidebarOpen = ref(true);
 const inspectorOpen = ref(true);
 const settingsOpen = ref(false);
+/** 右侧搜索抽屉（Issue #118）；与「会话状态」面板互斥，一次只开一个。 */
+const searchOpen = ref(false);
+const searchDrawer = ref<InstanceType<typeof SearchDrawer> | null>(null);
+/** 搜索跳转的目标消息 + 递增序号：同一条命中连点两次也要重新定位。 */
+const focusMessageId = ref<string | null>(null);
+const focusNonce = ref(0);
+/** 跳转未能定位时的说明；null 表示没有提示。 */
+const searchNotice = ref<string | null>(null);
 /** 工作树面板观察的项目；null 表示面板关闭。 */
 const worktreeProjectId = ref<string | null>(null);
 const theme = ref<ThemeName>(resolveInitialTheme());
@@ -101,6 +114,27 @@ const isOpenTab = (sessionId: SessionId) =>
   store.state.tabs.some((tab) => tab.sessionId === sessionId);
 const backTarget = computed(() => findTarget(history.value, "back", isOpenTab));
 const forwardTarget = computed(() => findTarget(history.value, "forward", isOpenTab));
+
+/**
+ * 右侧抽屉一次只显示一个面板（Issue #118）：打开「会话状态」就收起「搜索」。
+ *
+ * 两个 320px 抽屉并排会把正文挤到不可读，用户也不需要同时看两份；
+ * 顶栏两个按钮因此各自保持「点自己就开自己」的简单语义，互斥在这里统一收口。
+ * 监听 inspectorOpen 而不是改顶栏按钮的 @click：PanelRight 的开关行为是既有契约
+ * （tests/interactionPolish.test.ts 断言它直接写 inspectorOpen）。
+ */
+watch(inspectorOpen, (open) => {
+  if (open) searchOpen.value = false;
+});
+
+/** 切换会话时清掉上一条跳转目标与提示：它们只对原来的会话有意义。 */
+watch(
+  () => store.state.activeSessionId,
+  () => {
+    focusMessageId.value = null;
+    searchNotice.value = null;
+  },
+);
 
 /**
  * flush: "sync" 是必需的：后退时先移动游标再切会话，如果记录发生在下一个 tick，
@@ -264,6 +298,61 @@ function loadMore() {
   if (tab) void store.loadMore(tab.sessionId);
 }
 
+/**
+ * 打开搜索抽屉（顶栏按钮与 Ctrl+F 共用）。
+ *
+ * 焦点必须在打开后立刻进搜索框：Ctrl+F 之后用户的第一动作就是打字，
+ * 让他先点一下输入框等于快捷键只完成了一半。
+ */
+function openSearch() {
+  searchOpen.value = true;
+  inspectorOpen.value = false;
+  searchNotice.value = null;
+  void nextTick(() => searchDrawer.value?.focus());
+}
+
+function closeSearch() {
+  searchOpen.value = false;
+}
+
+/** 输入变化：防抖在 store 侧按会话登记，这里只决定「发请求」还是「取消待触发」。 */
+function onSearchQuery(value: string) {
+  const tab = activeTab.value;
+  if (!tab) return;
+  searchNotice.value = null;
+  if (!value.trim()) {
+    store.cancelSearch(tab.sessionId);
+    return;
+  }
+  store.scheduleSearch(tab.sessionId, value);
+}
+
+/**
+ * 点击一条命中：定位到对应消息并高亮。
+ *
+ * 命中可能落在尚未加载的历史窗口里（搜索搜的是整份会话），所以先按 ordinal 找，
+ * 找不到就有界翻页再找——最多 MAX_JUMP_PAGES（3）页，绝不为了一个旧命中无限加载。
+ * 仍然找不到时如实提示，不假装跳过去了。
+ */
+async function onSearchJump(hit: SessionSearchHit) {
+  const tab = activeTab.value;
+  if (!tab) return;
+  searchNotice.value = null;
+  // 定位规则（含「有界翻页」与「切走就放弃」）在 searchPanel.ts 里，可脱离 DOM 测试。
+  const resolution = await resolveJumpTarget({
+    sessionId: tab.sessionId,
+    ordinal: hit.ordinal,
+    messages: () => tab.messages,
+    hasMore: () => tab.history.next !== null,
+    loadMore: () => store.loadMore(tab.sessionId),
+    isActive: () => activeTab.value?.sessionId === tab.sessionId,
+  });
+  searchNotice.value = resolution.notice;
+  if (!resolution.messageId) return;
+  focusMessageId.value = resolution.messageId;
+  focusNonce.value += 1;
+}
+
 function promote() {
   const tab = activeTab.value;
   if (tab) void store.promote(tab.sessionId);
@@ -383,6 +472,10 @@ function onKeydown(event: KeyboardEvent) {
   } else if (key === "k") {
     event.preventDefault();
     newTemporary();
+  } else if (key === "f") {
+    // Ctrl+F / ⌘F：打开搜索抽屉并把焦点放进搜索框（浏览器默认的页内查找在这里没有意义）。
+    event.preventDefault();
+    openSearch();
   }
 }
 
@@ -488,6 +581,18 @@ onUnmounted(() => {
               {{ store.bridgeAvailable ? "已连接" : "未连接" }}
             </span>
           </AppTooltip>
+          <AppTooltip text="会话内搜索 (Ctrl+F)">
+            <button
+              class="icon-button"
+              type="button"
+              :aria-label="searchOpen ? '关闭搜索面板' : '打开搜索面板'"
+              :aria-expanded="searchOpen"
+              aria-keyshortcuts="Control+F"
+              @click="searchOpen ? closeSearch() : openSearch()"
+            >
+              <Search :size="18" :stroke-width="1.75" aria-hidden="true" />
+            </button>
+          </AppTooltip>
           <AppTooltip text="会话状态 (Ctrl+I)">
             <button
               class="icon-button"
@@ -520,6 +625,8 @@ onUnmounted(() => {
         :busy="store.busy"
         :default-delivery="busyDelivery"
         :settings="session"
+        :focus-message-id="focusMessageId"
+        :focus-nonce="focusNonce"
         @send="send"
         @cancel="cancel"
         @stop="stop"
@@ -572,6 +679,17 @@ onUnmounted(() => {
       :bridge-available="store.bridgeAvailable"
       @refresh-projects="() => void store.refreshProjects()"
       @stop="stop"
+    />
+
+    <SearchDrawer
+      v-if="searchOpen"
+      ref="searchDrawer"
+      :tab="activeTab"
+      :bridge-available="store.bridgeAvailable"
+      :notice="searchNotice"
+      @close="closeSearch"
+      @query="onSearchQuery"
+      @jump="onSearchJump"
     />
 
     <WorktreeDialog
