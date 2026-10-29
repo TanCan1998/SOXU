@@ -13,6 +13,7 @@ pub mod dto;
 pub mod retry_store;
 pub mod session_runtime;
 pub mod state;
+pub mod tray;
 pub mod workspace;
 pub mod worktree;
 
@@ -33,8 +34,16 @@ pub fn run() {
             let state = AppState::new(state_dir)
                 .map_err(|error| format!("初始化工作区状态失败：{error}"))?;
             app.manage(state);
+            // 托盘创建失败（例如 Linux 缺少 libayatana-appindicator 运行时）不阻断启动：
+            // 此时窗口关闭按系统默认行为退出，避免隐藏后无法再恢复。
+            if let Err(error) = tray::create_tray(app.handle()) {
+                eprintln!("SOXU: 创建系统托盘失败，关闭窗口将直接退出（{error}）");
+            }
             Ok(())
         })
+        // 托盘菜单与窗口菜单共用同一组全局监听器，因此只在这里注册一次。
+        .on_menu_event(|app, event| tray::handle_menu_event(app, &event))
+        .on_window_event(tray::handle_window_event)
         .invoke_handler(tauri::generate_handler![
             commands::runtime_info,
             commands::list_projects,
