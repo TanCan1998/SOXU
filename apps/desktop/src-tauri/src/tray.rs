@@ -3,6 +3,10 @@
 //! 托盘完全由 Rust 侧创建，不向 WebView 暴露任何新能力（`capabilities/default.json`
 //! 不需要改动）。窗口隐藏后进程与 Supervisor 继续存活，因此隐藏不会中断运行中的会话；
 //! 真正结束进程只有「托盘 → 退出」一条路径，`RunEvent::Exit` 仍会回收受管 Pi 进程。
+//!
+//! 隐藏后必须留下可感知的痕迹（Issue #101）：窗口消失本身就是「点 × 有反应」的
+//! 全部证据，所以隐藏成功会把托盘 tooltip 换成「已最小化到托盘 · 单击图标显示窗口」，
+//! 恢复可见时再改回来。这里不加通知插件，避免为一句提示引入常驻依赖与权限。
 
 use tauri::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -21,7 +25,14 @@ pub const MENU_ID_QUIT: &str = "soxu-tray-quit";
 
 const MENU_TEXT_SHOW: &str = "显示窗口";
 const MENU_TEXT_QUIT: &str = "退出";
+/// 窗口可见时的托盘提示：只是品牌名，不占用信息带宽。
 const TRAY_TOOLTIP: &str = "SOXU · 索序";
+/// 窗口隐藏到托盘后的托盘提示（Issue #101）。
+///
+/// 隐藏后界面上没有任何东西能证明「进程还活着」，用户点 × 时看到的只是窗口消失，
+/// 于是反馈成「关闭按钮没有反应」。tooltip 是唯一不引入新插件、也不新增常驻资源的
+/// 反馈通道，所以文案必须同时说明「已隐藏」和「怎么回来」。
+const TRAY_TOOLTIP_HIDDEN: &str = "SOXU 已最小化到托盘 · 单击图标显示窗口";
 
 /// 托盘交互归一化后的动作，纯数据便于在无显示器环境测试平台差异。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,6 +61,18 @@ pub fn close_action(tray_present: bool) -> CloseAction {
         CloseAction::HideToTray
     } else {
         CloseAction::Default
+    }
+}
+
+/// 托盘 tooltip 随窗口可见性变化（Issue #101）。
+///
+/// 纯函数：隐藏/恢复两条路径共用同一份文案映射，避免一处写「已最小化」、
+/// 另一处忘了改回来，导致窗口已经显示却还写着「已最小化到托盘」。
+pub fn tray_tooltip(window_hidden: bool) -> &'static str {
+    if window_hidden {
+        TRAY_TOOLTIP_HIDDEN
+    } else {
+        TRAY_TOOLTIP
     }
 }
 
@@ -100,7 +123,7 @@ pub fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .menu(&menu)
         // 左键留给「恢复窗口」，菜单由右键打开（Linux 不支持该开关，左键即菜单）。
         .show_menu_on_left_click(false)
-        .tooltip(TRAY_TOOLTIP)
+        .tooltip(tray_tooltip(false))
         .on_tray_icon_event(|tray, event| handle_tray_icon_event(tray, event));
 
     // 复用应用图标：它由 `tauri.conf.json` 的 `bundle.icon` 在编译期嵌入，
@@ -146,7 +169,24 @@ pub fn handle_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) 
         api.prevent_close();
         if let Err(error) = window.hide() {
             eprintln!("SOXU: 隐藏窗口到托盘失败（{error}）");
+            return;
         }
+        // 隐藏成功后才改提示：hide 失败时窗口仍在，提示必须继续描述「窗口可见」。
+        sync_tooltip(window.app_handle(), true);
+    }
+}
+
+/// 把窗口可见性同步到托盘提示；托盘不存在（创建失败）时安静跳过。
+///
+/// TrayIcon::set_tooltip 内部走 run_on_main_thread，而 tauri-runtime-wry 的
+/// send_user_message 在当前线程就是主线程时会就地执行，因此窗口事件回调里直接
+/// 调用不会因为等待事件循环而卡死。
+fn sync_tooltip<R: Runtime>(app: &AppHandle<R>, window_hidden: bool) {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
+    if let Err(error) = tray.set_tooltip(Some(tray_tooltip(window_hidden))) {
+        eprintln!("SOXU: 更新托盘提示失败（{error}）");
     }
 }
 
@@ -160,5 +200,8 @@ pub fn show_main_window<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         window.unminimize()?;
     }
     window.show()?;
+    // 恢复可见后把提示改回品牌名：否则 tooltip 会一直停在「已最小化到托盘」，
+    // 用户下次悬停会以为窗口还在托盘里。
+    sync_tooltip(app, false);
     window.set_focus()
 }
