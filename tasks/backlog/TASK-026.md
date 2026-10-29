@@ -2,7 +2,7 @@
 id: TASK-026
 milestone: M1
 priority: P1
-dependencies: [TASK-009]
+dependencies: []
 ---
 
 # 搜索抽屉：会话内全文搜索 UI
