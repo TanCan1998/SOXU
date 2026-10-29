@@ -34,7 +34,7 @@ const emit = defineEmits<{
   (event: "add-project", root: string): void;
   (event: "refresh-project", projectId: string): void;
   (event: "open-settings"): void;
-  (event: "toggle-theme"): void;
+  (event: "toggle-theme", payload: MouseEvent): void;
 }>();
 
 const search = ref("");
@@ -191,7 +191,7 @@ function submitProject() {
           type="button"
           :aria-label="theme === 'light' ? '切换到深色主题' : '切换到浅色主题'"
           :title="theme === 'light' ? '切换到深色主题' : '切换到浅色主题'"
-          @click="emit('toggle-theme')"
+          @click="emit('toggle-theme', $event)"
         >
           <Sun v-if="theme === 'dark'" :size="20" :stroke-width="1.75" aria-hidden="true" />
           <Moon v-else :size="20" :stroke-width="1.75" aria-hidden="true" />
