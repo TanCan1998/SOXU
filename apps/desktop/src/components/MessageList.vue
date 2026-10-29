@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 import { useVirtualizer } from "@tanstack/vue-virtual";
 import MarkdownContent from "./MarkdownContent.vue";
 import MessageActions from "./MessageActions.vue";
@@ -11,6 +11,7 @@ import {
   MESSAGE_ROW_ESTIMATE_PX,
   MESSAGE_STICK_THRESHOLD_PX,
 } from "./messageVirtualizer.ts";
+import { HIT_HIGHLIGHT_MS } from "./searchPanel.ts";
 
 const props = defineProps<{
   messages: ChatMessage[];
@@ -21,6 +22,14 @@ const props = defineProps<{
    * 三项都只影响显示，不改变消息内容本身。
    */
   settings: SessionSettings;
+  /**
+   * 搜索抽屉（Issue #118）的跳转目标：消息 id + 递增序号。
+   *
+   * 用「id + nonce」而不是只传 id：同一条命中可以连点两次，只靠 id 变化不会触发
+   * watch，第二次点击就会变成「什么都没发生」。nonce 由 App.vue 每次点击自增。
+   */
+  focusMessageId?: string | null;
+  focusNonce?: number;
 }>();
 
 const emit = defineEmits<{ (event: "load-more"): void }>();
@@ -46,6 +55,48 @@ const virtualizer = useVirtualizer<HTMLElement, HTMLElement>(
 const virtualItems = computed(() => virtualizer.value.getVirtualItems());
 const totalSize = computed(() => virtualizer.value.getTotalSize());
 const lastText = computed(() => props.messages.at(-1)?.text ?? "");
+
+/** 搜索命中跳转后的高亮；定时器由本组件创建，也由本组件清理（含卸载时）。 */
+const highlightId = ref<string | null>(null);
+let highlightTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearHighlightTimer() {
+  if (highlightTimer === null) return;
+  clearTimeout(highlightTimer);
+  highlightTimer = null;
+}
+
+/**
+ * 滚动到指定消息并短暂高亮（搜索抽屉的「点击定位」）。
+ *
+ * 行高是实测的：先按估算高度滚一次，等一帧把实测高度写回尺寸缓存后再滚一次，
+ * 否则远距离跳转会停在目标行上方或下方（虚拟列表的经典偏移）。
+ * 目标行不在当前窗口时直接返回——上层负责翻页，这里不猜也不造假。
+ */
+async function focusMessage(messageId: string) {
+  const index = props.messages.findIndex((message) => message.id === messageId);
+  if (index < 0) return;
+  await nextTick();
+  virtualizer.value.scrollToIndex(index, { align: "center" });
+  requestAnimationFrame(() => {
+    virtualizer.value.scrollToIndex(index, { align: "center" });
+  });
+  highlightId.value = messageId;
+  clearHighlightTimer();
+  highlightTimer = setTimeout(() => {
+    highlightId.value = null;
+    highlightTimer = null;
+  }, HIT_HIGHLIGHT_MS);
+}
+
+watch(
+  () => [props.focusMessageId, props.focusNonce] as const,
+  ([messageId]) => {
+    if (messageId) void focusMessage(messageId);
+  },
+);
+
+onUnmounted(clearHighlightTimer);
 
 function onScroll() {
   const element = scrollRef.value;
@@ -190,6 +241,7 @@ function labelFor(message: ChatMessage): string {
             v-if="messages[item.index]"
             class="message"
             :data-role="messages[item.index]?.role"
+            :data-highlight="messages[item.index]?.id === highlightId ? 'true' : undefined"
           >
             <p class="message-label">
               {{ labelFor(messages[item.index]!) }}
@@ -305,6 +357,16 @@ function labelFor(message: ChatMessage): string {
 
 .message[data-role="user"] {
   align-items: flex-end;
+}
+
+/*
+ * 搜索命中跳转后的高亮（Issue #118）：用强调色画一圈 2px 描边，
+ * 深浅主题都看得见；只在 data-highlight 期间生效，不改变布局（不占空间）。
+ */
+.message[data-highlight="true"] .bubble,
+.message[data-highlight="true"] .tool-block {
+  box-shadow: 0 0 0 2px var(--soxu-accent);
+  transition: box-shadow var(--soxu-motion-base) var(--soxu-motion-ease);
 }
 
 .message-label {

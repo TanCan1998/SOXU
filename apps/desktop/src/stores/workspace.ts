@@ -140,6 +140,22 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return session.loadMore(sessionId);
   }
 
+  /**
+   * 会话内搜索的输入防抖（Issue #118）：请求与定时器都在 WorkspaceSession 里，
+   * store 只做转发——UI 不自己起定时器，避免出现第二份防抖窗口。
+   *
+   * 只暴露这一个入口：抽屉的每一次输入都走它，没有「绕过防抖立刻搜一次」的第二条路径，
+   * 否则两条路径的语义迟早分叉（一条记请求序号、一条不记）。
+   */
+  function scheduleSearch(sessionId: SessionId, query: string): void {
+    session.scheduleSearch(sessionId, query);
+  }
+
+  /** 取消待触发的防抖（清空输入框时用），不会取消已在途的请求。 */
+  function cancelSearch(sessionId: SessionId): void {
+    session.cancelScheduledSearch(sessionId);
+  }
+
   function openWorktrees(projectId: string): Promise<void> {
     return worktrees.open(projectId);
   }
@@ -206,6 +222,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     stop,
     closeTab,
     loadMore,
+    scheduleSearch,
+    cancelSearch,
     openWorktrees,
     reloadWorktrees,
     selectWorktree,

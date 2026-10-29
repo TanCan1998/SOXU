@@ -124,8 +124,13 @@ interface SessionSearchResult {
 - 超长查询在前端先拦（与后端同一上限），不发注定失败的请求。
 - `splitSnippet(snippet, matchStart, matchEnd)`：按**码点**切片高亮，前端不重新计算匹配位置；
   偏移越界时夹到边界，不让一颗坏数据把面板打崩。
-- 面板组件（抽屉里的搜索框）尚未迁移到本仓库；本 Issue 交付数据层、防抖与高亮助手，
-  组件接线随原型迁移单独进行（见第 9 节）。
+- 面板组件由 Issue #118 交付：`components/SearchDrawer.vue`（抽屉 + 搜索框 + 结果数 + 三态）
+  与 `components/searchPanel.ts`（状态判定、倒序、按 ordinal 定位、计数口径）。
+  抽屉只渲染状态，**不自带定时器**：防抖仍只有 `WorkspaceSession.scheduleSearch` 一份，
+  点击结果的定位规则（含最多 3 页的有界翻页）是 `resolveJumpTarget`，可脱离 DOM 测试。
+  证据见 [issue-118-search-drawer](evidence/issue-118-search-drawer/README.md)。
+- 命中超过 `limit` 时后端只返回**最早**的一批（`afterOrdinal` 只能向前翻页），
+  面板因此对这一批做倒序并用 `truncated` 如实说明；倒序分页需要后端支持，属后续切片。
 
 ## 8. 验收证据
 
@@ -154,8 +159,9 @@ cd apps/desktop; node --test tests/sessionSearch.test.ts
 
 ## 9. 未验证
 
-- **Tauri WebView2 / WKWebView / WebKitGTK 实机**：本次只有单元/集成测试与离线夹具，
-  没有在打包应用里点过搜索面板（面板组件也尚未接线）。
+- **Tauri WebView2 / WKWebView / WebKitGTK 实机**：本 Issue 只有单元/集成测试与离线夹具；
+  面板组件已在 Issue #118 接线，但仍没有在打包应用里点过（见
+  [issue-118-search-drawer](evidence/issue-118-search-drawer/README.md) 第 5 节）。
 - **macOS / Linux**：只在本机 Windows 11 跑过；`mtime` 精度与文件系统行为未跨平台验证。
 - **真实 10 MiB 会话**：性能基线用的是合成会话（每行结构真实、正文为占位文本）。
 - **慢查询诊断的上报路径**：目前写 `eprintln!` 与内存诊断环形缓冲，还没有接入监控面板。

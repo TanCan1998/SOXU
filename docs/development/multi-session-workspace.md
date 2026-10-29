@@ -309,6 +309,11 @@ JSONL 会话、滚动帧率与 WebView 进程 RSS。
 抽屉搜索面板不再只过滤已加载的一页：`search_session` 走本地正文缓存 + 线性扫描，
 搜的是整份会话。设计、预算与证据见 [会话内搜索](session-search.md)。
 
+界面（抽屉、三种状态、命中高亮、点击跳转）由 Issue #118 交付：
+`components/SearchDrawer.vue` + `components/searchPanel.ts`，右侧抽屉与「会话状态」面板互斥，
+Ctrl+F / ⌘F 打开并把焦点放进搜索框。证据见
+[issue-118-search-drawer](evidence/issue-118-search-drawer/README.md)。
+
 | 规则 | 实现 | 用例 |
 | --- | --- | --- |
 | 搜全整份会话 | 后端缓存所有条目正文（受 8 MiB / 24 MiB 预算约束），线性扫描 | `finds_every_hit_not_only_the_first_page`（1,235 条 → 206 命中）、`search_covers_the_whole_session_and_pages_by_ordinal` |

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · Issue #118 搜索抽屉夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #118 · TASK-026）：
+      pnpm dev 后访问 /tests/harness/search-drawer.html ，
+      再用 tests/harness/shoot-issue-118-search.mjs 截图并测量防抖与跳转。
+      不参与生产构建（vite build 只构建 index.html），也不连接 Pi：
+      会话、搜索命中与运行时状态全是内存里的假数据。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./search-drawer.ts"></script>
+  </body>
+</html>

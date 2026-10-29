@@ -525,7 +525,15 @@ export const MAX_TAB_HISTORY_CHARS = 2_000_000;
 /** 单条消息在 UI 状态里的字符上限；与 Rust `entry_text::MAX_TEXT_CHARS` 对齐。 */
 export const MAX_MESSAGE_CHARS = 20_000;
 
-/** 搜索输入的防抖窗口（毫秒）：快速输入只发一次请求。 */
+/**
+ * 搜索输入的防抖窗口（毫秒）：快速输入只发一次请求。
+ *
+ * 为什么是 200 而不是 250（Issue #118 的验收写着「输入后 250 ms 内出结果」）：
+ * 防抖窗口本身就是「从最后一次输入到发请求」的延迟，取 250 会把这 250 ms 全部用光，
+ * IPC 往返与渲染再占掉一点，用户就永远看不到「250 ms 内出结果」。
+ * 200 ms 的停顿对输入手感已经不可感知，同时给请求留出 50 ms 预算
+ * （大会话查询实测 5–9 ms，见 docs/development/session-search.md 第 8 节）。
+ */
 export const SEARCH_DEBOUNCE_MS = 200;
 /** 查询字符上限；与 Rust `MAX_QUERY_CHARS` 对齐。 */
 export const SEARCH_QUERY_MAX_CHARS = 200;
