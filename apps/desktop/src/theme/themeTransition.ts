@@ -7,6 +7,8 @@
  *   popover 能进 top layer，但实测仍压在"旧快照"下面，只有落在已经揭开的新区域内才可见
  *   （见 docs/development/evidence/issue-88-theme-transition/README.md 的像素证据）。
  *   因此发光环必须比扩散边缘略微滞后，才能一直处在已揭开的区域里；
+ * - View Transitions 的伪元素在 finished 之后就销毁了，扩散到边界后的水波只有在此刻才完整可见，
+ *   所以"涟漪淡出"必须靠过渡类名之外的真实节点存活到淡出结束，不能写成 ::view-transition-* 动画；
  * - 快速连点时浏览器会跳过上一个过渡，用自增 runId 做代际守卫，避免旧过渡清理掉新过渡的 DOM。
  *
  * 几何量与时长由本模块写到 :root 的内联样式，base.css 只负责消费，避免两处各写一份常量。
@@ -32,8 +34,24 @@ export const THEME_GLOW_LAG_MS = 30;
 export const THEME_TRANSITION_EASING = "cubic-bezier(0.22, 0.61, 0.36, 1)";
 /** 过渡进行中挂在 <html> 上的类名，CSS 依赖它限定 ::view-transition-* 规则。 */
 export const THEME_TRANSITION_CLASS = "soxu-theme-transition";
-/** 发光涟漪节点的类名，动画结束后必须从 DOM 移除。 */
+/** 发光涟漪容器（top layer popover）的类名，淡出结束后必须从 DOM 移除。 */
 export const THEME_GLOW_CLASS = "soxu-theme-glow";
+/** 追着扩散边缘推进的光晕层。 */
+export const THEME_GLOW_EDGE_CLASS = "soxu-theme-glow__edge";
+/** 扩散抵达边界后沿边缘向外轻轻散开的水波层。 */
+export const THEME_RIPPLE_CLASS = "soxu-theme-glow__ripple";
+/**
+ * 水波淡出时长（毫秒）：扩散结束后涟漪继续可见这么久。
+ * Issue #97 要求落在 300–600ms；CSS 通过 --soxu-theme-ripple-duration 读取同一数值。
+ */
+export const THEME_RIPPLE_FADE_MS = 480;
+/**
+ * 淡出结束后额外等待的余量：最后一帧要真正画完再摘节点，
+ * 否则水波会在还没透明时就整块消失。CSS 端不用这个值，只供 JS 计时。
+ */
+export const THEME_RIPPLE_SETTLE_MS = 60;
+/** 从扩散结束算起，涟漪需要保留的总时长，用于清理计时与测试断言。 */
+export const THEME_RIPPLE_TOTAL_MS = THEME_RIPPLE_FADE_MS + THEME_RIPPLE_SETTLE_MS;
 
 export interface ViewportSize {
   width: number;
@@ -83,6 +101,8 @@ interface GlowElementLike {
   className: string;
   style: StyleLike;
   setAttribute(name: string, value: string): void;
+  /** 容器挂光晕层/水波层；缺省的实现只是没有光晕，不影响扩散。 */
+  appendChild?(child: GlowElementLike): unknown;
   remove(): void;
   showPopover?(): void;
 }
@@ -102,6 +122,8 @@ export interface ThemeTransitionEnv {
   reducedMotion?: boolean;
   /** 等新主题渲染进 DOM；默认 Vue 的 nextTick。 */
   flush?: () => Promise<void>;
+  /** 等涟漪淡出（毫秒）；默认 setTimeout，测试注入立即返回的实现以免真的等 540ms。 */
+  waitForRipple?: (ms: number) => Promise<void>;
 }
 
 export interface ThemeTransitionOptions {
@@ -180,7 +202,7 @@ export async function runThemeTransition(options: ThemeTransitionOptions): Promi
     return { mode: "instant", reason: "unsupported", origin, radius };
   }
 
-  // 新过渡接管：上一次的发光环可能还挂在 DOM 上，先摘掉再开始。
+  // 新过渡接管：上一次的发光涟漪可能还在淡出，先整块摘掉再开始，避免两代水波重叠。
   activeGlow?.remove();
   activeGlow = null;
 
@@ -200,30 +222,44 @@ export async function runThemeTransition(options: ThemeTransitionOptions): Promi
   } catch {
     // startViewTransition 同步抛错（浏览器策略禁用、被其他过渡占用等）时
     // 回调根本不会执行；此时必须自己提交主题，否则点击按钮会静默无效。
-    cleanup(runId, root, null);
+    releaseTransitionClass(runId, root);
     await commitOnce();
     return { mode: "instant", reason: "start-failed", origin, radius };
   }
 
+  let interrupted = false;
   try {
-    // ready 时快照已经拍完：此刻插入发光环才不会被拍进新旧快照里
+    // ready 时快照已经拍完：此刻插入发光涟漪才不会被拍进新旧快照里
     await transition.ready;
-    glow = mountGlowRing(doc, origin, radius);
+    glow = mountGlowLayer(doc, origin, radius);
     if (glow) activeGlow = glow;
     await transition.finished;
   } catch {
     // 连点或页面切走时浏览器会跳过过渡，ready/finished 以 AbortError 拒绝；
     // 这里只做清理，主题状态已经在 commit 里生效，不需要回滚。
-  } finally {
-    cleanup(runId, root, glow);
+    interrupted = true;
+  }
+
+  // 类名一到 finished 就撤：::view-transition-* 规则已经用不上，涟漪层接管剩下的淡出。
+  releaseTransitionClass(runId, root);
+  if (glow) {
+    // 被跳过/中断的过渡没有完整的水波可看，立刻摘掉；正常结束才等淡出跑完再回收节点。
+    if (!interrupted && runId === activeRunId) {
+      await (env.waitForRipple ?? defaultWaitForRipple)(THEME_RIPPLE_TOTAL_MS);
+    }
+    releaseGlow(glow);
   }
   return { mode: "animated", reason: "animated", origin, radius };
 }
 
-function cleanup(runId: number, root: TransitionRootLike, glow: GlowElementLike | null): void {
+/** 摘掉自己这一代的发光涟漪节点，并清掉全局引用。重复调用是安全的。 */
+function releaseGlow(glow: GlowElementLike | null): void {
   glow?.remove();
   if (activeGlow === glow) activeGlow = null;
-  // 已有更新的过渡接管时，不要拆掉它正在用的类名
+}
+
+/** 撤掉过渡类名；已有更新的过渡接管时保持原样。 */
+function releaseTransitionClass(runId: number, root: TransitionRootLike): void {
   if (runId !== activeRunId) return;
   root.classList.remove(THEME_TRANSITION_CLASS);
 }
@@ -240,37 +276,55 @@ function writeGeometry(root: TransitionRootLike, origin: ThemeOrigin, radius: nu
     "--soxu-theme-glow-duration",
     `${Math.max(120, THEME_TRANSITION_DURATION_MS - THEME_GLOW_LAG_MS)}ms`,
   );
+  // 水波在扩散结束的那一刻起跑，与扩散首尾相接，不会在覆盖过程中被旧快照挡掉
+  root.style.setProperty("--soxu-theme-ripple-delay", `${THEME_TRANSITION_DURATION_MS}ms`);
+  root.style.setProperty("--soxu-theme-ripple-duration", `${THEME_RIPPLE_FADE_MS}ms`);
 }
 
 /**
- * 发光涟漪：一圈跟随扩散边缘的光晕。
+ * 发光涟漪：一个 0×0 的 top layer 容器 + 两层圆圈。
+ * - edge：跟随扩散边缘推进的光晕；
+ * - ripple：抵达边界后沿边缘向外散开并淡出的水波（Issue #97）。
  * ::view-transition-* 只支持裁切，box-shadow 不会跟随 clip-path，所以用独立节点实现。
  * popover 是让节点进入 top layer 的唯一纯前端手段；不支持时保留扩散、放弃发光。
  */
-function mountGlowRing(
+function mountGlowLayer(
   doc: ThemeDocumentLike,
   origin: ThemeOrigin,
   radius: number,
 ): GlowElementLike | null {
   const body = doc.body;
   if (!body) return null;
-  const ring = doc.createElement("div");
-  ring.className = THEME_GLOW_CLASS;
-  ring.setAttribute("aria-hidden", "true");
+  const layer = doc.createElement("div");
+  layer.className = THEME_GLOW_CLASS;
+  layer.setAttribute("aria-hidden", "true");
   // 没有 popover 属性时 showPopover() 会抛 NotSupportedError，节点就留在普通层里被快照盖住
-  ring.setAttribute("popover", "manual");
-  ring.style.setProperty("--soxu-theme-x", `${origin.x}px`);
-  ring.style.setProperty("--soxu-theme-y", `${origin.y}px`);
-  ring.style.setProperty("--soxu-theme-r", `${radius}px`);
-  body.appendChild(ring as never);
-  if (typeof ring.showPopover === "function") {
-    try {
-      ring.showPopover();
-    } catch {
-      // 已经打开了别的 popover 等情况：没有发光环也不影响扩散
+  layer.setAttribute("popover", "manual");
+  layer.style.setProperty("--soxu-theme-x", `${origin.x}px`);
+  layer.style.setProperty("--soxu-theme-y", `${origin.y}px`);
+  layer.style.setProperty("--soxu-theme-r", `${radius}px`);
+  // 两层都是绝对定位的圆圈，圆心由容器左上角（= 点击点）给出，随容器的自定义属性缩放
+  if (typeof layer.appendChild === "function") {
+    for (const className of [THEME_GLOW_EDGE_CLASS, THEME_RIPPLE_CLASS]) {
+      const sublayer = doc.createElement("div");
+      sublayer.className = className;
+      layer.appendChild(sublayer);
     }
   }
-  return ring;
+  body.appendChild(layer as never);
+  if (typeof layer.showPopover === "function") {
+    try {
+      layer.showPopover();
+    } catch {
+      // 已经打开了别的 popover 等情况：没有发光涟漪也不影响扩散
+    }
+  }
+  return layer;
+}
+
+/** 默认的淡出等待：真实计时即可，节点在动画结束后才被移除。 */
+function defaultWaitForRipple(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function defaultDocument(): ThemeDocumentLike | null {
