@@ -92,9 +92,8 @@ pub async fn start(
         return Err("generation 回退：已存在更新的运行时".to_owned());
     }
 
-    if !temporary {
-        claim_catalog(state, session_id, &identity.runtime_id).await;
-    }
+    // 临时会话同样要声明可写归属：否则转正后再启动会对同一 JSONL 双写。
+    claim_catalog(state, session_id, &identity.runtime_id, temporary).await;
 
     let status = RunStatus {
         runtime_id: identity.runtime_id.clone(),
@@ -284,15 +283,27 @@ async fn await_reply<T>(
 }
 
 /// 会话目录的运行时归属：上一个进程崩溃遗留的链接先清理，再声明本次所有权。
-async fn claim_catalog(state: &AppState, session_id: &str, runtime_id: &str) {
+///
+/// 临时会话没有持久化记录，归属只登记在内存登记表里（不落盘），但语义相同：
+/// 同一会话最多一个可写运行时，转正/结束前必须先释放。
+async fn claim_catalog(state: &AppState, session_id: &str, runtime_id: &str, temporary: bool) {
     let session = SessionId::new(session_id);
     let mut catalog = state.catalog.lock().await;
+    if temporary {
+        // 与持久化会话一致：先清掉上一代（崩溃/自行退出）遗留的归属，再声明本次所有权。
+        // 启动已被 start_guard 串行化，此处的遗留归属不可能还有活进程。
+        let _ = catalog.release_stale_temporary_runtime(&session);
+        if let Err(error) = catalog.claim_temporary_writable(&session, runtime_id) {
+            // 归属失败不阻断对话：会话文件仍由 Pi 自己拥有，只在诊断里留痕。
+            eprintln!("SOXU: 临时会话 {session_id} 归属未登记（{error}）");
+        }
+        return;
+    }
     if catalog.find_session(&session).is_none() {
         return;
     }
     let _ = catalog.release_stale_runtime(&session);
     if let Err(error) = catalog.claim_writable(&session, runtime_id) {
-        // 归属失败不阻断对话：会话文件仍由 Pi 自己拥有，只在诊断里留痕。
         eprintln!("SOXU: 会话 {session_id} 归属未登记（{error}）");
     }
     let _ = catalog.save_if_dirty();
@@ -301,9 +312,26 @@ async fn claim_catalog(state: &AppState, session_id: &str, runtime_id: &str) {
 async fn release_catalog(state: &AppState, session_id: &str, runtime_id: &str) {
     let session = SessionId::new(session_id);
     let mut catalog = state.catalog.lock().await;
+    if catalog.is_temporary(&session) {
+        let _ = catalog.release_temporary_writable(&session, runtime_id);
+        return;
+    }
     if catalog.find_session(&session).is_none() {
         return;
     }
     let _ = catalog.release(&session, runtime_id);
     let _ = catalog.save_if_dirty();
+}
+
+/// 该会话是否有活运行时：命令通道未关闭，或启动仍在进行（含重试退避窗口）。
+///
+/// 转正/结束临时会话前必须为 false——否则旧 Pi 会失去 owner（停止变成 no-op 假成功），
+/// 转正后再启动就会对同一 JSONL 双写。
+pub async fn has_live_runtime(state: &AppState, session_id: &str) -> bool {
+    if state.is_start_pending(session_id) {
+        return true;
+    }
+    let runs = state.runs.lock().await;
+    runs.get(session_id)
+        .is_some_and(|run| !run.control.is_closed())
 }

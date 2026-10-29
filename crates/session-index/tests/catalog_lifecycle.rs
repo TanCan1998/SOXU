@@ -462,12 +462,24 @@ fn runtime_ownership_filters_stale_generations() {
     catalog.save().unwrap_or_else(|error| panic!("{error}"));
     drop(catalog);
 
-    // 重启后上一进程的挂载是死连接：清理后新 runtime 拿到更大的 generation。
+    // 重启后上一进程的挂载是死连接：打开目录时就已经清掉（不是等某个会话被启动才发现），
+    // 所以这里 release_stale_runtime 已经没有可清理的挂载，水位也已经抬到 3。
     let mut reopened = open(&temp.child("state"), &sessions_root);
+    assert_eq!(
+        reopened.recovered_stale_runtimes(),
+        1,
+        "打开目录即清理崩溃遗留的运行时挂载"
+    );
+    assert!(
+        reopened
+            .find_session(&session)
+            .is_some_and(|record| record.runtime.is_none()),
+        "重启后不允许残留幽灵运行时"
+    );
     let stale = reopened
         .release_stale_runtime(&session)
         .unwrap_or_else(|error| panic!("{error}"));
-    assert_eq!(stale.map(|link| link.generation), Some(2));
+    assert!(stale.is_none(), "挂载已在 open 时清理");
     let third = reopened
         .claim_writable(&session, "rt-3")
         .unwrap_or_else(|error| panic!("{error}"));

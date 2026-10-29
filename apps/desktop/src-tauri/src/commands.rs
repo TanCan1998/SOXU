@@ -7,8 +7,9 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 
 use crate::dto::{
-    CreateWorktreeInput, EntryRefInput, EntryText, HistoryPage, ProjectSummary, RuntimeStarted,
-    RuntimeStatus, WorktreeDiffView, WorktreeRemovalView, WorktreeSummary, WorktreeWorkspace,
+    CreateWorktreeInput, EntryRefInput, EntryText, HistoryPage, ProjectSummary, PromotedSession,
+    RuntimeStarted, RuntimeStatus, TemporarySessionView, WorktreeDiffView, WorktreeRemovalView,
+    WorktreeSummary, WorktreeWorkspace,
 };
 use crate::session_runtime;
 use crate::state::AppState;
@@ -125,6 +126,43 @@ pub async fn prune_worktrees(
     token: String,
 ) -> Result<usize, String> {
     worktree::prune(state.inner(), &project_id, &token).await
+}
+
+/// 分配一个临时会话：只存在于 Rust 进程内存，默认不进入持久化历史。
+#[tauri::command]
+pub async fn open_temporary_session(
+    state: State<'_, AppState>,
+    project_id: String,
+) -> Result<TemporarySessionView, String> {
+    workspace::open_temporary(state.inner(), &project_id).await
+}
+
+/// 绑定 Pi 会话文件：绑定期间该文件不进入普通历史，转正后才登记。
+#[tauri::command]
+pub async fn bind_temporary_session_file(
+    state: State<'_, AppState>,
+    session_id: String,
+    file: String,
+) -> Result<TemporarySessionView, String> {
+    workspace::bind_temporary_file(state.inner(), &session_id, &file).await
+}
+
+/// 显式转正：把临时会话变成普通会话；失败保留临时会话并返回原因。
+#[tauri::command]
+pub async fn promote_session(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<PromotedSession, String> {
+    workspace::promote_session(state.inner(), &session_id).await
+}
+
+/// 结束临时会话：幂等，不删除 Pi 的会话文件。
+#[tauri::command]
+pub async fn discard_temporary_session(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<bool, String> {
+    workspace::discard_temporary(state.inner(), &session_id).await
 }
 
 #[tauri::command]

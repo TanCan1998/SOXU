@@ -9,6 +9,13 @@
   已耗尽的预算优先于剩余次数（失败关闭），退避等待可被「停止」立即打断，
   右侧检查器显示次数与费用提示；仅 Windows 开发环境验证，真实断网与 macOS/Linux 未验证，
   详见[网络超时有界重试](network-retry.md)。
+- 临时会话（默认不进入历史）已实现：登记只存在于内存、重启后不残留，可显式转正为普通会话。
+  但转正需要显式绑定 Pi 会话文件，而桌面端还没有文件选择入口、Pi 也不回报自己的会话文件路径，
+  因此 UI 目前只能显示 `E_TEMPORARY_SESSION_UNPROMOTABLE` 的明确原因，而不是假装保存成功；
+  转正与结束还要求**先停止运行时**（`E_TEMPORARY_SESSION_RUNTIME_ACTIVE`），否则旧 Pi 会失去 owner、
+  同一 JSONL 可能被双写；
+  契约见[会话目录与 JSONL 索引契约](../architecture/session-catalog.md)，集成细节见
+  [多会话工作区](multi-session-workspace.md)。
 - 未集成验证：当前构建环境无 Pi 模型认证；GitHub PR 权限及外部 API 尚需在实际开发机验证。
 - Windows 安装包已能在本机产出（MSI/NSIS，见[发布就绪核验](release-readiness.md)），但**安装/卸载冒烟、
   macOS 与 Linux 构建、签名与公证均未验证**；产物当前未签名。

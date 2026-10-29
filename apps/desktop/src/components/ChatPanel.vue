@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { CircleAlert, CircleStop, RefreshCw } from "@lucide/vue";
+import { CircleAlert, CircleStop, RefreshCw, Save } from "@lucide/vue";
 import ChatComposer from "./ChatComposer.vue";
 import MessageList from "./MessageList.vue";
 import type { SessionTab } from "../workspace/types.ts";
@@ -17,6 +17,7 @@ const emit = defineEmits<{
   (event: "stop"): void;
   (event: "load-more"): void;
   (event: "retry"): void;
+  (event: "promote"): void;
   (event: "update:draft", value: string): void;
 }>();
 
@@ -38,6 +39,31 @@ const statusLabel = computed(() => {
 });
 
 const showEmpty = computed(() => props.tab.messages.length === 0 && props.tab.status !== "loading");
+/**
+ * 转正的两个前提：没有正在进行的轮次，且**没有活运行时**。
+ *
+ * 只按 status 拦截是不够的：idle 但 runtimeId 仍在的临时会话，其 Pi 进程仍持有会话文件，
+ * 转正后它会失去 owner（停止变成 no-op 假成功），再次启动就会双写同一 JSONL。
+ */
+const canPromote = computed(
+  () =>
+    props.tab.mode === "temporary" &&
+    !props.tab.promoting &&
+    !props.tab.runtime.runtimeId &&
+    props.tab.status !== "running" &&
+    props.tab.status !== "cancelling" &&
+    props.tab.status !== "loading",
+);
+/** 按钮提示：告诉用户「为什么现在不能转正」，而不是只把按钮置灰。 */
+const promoteHint = computed(() => {
+  if (props.tab.runtime.runtimeId) {
+    return "先停止 Pi 运行时再转为普通会话：运行中的进程仍持有会话文件";
+  }
+  if (props.tab.status === "running" || props.tab.status === "cancelling") {
+    return "当前轮次还没结束，结束后才能转正";
+  }
+  return "把临时会话写入持久化历史";
+});
 const runtimeHint = computed(() => {
   if (props.tab.runtime.runtimeId) {
     return `${props.tab.runtime.runtimeId} · generation ${props.tab.runtime.generation} · ${props.tab.runtime.state}`;
@@ -61,6 +87,17 @@ const runtimeHint = computed(() => {
       <div class="head-actions">
         <span v-if="tab.mode === 'temporary'" class="badge" data-tone="accent">临时会话</span>
         <button
+          v-if="tab.mode === 'temporary'"
+          class="promote"
+          type="button"
+          :disabled="!canPromote"
+          :title="promoteHint"
+          @click="emit('promote')"
+        >
+          <Save :size="15" :stroke-width="1.85" aria-hidden="true" />
+          {{ tab.promoting ? "转存中…" : "转为普通会话" }}
+        </button>
+        <button
           class="icon-button"
           type="button"
           :disabled="!tab.runtime.runtimeId"
@@ -74,7 +111,8 @@ const runtimeHint = computed(() => {
     </header>
 
     <p v-if="tab.mode === 'temporary'" class="temp-note" role="note">
-      临时会话不会写入 SOXU 的会话历史；Pi 仍按自己的规则管理会话文件。
+      临时会话默认不写入 SOXU 的会话历史，也不会出现在侧栏；Pi 仍按自己的规则管理会话文件。
+      只有显式点击「转为普通会话」才会登记进历史，失败时保留临时会话并显示原因。
     </p>
 
     <div v-if="tab.error" class="error-banner" role="alert">
@@ -165,6 +203,23 @@ const runtimeHint = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.promote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--soxu-border);
+  background: var(--soxu-panel);
+  color: var(--soxu-fg);
+  font-size: 11.5px;
+  font-weight: 560;
+}
+
+.promote:disabled {
+  opacity: 0.55;
 }
 
 .temp-note {

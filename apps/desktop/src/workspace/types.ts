@@ -107,6 +107,30 @@ export interface RetryStatus {
   costNotice: string;
 }
 
+/**
+ * 临时会话视图：只存在于 Rust 进程内存，重启后不存在，也不进入持久化历史。
+ *
+ * `bound` 为 false 时没有可持久化的内容，转正会被后端明确拒绝（不伪造成功）。
+ */
+export interface TemporarySessionView {
+  sessionId: SessionId;
+  projectId: ProjectId;
+  worktreeId: WorktreeId;
+  mode: SessionMode;
+  /** 已绑定的 Pi 会话文件路径；未绑定时为 null。 */
+  file: string | null;
+  bound: boolean;
+}
+
+/**
+ * 转正结果：`sessionId` 是**持久化**身份（Pi 会话头部的 id），不是 `ses_tmp_*`。
+ * Tab 必须切到这个身份，否则后续分页仍指向已经消失的临时会话。
+ */
+export interface PromotedSession {
+  sessionId: SessionId;
+  project: ProjectSummary;
+}
+
 export interface RuntimeStarted {
   sessionId: SessionId;
   runtimeId: string;
@@ -260,6 +284,14 @@ export interface WorkspaceBridge {
   fetchHistory(sessionId: SessionId, offset: number, limit: number): Promise<HistoryPage>;
   fetchTexts(sessionId: SessionId, refs: EntryRef[]): Promise<EntryText[]>;
   startRuntime(sessionId: SessionId, mode: SessionMode): Promise<RuntimeStarted>;
+  /** 分配一个临时会话：只在内存里，默认不进入历史。 */
+  openTemporarySession(projectId: ProjectId): Promise<TemporarySessionView>;
+  /** 显式绑定 Pi 会话文件；绑定期间该文件不进入普通历史。 */
+  bindTemporaryFile(sessionId: SessionId, file: string): Promise<TemporarySessionView>;
+  /** 显式转正；失败时后端保留临时会话并返回原因。 */
+  promoteSession(sessionId: SessionId): Promise<PromotedSession>;
+  /** 结束临时会话：幂等，不删除 Pi 的会话文件。返回是否命中。 */
+  discardTemporarySession(sessionId: SessionId): Promise<boolean>;
   sendPrompt(sessionId: SessionId, text: string): Promise<void>;
   cancelRuntime(sessionId: SessionId): Promise<void>;
   stopRuntime(sessionId: SessionId): Promise<void>;
@@ -339,6 +371,8 @@ export interface SessionTab {
   runtime: TabRuntime;
   draft: string;
   diagnostics: string[];
+  /** 转正请求正在进行：UI 必须等后端结果，不能先显示「已保存」。 */
+  promoting: boolean;
 }
 
 export interface WorkspaceState {

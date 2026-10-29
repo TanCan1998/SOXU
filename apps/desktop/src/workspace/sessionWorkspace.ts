@@ -17,6 +17,7 @@ import {
   type EntryRef,
   type HistoryEntry,
   type HistoryPage,
+  type ProjectId,
   type RuntimeEvent,
   type SessionId,
   type SessionMode,
@@ -60,6 +61,7 @@ export function createTab(meta: SessionMeta): SessionTab {
     runtime: { runtimeId: null, generation: 0, state: "idle", exitReason: null, retry: null },
     draft: "",
     diagnostics: [],
+    promoting: false,
   };
 }
 
@@ -166,7 +168,120 @@ export class WorkspaceSession {
     } catch (error) {
       if (!this.disposed) tab.diagnostics = pushDiagnostic(tab, describeError(error));
     }
+    // 临时会话默认没有持久化历史：不请求分页（否则会把「会话未登记」显示成错误）。
+    if (tab.mode === "temporary") {
+      tab.status = "ready";
+      return;
+    }
     await this.loadPage(tab, 0);
+  }
+
+  /**
+   * 新建临时会话：身份由后端分配（只存在于内存，重启后不存在）。
+   *
+   * 后端不可用（浏览器预览）时退回本地 `ses_tmp_*` 身份，并在诊断里写清
+   * 「不会持久化」，而不是假装已经和后端登记成功。
+   */
+  async openTemporary(projectId: ProjectId | null): Promise<void> {
+    if (this.disposed) return;
+    let sessionId: SessionId | null = null;
+    let worktreeId: WorktreeId | null = null;
+    let project: ProjectId | null = projectId;
+    if (this.state.bridgeAvailable && project) {
+      try {
+        const temporary = await this.bridge.openTemporarySession(project);
+        if (this.disposed) return;
+        sessionId = temporary.sessionId;
+        worktreeId = temporary.worktreeId;
+        project = temporary.projectId;
+      } catch (error) {
+        if (this.disposed) return;
+        this.state.projectsError = `临时会话分配失败：${describeError(error)}`;
+      }
+    }
+    await this.openSession({
+      sessionId: sessionId ?? `ses_tmp_${Date.now().toString(36)}`,
+      projectId: project ?? "prj_memory",
+      title: "临时会话",
+      mode: "temporary",
+      worktreeId,
+    });
+  }
+
+  /**
+   * 显式把临时会话转为普通会话。
+   *
+   * 成功：Tab 切到持久化身份、侧栏用后端返回的项目摘要刷新、按普通会话加载历史。
+   * 失败：保持临时会话与内容，显示后端给出的原因——绝不提前显示「已保存」。
+   */
+  async promoteSession(sessionId: SessionId): Promise<void> {
+    const tab = this.tab(sessionId);
+    if (!tab || this.disposed || tab.mode !== "temporary" || tab.promoting) return;
+    // 运行中的会话不允许转存：后端只登记已写出的内容，避免把半轮对话当成完整历史。
+    if (tab.status === "running" || tab.status === "cancelling" || tab.status === "loading") return;
+    // 只要还有活运行时（含 idle）就拒绝：旧 Pi 进程仍持有该会话文件的可写权，
+    // 转正后它会失去 owner（停止变成 no-op 假成功），再次启动就会双写同一 JSONL。
+    if (tab.runtime.runtimeId) {
+      tab.error = "请先停止 Pi 运行时再转为普通会话：运行中的进程仍持有会话文件";
+      tab.diagnostics = pushDiagnostic(
+        tab,
+        `转存被拒：仍有活运行时 ${tab.runtime.runtimeId}#${tab.runtime.generation}`,
+      );
+      return;
+    }
+    tab.promoting = true;
+    const previousId = tab.sessionId;
+    const liveMessages = [...tab.messages];
+    try {
+      const promoted = await this.bridge.promoteSession(previousId);
+      if (this.disposed) return;
+      // 侧栏必须反映真实历史：用后端返回的项目摘要替换本地缓存（不在缓存里则补上）。
+      const known = this.state.projects.some(
+        (candidate) => candidate.id === promoted.project.id,
+      );
+      this.state.projects = known
+        ? this.state.projects.map((candidate) =>
+            candidate.id === promoted.project.id ? promoted.project : candidate,
+          )
+        : [...this.state.projects, promoted.project];
+      // 身份从 ses_tmp_* 换成 Pi 会话的持久化 id，否则后续分页仍指向已消失的会话。
+      tab.sessionId = promoted.sessionId;
+      tab.mode = "persistent";
+      // 转正要求没有活运行时；这里再显式清空，避免残留一个已无 owner 的 runtimeId。
+      tab.runtime = {
+        runtimeId: null,
+        generation: tab.runtime.generation,
+        state: "idle",
+        exitReason: null,
+        retry: tab.runtime.retry,
+      };
+      tab.title =
+        promoted.project.sessions.find((item) => item.id === promoted.sessionId)?.title ??
+        tab.title;
+      tab.error = null;
+      tab.status = "ready";
+      if (this.state.activeSessionId === previousId) {
+        this.state.activeSessionId = promoted.sessionId;
+      }
+      // 转正后以持久化历史为准：先清掉实时回显，避免同一句话出现两次。
+      tab.messages = [];
+      tab.history = { loaded: 0, total: 0, next: null, loading: false };
+      await this.bridge.retainSession(promoted.sessionId);
+      await this.release(previousId);
+      await this.loadPage(tab, 0);
+      // 历史加载失败时 loadPage 会把状态置为 error：此时保留用户刚看到的实时内容，
+      // 错误已经显示在界面上，不能因为一次读取失败就把对话从视图里抹掉。
+      if (this.tab(promoted.sessionId)?.status === "error") {
+        tab.messages = liveMessages;
+      }
+    } catch (error) {
+      if (this.disposed) return;
+      const reason = describeError(error);
+      tab.error = `转存失败：${reason}`;
+      tab.diagnostics = pushDiagnostic(tab, `转存失败：${reason}`);
+    } finally {
+      if (!this.disposed) tab.promoting = false;
+    }
   }
 
   async loadMore(sessionId: SessionId): Promise<void> {
@@ -267,9 +382,17 @@ export class WorkspaceSession {
   async closeTab(sessionId: SessionId): Promise<void> {
     const tab = this.tab(sessionId);
     if (!tab) return;
+    const temporary = tab.mode === "temporary";
     this.state.tabs = this.state.tabs.filter((candidate) => candidate.sessionId !== sessionId);
     if (this.state.activeSessionId === sessionId) {
       this.state.activeSessionId = this.state.tabs.at(-1)?.sessionId ?? null;
+    }
+    // 临时会话不持久化：关闭 Tab 就是结束它。必须先停掉运行时再清内存登记，
+    // 否则后端会拒绝清登记（进程仍是 owner），或者更糟——登记消失后进程失去 owner，
+    // 文件被下一次扫描当成普通会话，形成幽灵历史。
+    if (temporary) {
+      await this.stopAgent(sessionId);
+      await this.discard(sessionId);
     }
     await this.release(sessionId);
   }
@@ -282,9 +405,19 @@ export class WorkspaceSession {
     this.unlisten = null;
     unlisten?.();
     const sessions = this.state.tabs.map((tab) => tab.sessionId);
+    const temporary = this.state.tabs
+      .filter((tab) => tab.mode === "temporary")
+      .map((tab) => tab.sessionId);
     this.state.tabs = [];
     this.state.activeSessionId = null;
-    await Promise.allSettled(sessions.map((sessionId) => this.bridge.releaseSession(sessionId)));
+    // 临时会话随进程结束：先停运行时（否则后端拒绝清登记），再清内存登记（尽力而为）。
+    if (temporary.length > 0) {
+      await Promise.allSettled(temporary.map((sessionId) => this.bridge.stopRuntime(sessionId)));
+    }
+    await Promise.allSettled([
+      ...sessions.map((sessionId) => this.bridge.releaseSession(sessionId)),
+      ...temporary.map((sessionId) => this.bridge.discardTemporarySession(sessionId)),
+    ]);
   }
 
   handleEvent(event: RuntimeEvent): void {
@@ -389,6 +522,23 @@ export class WorkspaceSession {
       }
     } catch (error) {
       tab.diagnostics = pushDiagnostic(tab, `正文读取失败：${describeError(error)}`);
+    }
+  }
+
+  /** 停掉后端运行时（不依赖 Tab 是否还在）：关闭临时会话时 Tab 已经先被移除。 */
+  private async stopAgent(sessionId: SessionId): Promise<void> {
+    try {
+      await this.bridge.stopRuntime(sessionId);
+    } catch {
+      // 停止失败不阻断关闭：清登记会被后端拒绝，临时会话与文件都原样保留。
+    }
+  }
+
+  private async discard(sessionId: SessionId): Promise<void> {
+    try {
+      await this.bridge.discardTemporarySession(sessionId);
+    } catch {
+      // 结束临时会话是尽力而为：后端登记表随进程消失，失败不影响 UI。
     }
   }
 

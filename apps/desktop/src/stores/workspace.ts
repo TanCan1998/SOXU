@@ -89,14 +89,17 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return session.openSession(meta);
   }
 
+  /**
+   * 新建临时会话：身份由后端分配（只在内存里），因此重启后不会出现在历史中。
+   * 没有已登记项目时仍可打开（浏览器预览/空工作区），此时不会写任何后端状态。
+   */
   function openTemporary(): Promise<void> {
-    const id = `ses_tmp_${Date.now().toString(36)}`;
-    return session.openSession({
-      sessionId: id,
-      projectId: state.projects[0]?.id ?? "prj_memory",
-      title: "临时会话",
-      mode: "temporary",
-    });
+    return session.openTemporary(state.projects[0]?.id ?? null);
+  }
+
+  /** 显式把临时会话转为普通会话；失败时保留临时会话并显示原因。 */
+  function promote(sessionId: SessionId): Promise<void> {
+    return session.promoteSession(sessionId);
   }
 
   function setActive(sessionId: SessionId | null): void {
@@ -184,6 +187,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     refreshProject,
     openSession,
     openTemporary,
+    promote,
     setActive,
     setDraft,
     send,

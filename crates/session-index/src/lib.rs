@@ -8,6 +8,7 @@
 //! - RuntimeLink（runtimeId + generation）是临时执行身份，重启后不恢复，只用于丢弃迟到事件。
 //! - 索引只保存每行的字节偏移与轻量元数据；分页按字节预算裁剪，不一次性加载整个文件。
 //! - 截断、替换、损坏行、超长行都有明确的可恢复路径与证据（见 ScanReport / ScanWarning）。
+//! - 临时会话只登记在内存（TemporaryRegistry），默认不进入持久化历史；显式转正后才写入。
 //!
 //! 身份关系与错误码契约见 docs/architecture/session-catalog.md。
 
@@ -20,6 +21,7 @@ mod index;
 mod records;
 mod snapshot;
 mod store;
+mod temporary;
 
 pub use catalog::{CatalogConfig, ProjectCatalog, RebuildNote, Relocation, SyncReport};
 pub use entry::{
@@ -39,3 +41,4 @@ pub use snapshot::{
     CATALOG_SCHEMA_VERSION, IndexSnapshot, MAX_WARNINGS, RebuildReason, ScanReport, ScanWarning,
     SnapshotLoad, WarningKind,
 };
+pub use temporary::{MAX_TEMPORARY_SESSIONS, TemporarySession};
