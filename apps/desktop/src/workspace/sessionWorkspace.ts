@@ -35,6 +35,7 @@ import {
   type SessionMode,
   type SessionSearchResult,
   type SessionTab,
+  type TabStatus,
   type WorktreeId,
   type WorkspaceBridge,
   type WorkspaceState,
@@ -53,6 +54,30 @@ import {
 /** 单页最多补齐多少条正文；与服务端 `MAX_BATCH_TEXTS` 保持一致。 */
 export const MAX_TEXT_HYDRATION = 40;
 let liveSeq = 0;
+
+/** 观察者收到的附加上下文（V4-S2b，Issue #117）。 */
+export interface RuntimeEventContext {
+  /**
+   * 事件处理**之前**的 Tab 状态。
+   *
+   * 通知层靠它区分「这一轮是自己结束的」和「用户按了停止」：`settled` 到来时
+   * Tab 状态已经被改成 `ready`，只有处理前的快照还记得当时正在取消。
+   */
+  previousStatus: TabStatus;
+}
+
+/**
+ * 运行时事件观察者（V4-S2b，Issue #117）。
+ *
+ * 通知层需要同一条事件流，但不该另开一个 Tauri 监听器：
+ * 这里在 generation gate **之后**把事件转给观察者，迟到事件因此同样不会
+ * 触发通知。第二个参数是事件所属 Tab（观察者要拿标题做通知正文）。
+ */
+export type RuntimeEventObserver = (
+  event: RuntimeEvent,
+  tab: SessionTab,
+  context: RuntimeEventContext,
+) => void;
 
 export interface SessionMeta {
   sessionId: SessionId;
@@ -90,6 +115,8 @@ export class WorkspaceSession {
   private disposed = false;
   /** 每个会话至多一个待触发的防抖定时器：定时器由这里创建，也由这里清理。 */
   private readonly searchTimers = new Map<SessionId, ReturnType<typeof setTimeout>>();
+  /** 事件观察者集合；订阅函数由添加者持有并在卸载时调用。 */
+  private readonly observers = new Set<RuntimeEventObserver>();
 
   constructor(
     bridge: WorkspaceBridge,
@@ -116,6 +143,20 @@ export class WorkspaceSession {
 
   tab(sessionId: SessionId): SessionTab | undefined {
     return this.state.tabs.find((tab) => tab.sessionId === sessionId);
+  }
+
+  /**
+   * 订阅运行时事件（已按 generation 过滤）。
+   *
+   * 返回取消订阅函数；`dispose` 之后注册的观察者不会收到任何事件，
+   * 因此调用方不必自己判「是否已经销毁」。
+   */
+  onRuntimeEvent(observer: RuntimeEventObserver): () => void {
+    if (this.disposed) return () => undefined;
+    this.observers.add(observer);
+    return () => {
+      this.observers.delete(observer);
+    };
   }
 
   setActive(sessionId: SessionId | null): void {
@@ -581,6 +622,7 @@ export class WorkspaceSession {
     const unlisten = this.unlisten;
     this.unlisten = null;
     unlisten?.();
+    this.observers.clear();
     const sessions = this.state.tabs.map((tab) => tab.sessionId);
     const temporary = this.state.tabs
       .filter((tab) => tab.mode === "temporary")
@@ -609,6 +651,8 @@ export class WorkspaceSession {
     ) {
       return;
     }
+    // 观察者需要处理前的状态（见 RuntimeEventContext）：下面的分支会改写 status。
+    const previousStatus = tab.status;
     switch (event.type) {
       case "state":
         tab.runtime.state = event.state;
@@ -648,6 +692,24 @@ export class WorkspaceSession {
         break;
       default:
         break;
+    }
+    this.publish(event, tab, { previousStatus });
+  }
+
+  /**
+   * 把已通过 gate 的事件转给观察者。
+   *
+   * 观察者抛错不能影响会话状态：通知是旁路功能，坏了也不能让 Tab 停在错误状态，
+   * 所以逐个 try/catch，并且遍历快照（观察者可能在回调里取消订阅）。
+   */
+  private publish(event: RuntimeEvent, tab: SessionTab, context: RuntimeEventContext): void {
+    if (this.observers.size === 0) return;
+    for (const observer of [...this.observers]) {
+      try {
+        observer(event, tab, context);
+      } catch {
+        // 旁路订阅者的异常一律吞掉：主链路的 Tab 状态已经写完了。
+      }
     }
   }
 

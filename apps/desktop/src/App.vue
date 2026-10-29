@@ -1,19 +1,24 @@
 <!--
-  应用外壳（Issue #118 起约 790 行，超过 coding-standards 的 600 行提示线，理由如下）：
+  应用外壳（Issue #116 起约 720 行、#117 后约 830 行、#118 后约 790 行，
+  超过 coding-standards 的 600 行提示线，理由如下）：
   - 它只做「装配」：状态与副作用已经按域拆到 composable（useAppearance / useBusyDelivery /
-    useSessionSettings / useSystemSettings / useProjectDirectoryPick / useThemeTransition 等），
-    本文件剩下的是 props/事件接线与顶栏、欢迎页、弹窗的模板。
-  - 设置页的四个面板、工作树面板、会话面板、搜索抽屉都已是独立组件；再往下拆只能拆「模板片段」，
-    那会让「谁持有哪个状态」变得难以追踪，反而增加生命周期泄漏的风险。
+    useSessionSettings / useSystemSettings / useProjectDirectoryPick / useThemeTransition /
+    useNotifications 等），本文件剩下的是 props/事件接线与顶栏、欢迎页、弹窗的模板。
+  - 设置页的四个面板、工作树面板、会话面板、搜索抽屉、通知 Toast 堆栈与历史抽屉都已是独立组件；
+    再往下拆只能拆「模板片段」，那会让「谁持有哪个状态」变得难以追踪，
+    反而增加生命周期泄漏的风险。
   - 搜索抽屉（Issue #118）只留下「接线」：打开/关闭、输入转发、跳转目标（focusMessageId + nonce），
     定位规则本身在 components/searchPanel.ts 里，可脱离 DOM 测试。
-  - 主题切换（setTheme）与历史记录（history）必须留在壳层：它们是全应用唯一的入口。
+  - 主题切换（setTheme）、历史记录（history）与通知订阅（useNotifications）必须留在壳层：
+    它们都是全应用唯一的入口，订阅/释放必须成对发生在这里。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Plus, Search } from "@lucide/vue";
+import { Bell, ChevronLeft, ChevronRight, PanelLeft, PanelRight, Plus, Search } from "@lucide/vue";
 import AppTooltip from "./components/AppTooltip.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import NotificationHistoryDrawer from "./components/NotificationHistoryDrawer.vue";
+import NotificationToasts from "./components/NotificationToasts.vue";
 import ProjectSidebar from "./components/ProjectSidebar.vue";
 import RuntimeInspector from "./components/RuntimeInspector.vue";
 import SearchDrawer from "./components/SearchDrawer.vue";
@@ -23,6 +28,7 @@ import SettingsDialog from "./components/SettingsDialog.vue";
 import WorktreeDialog from "./components/WorktreeDialog.vue";
 import { useAppearance } from "./composables/useAppearance.ts";
 import { useBusyDelivery } from "./composables/useBusyDelivery.ts";
+import { useNotifications } from "./composables/useNotifications.ts";
 import { useProjectDirectoryPick } from "./composables/useProjectDirectoryPick.ts";
 import { useSessionSettings } from "./composables/useSessionSettings.ts";
 import { useSystemSettings } from "./composables/useSystemSettings.ts";
@@ -86,6 +92,14 @@ const { system, patchSystem } = useSystemSettings();
 const tauriVersion = ref<string | null>(null);
 /** 「数据目录」复制按钮的结果回显。 */
 const copyState = ref<"idle" | "copied" | "failed">("idle");
+/**
+ * 通知（V4-S2b，Issue #117）：订阅已按 generation 过滤的运行时事件流，
+ * 由通知 store 决定弹窗、声音与历史。订阅与 store 的生命周期绑定在 App 上，
+ * 卸载时一并释放（定时器、焦点监听、AudioContext）。
+ */
+const { notifications, visibleToasts, unreadCount } = useNotifications();
+/** 通知历史抽屉是否打开；顶栏铃铛是唯一开关。 */
+const notificationsOpen = ref(false);
 const {
   picking: pickingProject,
   pickError: pickProjectError,
@@ -208,6 +222,29 @@ function openSession(payload: {
   worktreeId?: WorktreeId;
 }) {
   void store.openSession(payload);
+}
+
+/**
+ * 铃铛：打开/收起通知历史抽屉。
+ *
+ * 打开即视为已读（清掉红点），但不清空历史——用户还要能翻。
+ */
+function toggleNotifications() {
+  notificationsOpen.value = !notificationsOpen.value;
+  if (notificationsOpen.value) notifications.markAllRead();
+}
+
+/**
+ * 从 toast 或历史里跳到对应会话。
+ *
+ * 只切到**仍然打开着的 Tab**：会话已关闭时 setActive 会留下一个指向不存在 Tab 的
+ * activeSessionId，界面直接掉到欢迎页，比不跳更糟。
+ */
+function openNotificationTarget(sessionId: SessionId) {
+  const tab = store.state.tabs.find((candidate) => candidate.sessionId === sessionId);
+  if (!tab) return;
+  store.setActive(sessionId);
+  notificationsOpen.value = false;
 }
 
 function openWorktrees(projectId: string) {
@@ -593,6 +630,20 @@ onUnmounted(() => {
               <Search :size="18" :stroke-width="1.75" aria-hidden="true" />
             </button>
           </AppTooltip>
+          <AppTooltip text="通知历史">
+            <button
+              class="icon-button bell-button"
+              type="button"
+              aria-label="通知历史"
+              :aria-expanded="notificationsOpen"
+              @click="toggleNotifications"
+            >
+              <Bell :size="18" :stroke-width="1.75" aria-hidden="true" />
+              <span v-if="unreadCount > 0" class="bell-count" aria-hidden="true">
+                {{ unreadCount > 9 ? "9+" : unreadCount }}
+              </span>
+            </button>
+          </AppTooltip>
           <AppTooltip text="会话状态 (Ctrl+I)">
             <button
               class="icon-button"
@@ -734,6 +785,22 @@ onUnmounted(() => {
       @reset-layout="resetLayout"
       @copy-data-dir="copyDataDirectory"
     />
+
+    <NotificationToasts
+      :toasts="visibleToasts"
+      @dismiss="notifications.dismiss"
+      @pause="notifications.pause"
+      @resume="notifications.resume"
+      @open="openNotificationTarget"
+    />
+
+    <NotificationHistoryDrawer
+      :open="notificationsOpen"
+      :records="notifications.history"
+      @close="notificationsOpen = false"
+      @clear="notifications.clearHistory"
+      @open-session="openNotificationTarget"
+    />
   </div>
 </template>
 
@@ -763,6 +830,32 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/*
+ * 铃铛上的未读数：只作为「有未读」的视觉提示，读屏用户拿到的是按钮的
+ * aria-label 与抽屉里的条数，所以徽标本身 aria-hidden，不重复播报。
+ */
+.bell-button {
+  position: relative;
+}
+
+.bell-count {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: var(--r-full);
+  background: var(--danger);
+  color: #fff;
+  /* 0.59375rem = 9.5px @16px 基准：字号必须用 rem，否则不跟随设置里的字号档位。 */
+  font-size: 0.59375rem;
+  font-weight: 620;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 /*

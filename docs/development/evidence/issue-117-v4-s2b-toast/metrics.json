@@ -1,0 +1,123 @@
+{
+  "generatedAt": "2026-10-29T23:27:18.581Z",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "browser": "Edg/156.0.4314.50",
+  "shots": [
+    "01-toasts-stack-light.png",
+    "02-toasts-overflow-4-visible.png",
+    "03-toast-hover-paused.png",
+    "04-toast-fading-before-removal.png",
+    "05-toast-persistent.png",
+    "06-history-drawer-light.png",
+    "07-history-drawer-empty.png",
+    "08-toasts-stack-dark.png"
+  ],
+  "scenarios": {
+    "stack": {
+      "stackPosition": "fixed",
+      "stackPointerEvents": "none",
+      "cardPointerEvents": "auto",
+      "rightGap": 18,
+      "bottomGap": 18,
+      "direction": "column",
+      "cards": 3,
+      "cardRadius": "13px",
+      "cardBackground": "rgb(255, 255, 255)",
+      "titles": [
+        "等待你的输入",
+        "会话出错",
+        "会话完成"
+      ],
+      "history": 3,
+      "unread": 3
+    },
+    "overflow": {
+      "before": {
+        "visible": 4,
+        "queued": 2,
+        "cards": 4
+      },
+      "after": {
+        "visible": 4,
+        "queued": 1,
+        "cards": 4
+      }
+    },
+    "hoverPause": {
+      "hovered": {
+        "visible": 1,
+        "fading": 0
+      },
+      "removedAfterLeave": true
+    },
+    "fadeBeforeRemoval": {
+      "visible": 1,
+      "fading": 1,
+      "opacity": 0.157222
+    },
+    "persistent": {
+      "visibleAfter2500ms": 1,
+      "fading": 0
+    },
+    "drawer": {
+      "role": "dialog",
+      "ariaModal": "true",
+      "ariaLabel": "通知历史",
+      "rows": 6,
+      "firstTitle": "会话完成",
+      "times": [
+        "07:27:40",
+        "07:27:40",
+        "07:27:40",
+        "07:27:40",
+        "07:27:40",
+        "07:27:40"
+      ],
+      "empty": false,
+      "focusInside": true,
+      "history": 6,
+      "unreadAfterOpen": 0,
+      "titles": [
+        "会话完成",
+        "会话完成",
+        "会话完成",
+        "等待你的输入",
+        "会话出错",
+        "会话完成"
+      ],
+      "escapeClosed": true,
+      "cleared": {
+        "role": "dialog",
+        "ariaModal": "true",
+        "ariaLabel": "通知历史",
+        "rows": 0,
+        "firstTitle": null,
+        "times": [],
+        "empty": true,
+        "focusInside": false
+      }
+    },
+    "dark": {
+      "stackPosition": "fixed",
+      "stackPointerEvents": "none",
+      "cardPointerEvents": "auto",
+      "rightGap": 18,
+      "bottomGap": 18,
+      "direction": "column",
+      "cards": 3,
+      "cardRadius": "13px",
+      "cardBackground": "rgb(33, 33, 33)"
+    },
+    "persistence": {
+      "durationAfterReload": 30000
+    },
+    "sound": {
+      "previewPlayed": true,
+      "audioContextState": "running"
+    }
+  },
+  "pageErrors": []
+}
