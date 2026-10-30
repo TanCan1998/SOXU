@@ -18,7 +18,10 @@ import { CircleStop, ListOrdered, Send, X } from "@lucide/vue";
 
 import AppTooltip from "./AppTooltip.vue";
 import ComposerSendMenu from "./ComposerSendMenu.vue";
+import SessionStatsRing from "./SessionStatsRing.vue";
+import SessionStatsRow from "./SessionStatsRow.vue";
 import { sendModeLabel } from "./sendMode.ts";
+import type { SessionStatsView } from "./sessionStats.ts";
 import type { BusySendDelivery } from "../settings/busyDelivery.ts";
 import type { SendMode, TabStatus } from "../workspace/types.ts";
 
@@ -35,6 +38,10 @@ const props = defineProps<{
   enterToSend: boolean;
   /** 当前会话是否有已登记的项目：并行发送需要一个落点。 */
   hasProject: boolean;
+  /** 上下文环 / 统计浮窗 / 统计行共用的视图（Issue #119）。 */
+  statsView: SessionStatsView;
+  statsLoading?: boolean;
+  statsError?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -42,6 +49,8 @@ const emit = defineEmits<{
   /** mode 为 null 表示「没选过，按默认投递」。 */
   (event: "send", mode: SendMode | null): void;
   (event: "cancel"): void;
+  /** 打开统计浮窗时按需拉一次（事件驱动，不是轮询）。 */
+  (event: "refresh-stats"): void;
 }>();
 
 const textarea = ref<HTMLTextAreaElement | null>(null);
@@ -157,6 +166,12 @@ defineExpose({ focus: () => textarea.value?.focus() });
       <div class="composer-actions">
         <span id="soxu-composer-hint" class="hint">{{ hint }}</span>
         <div class="buttons">
+          <SessionStatsRing
+            :view="statsView"
+            :loading="statsLoading ?? false"
+            :error="statsError ?? null"
+            @refresh="emit('refresh-stats')"
+          />
           <button
             v-if="running"
             class="stop-button"
@@ -191,6 +206,8 @@ defineExpose({ focus: () => textarea.value?.focus() });
         </div>
       </div>
     </div>
+
+    <SessionStatsRow :view="statsView" />
   </div>
 </template>
 

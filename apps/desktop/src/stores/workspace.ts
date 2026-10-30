@@ -154,6 +154,14 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   }
 
   /**
+   * 统计快照（Issue #119）：事件驱动的刷新入口，打开浮窗时也走这里。
+   * store 不缓存第二份数据，视图始终读 Tab 上的那一份。
+   */
+  function refreshStats(sessionId: SessionId): Promise<void> {
+    return session.refreshStats(sessionId);
+  }
+
+  /**
    * 会话内搜索的输入防抖（Issue #118）：请求与定时器都在 WorkspaceSession 里，
    * store 只做转发——UI 不自己起定时器，避免出现第二份防抖窗口。
    *
@@ -236,6 +244,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     stop,
     closeTab,
     loadMore,
+    refreshStats,
     scheduleSearch,
     cancelSearch,
     openWorktrees,

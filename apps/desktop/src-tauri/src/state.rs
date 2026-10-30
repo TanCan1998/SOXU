@@ -6,7 +6,7 @@
 //! - `runs`：每个 sessionId 至多一个驱动任务；命令通道是该任务的唯一入口。
 //! - `pending_starts`：启动还没完成时（含重试退避窗口）的取消句柄，
 //!   让「停止」在中止启动这件事上也有唯一的落点。
-//! - `statuses` / `titles` / `gate` / `fanout`：有界内存表，不含会话正文。
+//! - `statuses` / `titles` / `gate` / `fanout` / `stats`：有界内存表，不含会话正文。
 //! - `search`：会话内搜索的正文缓存，自带单会话 8 MiB / 全局 24 MiB 预算，
 //!   不需要额外清理任务；预算是它自己的 owner。
 
@@ -21,6 +21,7 @@ use tokio::sync::mpsc;
 
 use crate::driver::{RunCommand, RunStatus};
 use crate::retry_store::RetryStore;
+use crate::stats::StatsStore;
 use crate::watch::{EventFanout, GenerationGate};
 
 /// 单个会话的驱动句柄：事件由驱动任务消费，命令经此通道串行入队。
@@ -43,6 +44,9 @@ pub struct AppState {
     pub fanout: Arc<EventFanout>,
     /// 会话标题缓存：标题从首条用户消息派生，命中后不再重复扫描。
     pub titles: Mutex<HashMap<String, String>>,
+    /// 会话统计（Issue #119）：由 driver 在事件流上累加，`session_stats` 只读。
+    /// 自带容量上限（`stats::DEFAULT_CAPACITY`），不需要额外的清理任务。
+    pub stats: Arc<Mutex<StatsStore>>,
     /// 启动/停止的串行闸门：同一会话不会被两个并发 start 拉起两次。
     pub start_guard: tokio::sync::Mutex<()>,
     /// 工作树写操作（创建/删除/prune）的串行闸门：破坏性操作不并发执行。
@@ -79,6 +83,7 @@ impl AppState {
             gate: Arc::new(GenerationGate::new()),
             fanout: Arc::new(EventFanout::new()),
             titles: Mutex::new(HashMap::new()),
+            stats: Arc::new(Mutex::new(StatsStore::new())),
             start_guard: tokio::sync::Mutex::new(()),
             worktree_guard: tokio::sync::Mutex::new(()),
             pending_starts: Mutex::new(HashMap::new()),

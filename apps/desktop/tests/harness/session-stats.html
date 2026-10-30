@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · Issue #119 上下文环与统计行夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #119 · TASK-027）：
+      pnpm dev 后访问 /tests/harness/session-stats.html ，
+      再用 tests/harness/shoot-issue-119-stats.mjs 截图并测量圆环配色与占位。
+      不参与生产构建（vite build 只构建 index.html），也不连接 Pi：
+      统计快照是内存里的假数据，形状与 session_stats 的返回一致。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./session-stats.ts"></script>
+  </body>
+</html>

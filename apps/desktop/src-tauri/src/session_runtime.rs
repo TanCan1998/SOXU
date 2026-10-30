@@ -8,7 +8,7 @@
 //! 429/额度、鉴权失败与用户中止不重试，直接报错并把预算钉死等人工恢复。
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use soxu_agent_runtime::PiProgram;
 use soxu_agent_runtime::retry::{RetryPolicy, start_with_retry_cancellable};
@@ -20,7 +20,7 @@ use tokio::time::timeout;
 use crate::driver::{DriverContext, HandlePort, RunCommand, RunStatus, drive};
 use crate::dto::{RuntimeStarted, RuntimeStatus};
 use crate::events::{RUNTIME_EVENT_NAME, RuntimeEvent};
-use crate::state::{AppState, RunHandle};
+use crate::state::{AppState, RunHandle, lock};
 
 /// 单条命令（含 Pi 接收 prompt）的最长等待；超时返回错误而不是挂住界面。
 const COMMAND_TIMEOUT: Duration = Duration::from_secs(120);
@@ -91,6 +91,8 @@ pub async fn start(
         let _ = handle.stop().await;
         return Err("generation 回退：已存在更新的运行时".to_owned());
     }
+    // 新一代运行时开始：丢弃上一代未完成的一轮计时（累计 token 与轮次保留）。
+    lock(&state.stats).begin_generation(session_id, identity.generation, Instant::now());
 
     // 临时会话同样要声明可写归属：否则转正后再启动会对同一 JSONL 双写。
     claim_catalog(state, session_id, &identity.runtime_id, temporary).await;
@@ -109,6 +111,7 @@ pub async fn start(
         gate: Arc::clone(&state.gate),
         fanout: Arc::clone(&state.fanout),
         statuses: Arc::clone(&state.statuses),
+        stats: Arc::clone(&state.stats),
         sink: Arc::new(move |event: RuntimeEvent| {
             let _ = sink_app.emit(RUNTIME_EVENT_NAME, event);
         }),

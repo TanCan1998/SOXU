@@ -9,10 +9,12 @@
 
 mod history;
 mod session;
+mod stats;
 mod workspace;
 mod worktree;
 
 pub use history::*;
 pub use session::*;
+pub use stats::*;
 pub use workspace::*;
 pub use worktree::*;

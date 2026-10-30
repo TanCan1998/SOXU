@@ -21,6 +21,7 @@ import type {
   RuntimeStatus,
   SearchOptions,
   SessionId,
+  SessionStats,
   SendPromptOptions,
   SessionMode,
   SessionSearchResult,
@@ -80,6 +81,8 @@ export function createTauriBridge(): WorkspaceBridge {
     stopRuntime: (sessionId: SessionId) => invoke<void>("stop_session", { sessionId }),
     runtimeStatus: (sessionId: SessionId) =>
       invoke<RuntimeStatus | null>("runtime_status", { sessionId }),
+    sessionStats: (sessionId: SessionId) =>
+      invoke<SessionStats>("session_stats", { sessionId }),
     retainSession: async (sessionId: SessionId) => {
       await invoke<number>("retain_session_events", { sessionId });
     },
@@ -140,6 +143,7 @@ export function createUnavailableBridge(reason: string): WorkspaceBridge {
     cancelRuntime: fail,
     stopRuntime: fail,
     runtimeStatus: async () => null,
+    sessionStats: fail,
     retainSession: async () => undefined,
     releaseSession: async () => undefined,
     listWorktrees: fail,

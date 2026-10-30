@@ -7,9 +7,11 @@
 //! 因此 `crate::dto::<Type>` 的引用路径保持不变；新增结构请落到对应领域文件。
 
 mod session;
+mod stats;
 mod workspace;
 mod worktree;
 
 pub use session::*;
+pub use stats::*;
 pub use workspace::*;
 pub use worktree::*;

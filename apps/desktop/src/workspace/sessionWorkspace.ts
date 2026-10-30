@@ -22,6 +22,7 @@ import {
   SEARCH_HIT_LIMIT,
   SEARCH_QUERY_MAX_CHARS,
   createSearchState,
+  createStatsState,
   createWorkspaceState,
   type ChatMessage,
   type EntryRef,
@@ -34,6 +35,7 @@ import {
   type SearchOptions,
   type SessionMode,
   type SessionSearchResult,
+  type SessionStats,
   type SessionTab,
   type TabStatus,
   type WorktreeId,
@@ -41,6 +43,7 @@ import {
   type WorkspaceState,
 } from "./types.ts";
 import { charLength } from "./search.ts";
+import { shouldRefreshStats } from "../components/sessionStats.ts";
 import {
   capText,
   deltaText,
@@ -100,6 +103,7 @@ export function createTab(meta: SessionMeta): SessionTab {
     messages: [],
     history: { loaded: 0, total: 0, next: null, loading: false, evicted: 0, evictedLive: 0 },
     runtime: { runtimeId: null, generation: 0, state: "idle", exitReason: null, retry: null },
+    stats: createStatsState(),
     draft: "",
     diagnostics: [],
     promoting: false,
@@ -251,6 +255,7 @@ export class WorkspaceSession {
     if (meta.mode === "temporary") {
       tab.status = "ready";
       tab.history = { ...tab.history, loading: false, loaded: 0, total: 0, next: null };
+      void this.refreshStats(meta.sessionId);
       return;
     }
     try {
@@ -264,6 +269,8 @@ export class WorkspaceSession {
       return;
     }
     await this.loadPage(tab, 0);
+    // 打开会话时拉一次：让圆环在没有任何事件之前也能显示真实（或占位）状态。
+    void this.refreshStats(meta.sessionId);
   }
 
   /**
@@ -358,9 +365,11 @@ export class WorkspaceSession {
       tab.history = { loaded: 0, total: 0, next: null, loading: false, evicted: 0, evictedLive: 0 };
       // 身份变了：旧的搜索结果属于 ses_tmp_*，不能挂在新身份下面。
       tab.search = createSearchState();
+      tab.stats = createStatsState();
       await this.bridge.retainSession(promoted.sessionId);
       await this.release(previousId);
       await this.loadPage(tab, 0);
+      void this.refreshStats(promoted.sessionId);
       // 历史加载失败时 loadPage 会把状态置为 error：此时保留用户刚看到的实时内容，
       // 错误已经显示在界面上，不能因为一次读取失败就把对话从视图里抹掉。
       if (this.tab(promoted.sessionId)?.status === "error") {
@@ -506,6 +515,7 @@ export class WorkspaceSession {
       };
       tab.error = null;
       if (tab.status === "idle" || tab.status === "error") tab.status = "ready";
+      void this.refreshStats(sessionId);
     } catch (error) {
       if (this.disposed) return;
       tab.status = "error";
@@ -553,6 +563,8 @@ export class WorkspaceSession {
     tab.error = null;
     try {
       await this.bridge.sendPrompt(tab.sessionId, content, options);
+      // prompt 已被接受：这一刻才开始计时，统计里能看到「进行中」。
+      void this.refreshStats(sessionId);
     } catch (error) {
       if (this.disposed) return;
       tab.status = "error";
@@ -574,6 +586,44 @@ export class WorkspaceSession {
     }
   }
 
+  /**
+   * 拉取一次统计快照（Issue #119）。
+   *
+   * **只由事件驱动**：启动、状态变化、settled、退出、发送、停止与打开浮窗。
+   * 合并规则：请求进行中再来触发只置 pending，不并发发第二个请求；返回后若 pending
+   * 为真就补拉一次——这样「state 紧跟 settled」不会丢掉最后一次刷新，也不会因为一串
+   * 事件打出一串 IPC。
+   */
+  async refreshStats(sessionId: SessionId): Promise<void> {
+    const tab = this.tab(sessionId);
+    if (!tab || this.disposed || !this.state.bridgeAvailable) return;
+    if (tab.stats.loading) {
+      tab.stats.pending = true;
+      return;
+    }
+    const seq = tab.stats.seq + 1;
+    tab.stats = { ...tab.stats, loading: true, seq };
+    let next: SessionStats | null = null;
+    let failure: string | null = null;
+    try {
+      next = await this.bridge.sessionStats(tab.sessionId);
+    } catch (error) {
+      failure = describeError(error);
+    }
+    // 迟到响应（Tab 已关闭、已 dispose、或更新的请求已发出）整条丢弃。
+    if (this.disposed || !this.tab(tab.sessionId) || tab.stats.seq !== seq) return;
+    const pending = tab.stats.pending;
+    tab.stats = {
+      loading: false,
+      pending: false,
+      // 失败时保留上一次快照：旧值 + 明确错误比清空更接近真实情况。
+      error: failure,
+      data: next ?? tab.stats.data,
+      seq,
+    };
+    if (pending) void this.refreshStats(sessionId);
+  }
+
   async stopRuntime(sessionId: SessionId): Promise<void> {
     const tab = this.tab(sessionId);
     if (!tab || this.disposed) return;
@@ -591,6 +641,7 @@ export class WorkspaceSession {
     };
     tab.status = "idle";
     finalizeStreaming(tab);
+    void this.refreshStats(sessionId);
   }
 
   /** 关闭 Tab：释放订阅，但不停止 Agent（重新打开时从 JSONL 历史恢复）。 */
@@ -653,6 +704,8 @@ export class WorkspaceSession {
     }
     // 观察者需要处理前的状态（见 RuntimeEventContext）：下面的分支会改写 status。
     const previousStatus = tab.status;
+    // 统计与事件流同源：只在有意义的边界补拉一次，流式增量不触发（那等于把轮询搬进事件里）。
+    if (shouldRefreshStats(event)) void this.refreshStats(tab.sessionId);
     switch (event.type) {
       case "state":
         tab.runtime.state = event.state;

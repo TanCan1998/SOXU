@@ -336,6 +336,15 @@ function loadMore() {
 }
 
 /**
+ * 统计刷新（Issue #119）：只在事件边界与「打开统计浮窗」时触发，没有任何定时器。
+ * 入口统一收在这里，避免组件各自调用产生第二条刷新路径。
+ */
+function refreshStats() {
+  const tab = activeTab.value;
+  if (tab) void store.refreshStats(tab.sessionId);
+}
+
+/**
  * 打开搜索抽屉（顶栏按钮与 Ctrl+F 共用）。
  *
  * 焦点必须在打开后立刻进搜索框：Ctrl+F 之后用户的第一动作就是打字，
@@ -684,6 +693,7 @@ onUnmounted(() => {
         @load-more="loadMore"
         @retry="retry"
         @promote="promote"
+        @refresh-stats="refreshStats"
         @update:draft="setDraft"
       />
 
