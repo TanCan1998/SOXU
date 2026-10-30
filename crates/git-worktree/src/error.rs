@@ -3,7 +3,8 @@
 //! 错误码是给 UI、日志与验收证据使用的机器可读契约：字符串值一旦发布不可更改，
 //! 只能追加。说明文字（context / detail）允许本地化与补充，不属于契约。
 //!
-//! 本 crate 只做只读检查与**显式确认后才执行**的少量变更（创建、删除、prune）；
+//! 本 crate 的写操作只有两类：**显式确认后才执行**的工作树变更（创建、删除、prune），
+//! 以及 Git 抽屉里由用户逐次点击触发的暂存/提交/推送/拉取（Issue #121）。
 //! 每个错误码都标注调用方能否在不修改磁盘数据的前提下重试或回退。
 
 use std::fmt;
@@ -30,9 +31,11 @@ pub enum GitErrorCode {
     BranchInvalid,
     BranchExists,
     PathExists,
+    PathInvalid,
     PathNotAbsolute,
     PathInsideRepo,
     PathOutsideRoot,
+    CommitMessageInvalid,
     ConfirmationRequired,
     ConfirmationStale,
     IoFailure,
@@ -42,10 +45,11 @@ impl GitErrorCode {
     pub const fn as_str(self) -> &'static str {
         use GitErrorCode::{
             BranchExists, BranchInUse, BranchInvalid, CommandFailed, CommandTimeout,
-            ConfirmationRequired, ConfirmationStale, GitUnavailable, IndexLocked, IoFailure,
-            OperationInProgress, PathExists, PathInsideRepo, PathNotAbsolute, PathOutsideRoot,
-            RepoMissing, RepoNotWorkTree, WorktreeBusy, WorktreeConflicted, WorktreeDirty,
-            WorktreeLocked, WorktreePathMissing, WorktreePrimary, WorktreeUnknown,
+            CommitMessageInvalid, ConfirmationRequired, ConfirmationStale, GitUnavailable,
+            IndexLocked, IoFailure, OperationInProgress, PathExists, PathInsideRepo, PathInvalid,
+            PathNotAbsolute, PathOutsideRoot, RepoMissing, RepoNotWorkTree, WorktreeBusy,
+            WorktreeConflicted, WorktreeDirty, WorktreeLocked, WorktreePathMissing,
+            WorktreePrimary, WorktreeUnknown,
         };
         match self {
             RepoMissing => "E_GIT_REPO_MISSING",
@@ -66,9 +70,11 @@ impl GitErrorCode {
             BranchInvalid => "E_GIT_BRANCH_INVALID",
             BranchExists => "E_GIT_BRANCH_EXISTS",
             PathExists => "E_GIT_PATH_EXISTS",
+            PathInvalid => "E_GIT_PATH_INVALID",
             PathNotAbsolute => "E_GIT_PATH_NOT_ABSOLUTE",
             PathInsideRepo => "E_GIT_PATH_INSIDE_REPO",
             PathOutsideRoot => "E_GIT_PATH_OUTSIDE_ROOT",
+            CommitMessageInvalid => "E_GIT_COMMIT_MESSAGE_INVALID",
             ConfirmationRequired => "E_GIT_CONFIRMATION_REQUIRED",
             ConfirmationStale => "E_GIT_CONFIRMATION_STALE",
             IoFailure => "E_GIT_IO_FAILURE",

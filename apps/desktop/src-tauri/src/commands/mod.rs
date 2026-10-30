@@ -7,12 +7,14 @@
 //! 的调用路径保持不变。新增 command 的落位规则见 `docs/development/command-blocks.md`，
 //! 并由 `scripts/check-command-blocks.mjs` 机器校验（`pnpm check` 会跑）。
 
+mod git;
 mod history;
 mod session;
 mod stats;
 mod workspace;
 mod worktree;
 
+pub use git::*;
 pub use history::*;
 pub use session::*;
 pub use stats::*;

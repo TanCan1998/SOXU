@@ -146,6 +146,7 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 | `docs/development/monitoring.md` | 本地 Web 控制台、pnpm、GitHub 进度监控 |
 | `docs/development/multi-session-workspace.md` | 多会话工作区：IPC 契约、事件过滤、历史分页与测试证据 |
 | `docs/architecture/worktree-service.md` | Git 工作树：枚举/创建、Diff、会话关联与受确认删除的安全契约 |
+| `docs/architecture/git-drawer.md` | Git 抽屉：更改列表徽章、单文件 diff、暂存/提交、推送/拉取的安全边界 |
 | `docs/design/` | 已审批的 UI/UX 设计基线与历史提案 |
 
 ## 已确认与仍待授权事项

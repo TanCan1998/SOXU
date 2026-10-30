@@ -1,7 +1,10 @@
 //! 工作树状态：脏改动、未跟踪、冲突、索引锁与进行中的 Git 操作。
 //!
-//! 只读：使用 `GIT_OPTIONAL_LOCKS=0` 执行 `git status`，不会为了刷新索引而写盘，
-//! 因此不会与正在运行的 Pi Agent 抢 `index.lock`。文件清单有上限，计数不受影响。
+//! 只读：使用 GIT_OPTIONAL_LOCKS=0 执行 git status，不会为了刷新索引而写盘，
+//! 因此不会与正在运行的 Pi Agent 抢 index.lock。文件清单有上限，计数不受影响。
+//!
+//! 解析只做一次（parse_porcelain）：工作树汇总与 Git 抽屉的更改列表共用同一份
+//! porcelain 记录，避免两处解析规则漂移（徽章字母与计数必须永远一致）。
 
 use std::path::Path;
 
@@ -9,7 +12,7 @@ use crate::error::{GitError, GitErrorCode, Result};
 use crate::repo::{GitRepo, normalize_path};
 use crate::run::GitCall;
 
-/// 单次状态查询最多列出多少个文件路径；`staged_count` 等计数不受此限制。
+/// 单次状态查询最多列出多少个文件路径；staged_count 等计数不受此限制。
 pub const MAX_LISTED_CHANGES: usize = 200;
 
 const CONFLICT_CODES: [&str; 7] = ["DD", "AU", "UD", "UA", "DU", "AA", "UU"];
@@ -26,8 +29,66 @@ const IN_PROGRESS_MARKERS: [(&str, &str); 6] = [
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConflictEntry {
     pub path: String,
-    /// `UU` / `AA` / `DU` 等 porcelain 冲突码。
+    /// UU / AA / DU 等 porcelain 冲突码。
     pub kind: String,
+}
+
+/// 单条 porcelain 记录：路径 + 索引区/工作区两列状态字母。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StatusEntry {
+    pub path: String,
+    /// porcelain 第 1 列（索引区，X）。
+    pub index: char,
+    /// porcelain 第 2 列（工作区，Y）。
+    pub working: char,
+}
+
+impl StatusEntry {
+    /// porcelain 两列字母，例如 UU、空格+M、??。
+    pub fn code(&self) -> String {
+        [self.index, self.working].iter().collect()
+    }
+
+    pub fn is_conflict(&self) -> bool {
+        CONFLICT_CODES.contains(&self.code().as_str())
+    }
+
+    pub fn is_untracked(&self) -> bool {
+        self.index == '?' && self.working == '?'
+    }
+
+    /// 索引区有改动（冲突与未跟踪单独计数，不重复算作 staged）。
+    pub fn is_staged(&self) -> bool {
+        !self.is_untracked() && !self.is_conflict() && self.index != ' ' && self.index != '!'
+    }
+
+    /// 工作区有改动（同上，冲突与未跟踪不重复计数）。
+    pub fn is_unstaged(&self) -> bool {
+        !self.is_untracked() && !self.is_conflict() && self.working != ' ' && self.working != '!'
+    }
+
+    /// 更改列表徽章字母（Issue #121）：A 新增、M 修改、D 删除、U 冲突。
+    ///
+    /// 同一文件既有暂存又有未暂存改动时以索引区字母为准：徽章表达的是
+    /// 「下一次提交会把该文件变成什么」。重命名/类型变化（R/T/C）按修改处理。
+    pub fn badge(&self) -> &'static str {
+        if self.is_conflict() {
+            return "U";
+        }
+        if self.is_untracked() {
+            return "A";
+        }
+        let letter = if self.index != ' ' && self.index != '!' {
+            self.index
+        } else {
+            self.working
+        };
+        match letter {
+            'A' => "A",
+            'D' => "D",
+            _ => "M",
+        }
+    }
 }
 
 /// 工作树状态快照。列表有界，计数完整。
@@ -43,11 +104,15 @@ pub struct WorktreeStatus {
     pub unstaged: Vec<String>,
     pub untracked: Vec<String>,
     pub conflicts: Vec<ConflictEntry>,
+    /// 逐条 porcelain 记录（含徽章字母）；与 staged/unstaged 列表一样有界。
+    pub entries: Vec<StatusEntry>,
+    /// 文件条目总数（entries 被上限裁剪时仍然完整）。
+    pub entry_count: usize,
     pub staged_count: usize,
     pub unstaged_count: usize,
     pub untracked_count: usize,
     pub conflict_count: usize,
-    /// `index.lock` 的绝对路径；存在时说明有进程（或崩溃残留）持有索引锁。
+    /// index.lock 的绝对路径；存在时说明有进程（或崩溃残留）持有索引锁。
     pub index_lock: Option<String>,
     /// 进行中的多步操作：merge / rebase / cherry-pick / revert / bisect。
     pub operation: Option<String>,
@@ -72,7 +137,7 @@ impl WorktreeStatus {
 }
 
 impl GitRepo {
-    /// 读取工作树状态。目录不存在时返回 `E_GIT_WORKTREE_PATH_MISSING`。
+    /// 读取工作树状态。目录不存在时返回 E_GIT_WORKTREE_PATH_MISSING。
     pub fn inspect_status(&self, worktree: &Path) -> Result<WorktreeStatus> {
         if !worktree.is_dir() {
             return Err(GitError::new(
@@ -117,7 +182,7 @@ impl GitRepo {
         Ok(status)
     }
 
-    /// `index.lock` 是否存在。链接工作树的锁位于主仓库的 `.git/worktrees/<name>/`。
+    /// index.lock 是否存在。链接工作树的锁位于主仓库的 .git/worktrees/<name>/ 下。
     pub fn index_lock(&self, worktree: &Path) -> Result<Option<String>> {
         let path = self.rev_parse_path(worktree, "index.lock")?;
         Ok(path.exists().then(|| path.to_string_lossy().to_string()))
@@ -135,9 +200,32 @@ impl GitRepo {
     }
 }
 
-/// 解析 `git status --porcelain=v1 -z --branch --no-renames` 的输出。
+/// 解析 --porcelain=v1 -z 输出：可选的 ## 表头 + 逐条记录。
 ///
-/// `-z` + `--no-renames` 保证每条记录都是 `XY<空格>路径`，不存在重命名的双路径记录。
+/// -z + --no-renames 保证每条记录都是 XY + 空格 + 路径，不存在重命名的双路径记录，
+/// 因此这里可以按固定 3 字节前缀切分（前 3 字节一定是 ASCII）。
+pub fn parse_porcelain(text: &str) -> (Option<String>, Vec<StatusEntry>) {
+    let mut header = None;
+    let mut entries = Vec::new();
+    for record in text.split('\0').filter(|record| !record.is_empty()) {
+        if let Some(rest) = record.strip_prefix("## ") {
+            header = Some(rest.to_owned());
+            continue;
+        }
+        if record.len() < 4 {
+            continue;
+        }
+        let bytes = record.as_bytes();
+        entries.push(StatusEntry {
+            path: record[3..].to_owned(),
+            index: bytes[0] as char,
+            working: bytes[1] as char,
+        });
+    }
+    (header, entries)
+}
+
+/// 解析 git status --porcelain=v1 -z --branch --no-renames 的输出。
 pub fn parse_status(text: &str) -> WorktreeStatus {
     let mut status = WorktreeStatus {
         worktree: String::new(),
@@ -149,6 +237,8 @@ pub fn parse_status(text: &str) -> WorktreeStatus {
         unstaged: Vec::new(),
         untracked: Vec::new(),
         conflicts: Vec::new(),
+        entries: Vec::new(),
+        entry_count: 0,
         staged_count: 0,
         unstaged_count: 0,
         untracked_count: 0,
@@ -157,54 +247,50 @@ pub fn parse_status(text: &str) -> WorktreeStatus {
         operation: None,
         truncated: false,
     };
-    for record in text.split('\0').filter(|record| !record.is_empty()) {
-        if let Some(header) = record.strip_prefix("## ") {
-            apply_header(&mut status, header);
-            continue;
+    let (header, entries) = parse_porcelain(text);
+    if let Some(header) = header {
+        apply_header(&mut status, &header);
+    }
+    for entry in entries {
+        status.entry_count += 1;
+        if status.entries.len() < MAX_LISTED_CHANGES {
+            status.entries.push(entry.clone());
+        } else {
+            status.truncated = true;
         }
-        if record.len() < 4 {
-            continue;
-        }
-        let bytes = record.as_bytes();
-        let index = bytes[0] as char;
-        let working = bytes[1] as char;
-        let path = &record[3..];
-        let code = [index, working].iter().collect::<String>();
-        if CONFLICT_CODES.contains(&code.as_str()) {
+        if entry.is_conflict() {
             status.conflict_count += 1;
             if status.conflicts.len() < MAX_LISTED_CHANGES {
                 status.conflicts.push(ConflictEntry {
-                    path: path.to_owned(),
-                    kind: code,
+                    kind: entry.code(),
+                    path: entry.path,
                 });
             } else {
                 status.truncated = true;
             }
             continue;
         }
-        let staged = index != ' ' && index != '?' && index != '!';
-        let unstaged = working != ' ' && working != '?' && working != '!';
-        let untracked = index == '?' && working == '?';
-        if untracked {
+        if entry.is_untracked() {
             status.untracked_count += 1;
             if status.untracked.len() < MAX_LISTED_CHANGES {
-                status.untracked.push(path.to_owned());
+                status.untracked.push(entry.path);
             } else {
                 status.truncated = true;
             }
+            continue;
         }
-        if staged {
+        if entry.is_staged() {
             status.staged_count += 1;
             if status.staged.len() < MAX_LISTED_CHANGES {
-                status.staged.push(path.to_owned());
+                status.staged.push(entry.path.clone());
             } else {
                 status.truncated = true;
             }
         }
-        if unstaged {
+        if entry.is_unstaged() {
             status.unstaged_count += 1;
             if status.unstaged.len() < MAX_LISTED_CHANGES {
-                status.unstaged.push(path.to_owned());
+                status.unstaged.push(entry.path);
             } else {
                 status.truncated = true;
             }
@@ -298,6 +384,45 @@ mod tests {
         let status = parse_status(&text);
         assert_eq!(status.untracked_count, MAX_LISTED_CHANGES + 5);
         assert_eq!(status.untracked.len(), MAX_LISTED_CHANGES);
+        // 条目清单与分类清单一样有界，但总数完整（更改列表用得上）。
+        assert_eq!(status.entries.len(), MAX_LISTED_CHANGES);
+        assert_eq!(status.entry_count, MAX_LISTED_CHANGES + 5);
         assert!(status.truncated);
+    }
+
+    #[test]
+    fn badges_follow_porcelain_letters() {
+        let status = parse_status(
+            "## main\0A  added.rs\0 M edited.rs\0 D removed.rs\0?? fresh.rs\0UU conflict.rs\0",
+        );
+        let badges: Vec<(&str, &str)> = status
+            .entries
+            .iter()
+            .map(|entry| (entry.path.as_str(), entry.badge()))
+            .collect();
+        assert_eq!(
+            badges,
+            vec![
+                ("added.rs", "A"),
+                ("edited.rs", "M"),
+                ("removed.rs", "D"),
+                ("fresh.rs", "A"),
+                ("conflict.rs", "U"),
+            ]
+        );
+        // 暂存区字母优先：同一文件既暂存又未暂存时徽章描述下一次提交。
+        let both = parse_status("## main\0MM both.rs\0");
+        assert_eq!(both.entries[0].badge(), "M");
+        assert!(both.entries[0].is_staged() && both.entries[0].is_unstaged());
+    }
+
+    #[test]
+    fn porcelain_parser_keeps_header_and_paths() {
+        let (header, entries) =
+            parse_porcelain("## main...origin/main [ahead 1]\0?? 目录/文件.txt\0");
+        assert_eq!(header.as_deref(), Some("main...origin/main [ahead 1]"));
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].path, "目录/文件.txt");
+        assert!(entries[0].is_untracked());
     }
 }

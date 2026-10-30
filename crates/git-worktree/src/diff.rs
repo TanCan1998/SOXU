@@ -151,7 +151,8 @@ impl GitRepo {
         Ok((parse_name_status(&output.stdout), output.truncated))
     }
 
-    fn diff_numstat(
+    /// 逐文件增删行数。更改列表（crate::changes）复用它，避免出现第二份 numstat 解析。
+    pub(crate) fn diff_numstat(
         &self,
         worktree: &Path,
         options: &DiffOptions,

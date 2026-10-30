@@ -12,8 +12,8 @@
 use std::path::{Path, PathBuf};
 
 use soxu_git_worktree::{
-    CreateRequest, DiffOptions, GitError, GitRepo, RemovalBlocker, RemovePlan, WorktreeEntry,
-    WorktreeStatus, normalize_path, removal_error,
+    CreateRequest, DiffOptions, GitRepo, RemovalBlocker, RemovePlan, WorktreeEntry, WorktreeStatus,
+    normalize_path, removal_error,
 };
 use soxu_session_index::{ProjectCatalog, ProjectId, WorktreeId};
 
@@ -21,6 +21,7 @@ use crate::dto::{
     CreateWorktreeInput, WorktreeDiffFile, WorktreeDiffView, WorktreeRemovalView, WorktreeSummary,
     WorktreeWorkspace,
 };
+use crate::git::git_blocking;
 use crate::state::AppState;
 
 /// 单个工作树的 Git 事实（在阻塞线程里一次性取回）。
@@ -28,19 +29,6 @@ struct WorktreeFacts {
     entry: WorktreeEntry,
     status: Option<WorktreeStatus>,
     plan: RemovePlan,
-}
-
-/// 把 Git 调用移出异步运行时：git 是阻塞子进程，且可能持续上百毫秒。
-async fn git_blocking<T, F>(task: F) -> Result<T, String>
-where
-    F: FnOnce() -> Result<T, GitError> + Send + 'static,
-    T: Send + 'static,
-{
-    match tokio::task::spawn_blocking(task).await {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => Err(error.to_string()),
-        Err(error) => Err(format!("E_GIT_IO_FAILURE: Git 任务未完成（{error}）")),
-    }
 }
 
 async fn project_root(state: &AppState, project: &ProjectId) -> Result<PathBuf, String> {

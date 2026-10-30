@@ -9,6 +9,7 @@ import { computed, reactive, ref } from "vue";
 import { defineStore } from "pinia";
 
 import { createTauriBridge, createUnavailableBridge, isTauriRuntime } from "../workspace/bridge.ts";
+import { GitWorkspace } from "../workspace/gitWorkspace.ts";
 import {
   WorkspaceSession,
   type RuntimeEventObserver,
@@ -17,6 +18,7 @@ import { WorktreeCatalog } from "../workspace/worktreeWorkspace.ts";
 import {
   createWorkspaceState,
   type CreateWorktreeInput,
+  type GitLayout,
   type SendPromptOptions,
   type SessionId,
   type SessionMode,
@@ -32,6 +34,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   state.bridgeAvailable = bridgeAvailable;
   const session = new WorkspaceSession(bridge, state);
   const worktrees = new WorktreeCatalog(bridge, state);
+  const git = new GitWorkspace(bridge, state);
 
   const bootstrapped = ref(false);
   const busy = ref(false);
@@ -50,6 +53,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const hasProjects = computed(() => state.projects.length > 0);
   /** 工作树面板状态：与 Tab 状态完全分开，选择工作树不会切换会话。 */
   const worktreeView = computed(() => state.worktrees);
+  /** Git 抽屉状态：只观察仓库事实，不改写任何 Tab。 */
+  const gitView = computed(() => state.git);
   const selectedWorktree = computed(
     () => state.worktrees.worktrees.find((item) => item.id === state.worktrees.selectedId) ?? null,
   );
@@ -213,8 +218,54 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return worktrees.prune();
   }
 
+  /** 打开/切换 Git 抽屉观察的项目与工作树；身份变化时清空旧仓库的视图。 */
+  function openGit(projectId: string | null, worktreeId: WorktreeId | null): Promise<void> {
+    return git.open(projectId, worktreeId);
+  }
+
+  function refreshGit(): Promise<void> {
+    return git.reload();
+  }
+
+  function selectGitFile(path: string | null): Promise<void> {
+    return git.select(path);
+  }
+
+  function toggleGitDir(path: string): void {
+    git.toggleDir(path);
+  }
+
+  function setGitLayout(layout: GitLayout): void {
+    git.setLayout(layout);
+  }
+
+  function collapseGitAll(): void {
+    git.collapseAll();
+  }
+
+  function stageGitAll(): Promise<boolean> {
+    return git.stageAll();
+  }
+
+  function commitGit(): Promise<boolean> {
+    return git.commit();
+  }
+
+  function pushGit(): Promise<boolean> {
+    return git.push();
+  }
+
+  function pullGit(): Promise<boolean> {
+    return git.pull();
+  }
+
+  function setGitMessage(value: string): void {
+    git.setCommitMessage(value);
+  }
+
   async function dispose(): Promise<void> {
     worktrees.dispose();
+    git.dispose();
     await session.dispose();
   }
 
@@ -228,6 +279,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     hasProjects,
     worktreeView,
     selectedWorktree,
+    gitView,
     bootstrap,
     addProject,
     refreshProjects,
@@ -256,6 +308,17 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     confirmWorktreeRemoval,
     cancelWorktreeRemoval,
     pruneWorktrees,
+    openGit,
+    refreshGit,
+    selectGitFile,
+    toggleGitDir,
+    setGitLayout,
+    collapseGitAll,
+    stageGitAll,
+    commitGit,
+    pushGit,
+    pullGit,
+    setGitMessage,
     dispose,
   };
 });

@@ -364,6 +364,8 @@ Ctrl+F / ⌘F 打开并把焦点放进搜索框。证据见
 
 - [Git 工作树服务与桌面集成](../architecture/worktree-service.md)（工作树枚举、创建、
   Diff 与受确认删除；本文件的 Tab/事件规则同样适用）
+- [Git 抽屉：更改列表与 diff 预览](../architecture/git-drawer.md)（git_status / git_diff /
+  git_stage / git_commit / git_push / git_pull 的契约与安全边界）
 - [Pi RPC Supervisor](agent-runtime.md)
 - [会话目录与 JSONL 索引契约](../architecture/session-catalog.md)
 - [会话内搜索：文本缓存 + 线性扫描](session-search.md)

@@ -6,11 +6,13 @@
 //! 按领域拆分为子模块（Issue #112），本文件只做再导出，
 //! 因此 `crate::dto::<Type>` 的引用路径保持不变；新增结构请落到对应领域文件。
 
+mod git;
 mod session;
 mod stats;
 mod workspace;
 mod worktree;
 
+pub use git::*;
 pub use session::*;
 pub use stats::*;
 pub use workspace::*;

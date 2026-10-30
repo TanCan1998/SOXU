@@ -14,9 +14,10 @@
 -->
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { Bell, ChevronLeft, ChevronRight, PanelLeft, PanelRight, Plus, Search } from "@lucide/vue";
+import { Bell, ChevronLeft, ChevronRight, GitBranch, PanelLeft, PanelRight, Plus, Search } from "@lucide/vue";
 import AppTooltip from "./components/AppTooltip.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import GitDrawer from "./components/GitDrawer.vue";
 import NotificationHistoryDrawer from "./components/NotificationHistoryDrawer.vue";
 import NotificationToasts from "./components/NotificationToasts.vue";
 import ProjectSidebar from "./components/ProjectSidebar.vue";
@@ -55,6 +56,7 @@ import {
 } from "./workspace/sessionHistory.ts";
 import type {
   CreateWorktreeInput,
+  GitLayout,
   SendMode,
   SessionId,
   SessionSearchHit,
@@ -66,8 +68,10 @@ const info = ref<RuntimeInfo | null>(null);
 const sidebarOpen = ref(true);
 const inspectorOpen = ref(true);
 const settingsOpen = ref(false);
-/** 右侧搜索抽屉（Issue #118）；与「会话状态」面板互斥，一次只开一个。 */
+/** 右侧搜索抽屉（Issue #118）；与「会话状态」「Git」面板互斥，一次只开一个。 */
 const searchOpen = ref(false);
+/** 右侧 Git 抽屉（Issue #121）：观察当前会话所属项目/工作树的仓库事实。 */
+const gitOpen = ref(false);
 const searchDrawer = ref<InstanceType<typeof SearchDrawer> | null>(null);
 /** 搜索跳转的目标消息 + 递增序号：同一条命中连点两次也要重新定位。 */
 const focusMessageId = ref<string | null>(null);
@@ -139,6 +143,39 @@ const forwardTarget = computed(() => findTarget(history.value, "forward", isOpen
  */
 watch(inspectorOpen, (open) => {
   if (open) searchOpen.value = false;
+});
+
+/** 搜索与 Git 同样互斥：右侧只留一个面板，正文才不会被挤到不可读。 */
+watch(searchOpen, (open) => {
+  if (open) gitOpen.value = false;
+});
+
+watch(inspectorOpen, (open) => {
+  if (open) gitOpen.value = false;
+});
+
+watch(gitOpen, (open) => {
+  if (open) {
+    inspectorOpen.value = false;
+    searchOpen.value = false;
+  }
+});
+
+/** Git 抽屉观察的项目：优先当前会话，没有会话时退回第一个已登记项目。 */
+const gitProjectId = computed(
+  () => activeTab.value?.projectId ?? store.state.projects[0]?.id ?? null,
+);
+const gitWorktreeId = computed(() => activeTab.value?.worktreeId ?? null);
+
+/**
+ * 打开抽屉或切换会话时重新读取更改列表。
+ *
+ * 观察 activeSessionId 而不是在每个入口埋点：侧栏、Tab、历史跳转都会自然触发，
+ * 抽屉里永远不会残留上一个仓库的改动。
+ */
+watch([gitOpen, () => store.state.activeSessionId], ([open]) => {
+  if (!open) return;
+  void store.openGit(gitProjectId.value, gitWorktreeId.value);
 });
 
 /** 切换会话时清掉上一条跳转目标与提示：它们只对原来的会话有意义。 */
@@ -522,6 +559,10 @@ function onKeydown(event: KeyboardEvent) {
     // Ctrl+F / ⌘F：打开搜索抽屉并把焦点放进搜索框（浏览器默认的页内查找在这里没有意义）。
     event.preventDefault();
     openSearch();
+  } else if (key === "g") {
+    // Ctrl+G：Git 抽屉（与搜索、会话状态共用右侧面板位）。
+    event.preventDefault();
+    gitOpen.value = !gitOpen.value;
   }
 }
 
@@ -653,6 +694,18 @@ onUnmounted(() => {
               </span>
             </button>
           </AppTooltip>
+          <AppTooltip text="Git 更改 (Ctrl+G)">
+            <button
+              class="icon-button"
+              type="button"
+              :aria-label="gitOpen ? '关闭 Git 面板' : '打开 Git 面板'"
+              :aria-expanded="gitOpen"
+              aria-keyshortcuts="Control+G"
+              @click="gitOpen = !gitOpen"
+            >
+              <GitBranch :size="18" :stroke-width="1.75" aria-hidden="true" />
+            </button>
+          </AppTooltip>
           <AppTooltip text="会话状态 (Ctrl+I)">
             <button
               class="icon-button"
@@ -751,6 +804,25 @@ onUnmounted(() => {
       @close="closeSearch"
       @query="onSearchQuery"
       @jump="onSearchJump"
+    />
+
+    <GitDrawer
+      v-if="gitOpen"
+      :project-id="gitProjectId"
+      :worktree-id="gitWorktreeId"
+      :bridge-available="store.bridgeAvailable"
+      :view="store.gitView"
+      @close="gitOpen = false"
+      @refresh="() => void store.refreshGit()"
+      @select="(path: string) => void store.selectGitFile(path)"
+      @toggle-dir="(path: string) => store.toggleGitDir(path)"
+      @layout="(layout: GitLayout) => store.setGitLayout(layout)"
+      @collapse-all="() => store.collapseGitAll()"
+      @stage-all="() => void store.stageGitAll()"
+      @commit="() => void store.commitGit()"
+      @push="() => void store.pushGit()"
+      @pull="() => void store.pullGit()"
+      @update:message="(value: string) => store.setGitMessage(value)"
     />
 
     <WorktreeDialog

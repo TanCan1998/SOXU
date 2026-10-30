@@ -51,6 +51,8 @@ pub struct AppState {
     pub start_guard: tokio::sync::Mutex<()>,
     /// 工作树写操作（创建/删除/prune）的串行闸门：破坏性操作不并发执行。
     pub worktree_guard: tokio::sync::Mutex<()>,
+    /// Git 抽屉写操作（暂存/提交/推送/拉取）的串行闸门：同一仓库不会被两次点击并发写索引。
+    pub git_guard: tokio::sync::Mutex<()>,
     /// 正在启动（含重试退避）的会话取消句柄；启动结束即移除，不留常驻条目。
     pub pending_starts: Mutex<HashMap<String, RetryCancel>>,
 }
@@ -86,6 +88,7 @@ impl AppState {
             stats: Arc::new(Mutex::new(StatsStore::new())),
             start_guard: tokio::sync::Mutex::new(()),
             worktree_guard: tokio::sync::Mutex::new(()),
+            git_guard: tokio::sync::Mutex::new(()),
             pending_starts: Mutex::new(HashMap::new()),
         })
     }

@@ -391,6 +391,132 @@ export interface WorktreeState {
 }
 
 /**
+ * Git 抽屉（Issue #121 · TASK-029）：更改列表、单文件 diff、提交与推送/拉取。
+ *
+ * 后端视图都带 projectId / worktreeId：切换项目后迟到的响应据此丢弃，
+ * 不会把上一个仓库的改动显示到当前面板。
+ */
+export interface GitChangeFile {
+  path: string;
+  /** 徽章字母：A 新增（含未跟踪）、M 修改、D 删除、U 冲突。 */
+  status: string;
+  staged: boolean;
+  unstaged: boolean;
+  untracked: boolean;
+  conflict: boolean;
+  /** 增删行数；二进制与未跟踪文件为 null。 */
+  added: number | null;
+  removed: number | null;
+  binary: boolean;
+}
+
+export interface GitStatusView {
+  projectId: ProjectId;
+  /** null 表示项目主工作树（项目根目录）。 */
+  worktreeId: WorktreeId | null;
+  root: string;
+  branch: string | null;
+  upstream: string | null;
+  /** 领先/落后提交数，相对本地记录的远端跟踪分支（拉取后刷新）。 */
+  ahead: number;
+  behind: number;
+  files: GitChangeFile[];
+  totalFiles: number;
+  /** 文件清单或输出被上限裁剪。 */
+  truncated: boolean;
+  indexLocked: boolean;
+  operation: string | null;
+}
+
+export interface GitFileDiffView {
+  path: string;
+  staged: boolean;
+  /** git diff 的原始补丁（--no-color），前端只做展示与行号对齐。 */
+  patch: string;
+  truncated: boolean;
+  bytesRead: number;
+  added: number | null;
+  removed: number | null;
+  binary: boolean;
+}
+
+export interface GitLogEntry {
+  hash: string;
+  shortHash: string;
+  author: string;
+  date: string;
+  subject: string;
+}
+
+export interface GitLogView {
+  projectId: ProjectId;
+  worktreeId: WorktreeId | null;
+  entries: GitLogEntry[];
+  truncated: boolean;
+}
+
+export interface GitBranchEntry {
+  name: string;
+  head: string;
+  upstream: string | null;
+  current: boolean;
+}
+
+export interface GitBranchesView {
+  projectId: ProjectId;
+  worktreeId: WorktreeId | null;
+  current: string | null;
+  branches: GitBranchEntry[];
+  truncated: boolean;
+}
+
+export interface GitCommitView {
+  hash: string;
+  shortHash: string;
+  subject: string;
+  status: GitStatusView;
+}
+
+export interface GitRemoteView {
+  operation: "push" | "pull";
+  /** git 的标准输出（已裁剪），只用于提示。 */
+  output: string;
+  status: GitStatusView;
+}
+
+/** 更改列表的布局：树形（按目录分组）或平铺（完整路径）。 */
+export type GitLayout = "tree" | "flat";
+
+/** 写操作的进行状态：同一时刻只允许一个。 */
+export type GitAction = "idle" | "staging" | "committing" | "pushing" | "pulling";
+
+/**
+ * Git 面板状态：一次只观察一个项目/工作树。
+ *
+ * 一次只展开一个文件 diff（accordion）：抽屉宽度有限，多份补丁同时展开既读不清，
+ * 也会让内存里堆着多份最大 512 KiB 的补丁文本。
+ */
+export interface GitState {
+  projectId: ProjectId | null;
+  worktreeId: WorktreeId | null;
+  root: string;
+  loading: boolean;
+  error: string | null;
+  status: GitStatusView | null;
+  layout: GitLayout;
+  /** 已折叠的目录路径（树形视图）；空数组表示全部展开。 */
+  collapsedDirs: string[];
+  selectedPath: string | null;
+  diff: GitFileDiffView | null;
+  diffLoading: boolean;
+  diffError: string | null;
+  action: GitAction;
+  actionError: string | null;
+  actionNotice: string | null;
+  commitMessage: string;
+}
+
+/**
  * 发送投递方式（V4-S1，Issue #111）。
  *
  * 三个内部名沿用 PiDeck（`docs/design/UIUX/V4/interaction-decisions.md` 第一节）：
@@ -443,6 +569,36 @@ export interface WorkspaceBridge {
   sessionStats(sessionId: SessionId): Promise<SessionStats>;
   retainSession(sessionId: SessionId): Promise<void>;
   releaseSession(sessionId: SessionId): Promise<void>;
+  /** Git 抽屉：更改列表（只读）。worktreeId 为 null 时观察项目主工作树。 */
+  gitStatus(projectId: ProjectId, worktreeId: WorktreeId | null): Promise<GitStatusView>;
+  /** 单文件补丁；staged 为 true 时读暂存区。 */
+  gitDiff(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+    path: string,
+    staged: boolean,
+  ): Promise<GitFileDiffView>;
+  gitLog(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+    limit?: number,
+  ): Promise<GitLogView>;
+  gitBranches(projectId: ProjectId, worktreeId: WorktreeId | null): Promise<GitBranchesView>;
+  /** 暂存；paths 为空表示全部。返回刷新后的更改列表。 */
+  gitStage(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+    paths: string[],
+  ): Promise<GitStatusView>;
+  gitCommit(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+    message: string,
+  ): Promise<GitCommitView>;
+  /** 推送：失败时抛出带 git stderr 的错误，不做强制覆盖。 */
+  gitPush(projectId: ProjectId, worktreeId: WorktreeId | null): Promise<GitRemoteView>;
+  /** 拉取（只快进）：失败时不产生合并提交。 */
+  gitPull(projectId: ProjectId, worktreeId: WorktreeId | null): Promise<GitRemoteView>;
   listWorktrees(projectId: ProjectId): Promise<WorktreeWorkspace>;
   createWorktree(projectId: ProjectId, input: CreateWorktreeInput): Promise<WorktreeSummary>;
   /** 只读：重新计算删除计划与令牌，不修改磁盘。 */
@@ -570,6 +726,8 @@ export interface WorkspaceState {
   bridgeAvailable: boolean;
   /** 工作树面板；与 Tab 状态相互独立。 */
   worktrees: WorktreeState;
+  /** Git 抽屉；与 Tab 状态相互独立（只观察，不改写会话）。 */
+  git: GitState;
 }
 
 export const HISTORY_PAGE_SIZE = 40;
@@ -655,6 +813,27 @@ export function createWorktreeState(): WorktreeState {
   };
 }
 
+export function createGitState(): GitState {
+  return {
+    projectId: null,
+    worktreeId: null,
+    root: "",
+    loading: false,
+    error: null,
+    status: null,
+    layout: "tree",
+    collapsedDirs: [],
+    selectedPath: null,
+    diff: null,
+    diffLoading: false,
+    diffError: null,
+    action: "idle",
+    actionError: null,
+    actionNotice: null,
+    commitMessage: "",
+  };
+}
+
 export function createWorkspaceState(): WorkspaceState {
   return {
     tabs: [],
@@ -664,5 +843,6 @@ export function createWorkspaceState(): WorkspaceState {
     projectsError: null,
     bridgeAvailable: true,
     worktrees: createWorktreeState(),
+    git: createGitState(),
   };
 }

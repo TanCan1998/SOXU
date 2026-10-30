@@ -12,6 +12,12 @@ import type {
   CreateWorktreeInput,
   EntryRef,
   EntryText,
+  GitBranchesView,
+  GitCommitView,
+  GitFileDiffView,
+  GitLogView,
+  GitRemoteView,
+  GitStatusView,
   HistoryPage,
   ProjectId,
   ProjectSummary,
@@ -89,6 +95,26 @@ export function createTauriBridge(): WorkspaceBridge {
     releaseSession: async (sessionId: SessionId) => {
       await invoke<number>("release_session_events", { sessionId });
     },
+    gitStatus: (projectId: ProjectId, worktreeId: WorktreeId | null) =>
+      invoke<GitStatusView>("git_status", { projectId, worktreeId }),
+    gitDiff: (
+      projectId: ProjectId,
+      worktreeId: WorktreeId | null,
+      path: string,
+      staged: boolean,
+    ) => invoke<GitFileDiffView>("git_diff", { projectId, worktreeId, path, staged }),
+    gitLog: (projectId: ProjectId, worktreeId: WorktreeId | null, limit?: number) =>
+      invoke<GitLogView>("git_log", { projectId, worktreeId, limit }),
+    gitBranches: (projectId: ProjectId, worktreeId: WorktreeId | null) =>
+      invoke<GitBranchesView>("git_branches", { projectId, worktreeId }),
+    gitStage: (projectId: ProjectId, worktreeId: WorktreeId | null, paths: string[]) =>
+      invoke<GitStatusView>("git_stage", { projectId, worktreeId, paths }),
+    gitCommit: (projectId: ProjectId, worktreeId: WorktreeId | null, message: string) =>
+      invoke<GitCommitView>("git_commit", { projectId, worktreeId, message }),
+    gitPush: (projectId: ProjectId, worktreeId: WorktreeId | null) =>
+      invoke<GitRemoteView>("git_push", { projectId, worktreeId }),
+    gitPull: (projectId: ProjectId, worktreeId: WorktreeId | null) =>
+      invoke<GitRemoteView>("git_pull", { projectId, worktreeId }),
     listWorktrees: (projectId: ProjectId) =>
       invoke<WorktreeWorkspace>("list_worktrees", { projectId }),
     createWorktree: (projectId: ProjectId, input: CreateWorktreeInput) =>
@@ -146,6 +172,14 @@ export function createUnavailableBridge(reason: string): WorkspaceBridge {
     sessionStats: fail,
     retainSession: async () => undefined,
     releaseSession: async () => undefined,
+    gitStatus: fail,
+    gitDiff: fail,
+    gitLog: fail,
+    gitBranches: fail,
+    gitStage: fail,
+    gitCommit: fail,
+    gitPush: fail,
+    gitPull: fail,
     listWorktrees: fail,
     createWorktree: fail,
     planWorktreeRemoval: fail,
