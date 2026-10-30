@@ -9,6 +9,7 @@
 mod extension;
 mod files;
 mod git;
+mod pty;
 mod session;
 mod stats;
 mod workspace;
@@ -17,6 +18,7 @@ mod worktree;
 pub use extension::*;
 pub use files::*;
 pub use git::*;
+pub use pty::*;
 pub use session::*;
 pub use stats::*;
 pub use workspace::*;

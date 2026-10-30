@@ -162,6 +162,7 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 | `docs/architecture/worktree-service.md` | Git 工作树：枚举/创建、Diff、会话关联与受确认删除的安全契约 |
 | `docs/architecture/git-drawer.md` | Git 抽屉：更改列表徽章、单文件 diff、暂存/提交、推送/拉取的安全边界 |
 | `docs/development/file-drawer.md` | 文件抽屉：命令契约、路径守卫、懒加载与验证方式 |
+| `docs/architecture/pty-terminal.md` | 终端（PTY）：16ms 输出合并、UTF-8 边界、子进程回收与安全边界 |
 | `docs/design/` | 已审批的 UI/UX 设计基线与历史提案 |
 
 ## 已确认与仍待授权事项

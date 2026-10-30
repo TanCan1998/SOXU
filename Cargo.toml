@@ -1,3 +1,11 @@
 [workspace]
-members = ["apps/desktop/src-tauri", "crates/pi-protocol", "crates/agent-runtime", "crates/session-index", "crates/resource-monitor", "crates/git-worktree"]
+members = [
+  "apps/desktop/src-tauri",
+  "crates/pi-protocol",
+  "crates/agent-runtime",
+  "crates/session-index",
+  "crates/resource-monitor",
+  "crates/git-worktree",
+  "crates/pty-service",
+]
 resolver = "2"

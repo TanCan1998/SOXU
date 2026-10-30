@@ -1,0 +1,9 @@
+[package]
+name = "soxu-pty-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# 决策已定（TASK-030）：portable-pty 跨平台封装 PTY，Windows 走 ConPTY、Unix 走 forkpty。
+# 不自己写 ConPTY/termios：那部分平台差异没有收益，只有长期维护成本。
+portable-pty = "0.9"

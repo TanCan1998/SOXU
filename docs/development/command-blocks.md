@@ -27,6 +27,7 @@ apps/desktop/src-tauri/src/
         worktree.rs         工作树枚举/创建/差异/删除/清理
         history.rs          历史分页、正文按需读取、会话内搜索、临时会话生命周期
         files.rs            文件抽屉：目录枚举、只读预览、新建/重命名/删除、文件内搜索（Issue #120）
+        pty.rs              终端（PTY）的创建/写入/resize/关闭（业务在 crates/pty-service）
         stats.rs            会话统计（上下文环 / 统计浮窗 / 底部统计行）
     dto/
         mod.rs              只做 pub use 再导出，保持 crate::dto::<Type> 路径
@@ -34,6 +35,7 @@ apps/desktop/src-tauri/src/
         workspace.rs        项目/工作区 DTO
         worktree.rs         工作树 DTO
         files.rs            文件抽屉 DTO（相对路径、条目、预览、写结果、搜索命中）
+        pty.rs              终端（PTY）DTO
         stats.rs            会话统计 DTO（Issue #119）
 ```
 
