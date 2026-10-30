@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · Issue #123 命令面板夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #123 · TASK-031）：
+      pnpm dev 后访问 /tests/harness/command-palette.html ，
+      再用 tests/harness/shoot-issue-123-palette.mjs 用真实键盘事件驱动并截图。
+      不参与生产构建（vite build 只构建 index.html），也不连接 Pi：
+      命令执行只记录到内存里的 actionLog，不打开任何真实面板。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./command-palette.ts"></script>
+  </body>
+</html>

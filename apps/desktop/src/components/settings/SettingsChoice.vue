@@ -15,9 +15,13 @@ import { RadioGroupItem, RadioGroupRoot } from "reka-ui";
 defineProps<{
   modelValue: string;
   options: ReadonlyArray<{ value: string; label: string }>;
-  /** 行标题的 id；有它就用 aria-labelledby，没有则退回 aria-label。 */
-  labelledby?: string;
-  label: string;
+  /**
+   * 行标题的 id（由 SettingsRow 的 useId 生成），必填。
+   *
+   * Issue #123 起不再接受独立的 label 字符串：行的可见标题来自 settings/catalog.ts，
+   * 命令面板读的是同一份元数据。多一个 label 入参就等于多一份会漂移的文案。
+   */
+  labelledby: string;
 }>();
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
@@ -31,7 +35,6 @@ function onChange(value: unknown): void {
   <RadioGroupRoot
     :model-value="modelValue"
     :aria-labelledby="labelledby"
-    :aria-label="labelledby ? undefined : label"
     class="choice"
     orientation="horizontal"
     @update:model-value="onChange"

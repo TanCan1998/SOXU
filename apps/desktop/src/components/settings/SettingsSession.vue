@@ -7,6 +7,9 @@
  *
  * 「清空当前会话」不清 JSONL：它只释放界面内存里的消息缓存（重新从会话文件载入），
  * 因此临时会话被排除——临时会话关闭即结束，不能拿它当「清缓存」。
+ *
+ * 行标题与说明不写在这里（Issue #123）：SettingsRow 按 setting id 从
+ * settings/catalog.ts 取，命令面板读的是同一份元数据。
  */
 
 import { ChevronDown } from "@lucide/vue";
@@ -70,7 +73,7 @@ function thinkingLabel(value: string): string {
 
 <template>
   <div class="panel">
-    <SettingsRow label="发送后滚动" description="新消息到达时自动贴底">
+    <SettingsRow setting="session.sendAfterScroll">
       <template #default="{ labelId }">
         <SettingsSwitch
           :model-value="settings.sendAfterScroll"
@@ -80,7 +83,7 @@ function thinkingLabel(value: string): string {
       </template>
     </SettingsRow>
 
-    <SettingsRow label="Enter 发送" description="关闭后用 ⌘/Ctrl+↵ 发送，Enter 换行">
+    <SettingsRow setting="session.enterToSend">
       <template #default="{ labelId }">
         <SettingsSwitch
           :model-value="settings.enterToSend"
@@ -90,7 +93,7 @@ function thinkingLabel(value: string): string {
       </template>
     </SettingsRow>
 
-    <SettingsRow label="显示工具调用" description="打开后工具输出块默认展开（默认折叠）">
+    <SettingsRow setting="session.showToolCalls">
       <template #default="{ labelId }">
         <SettingsSwitch
           :model-value="settings.showToolCalls"
@@ -100,7 +103,7 @@ function thinkingLabel(value: string): string {
       </template>
     </SettingsRow>
 
-    <SettingsRow label="消息时间戳" description="在每条消息下方显示时间">
+    <SettingsRow setting="session.showTimestamps">
       <template #default="{ labelId }">
         <SettingsSwitch
           :model-value="settings.showTimestamps"
@@ -110,7 +113,7 @@ function thinkingLabel(value: string): string {
       </template>
     </SettingsRow>
 
-    <SettingsRow label="默认思考强度" description="新会话的初始档位">
+    <SettingsRow setting="session.thinkingLevel">
       <template #default="{ labelId }">
         <SelectRoot
           :model-value="settings.thinkingLevel"
@@ -142,13 +145,12 @@ function thinkingLabel(value: string): string {
       </template>
     </SettingsRow>
 
-    <SettingsRow label="忙碌时发送" description="agent 忙碌时点发送的默认投递方式">
+    <SettingsRow setting="session.busyDelivery">
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="busyDelivery"
           :options="BUSY_DELIVERY_OPTIONS"
           :labelledby="labelId"
-          label="忙碌时发送"
           @update:model-value="onBusyDelivery"
         />
       </template>
@@ -157,7 +159,7 @@ function thinkingLabel(value: string): string {
       </template>
     </SettingsRow>
 
-    <SettingsRow label="清空当前会话" description="释放界面内存中的消息缓存，重新从会话文件载入">
+    <SettingsRow setting="session.clearSession">
       <SettingsButton
         label="清空"
         tone="danger"

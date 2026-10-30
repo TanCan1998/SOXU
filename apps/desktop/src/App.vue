@@ -1,6 +1,6 @@
 <!--
-  应用外壳（Issue #116 起约 720 行、#117 后约 830 行、#118 后约 790 行，
-  超过 coding-standards 的 600 行提示线，理由如下）：
+  应用外壳（Issue #116 起约 720 行、#117 后约 830 行、#118 后约 790 行、
+  #123 后约 1040 行，超过 coding-standards 的 600 行提示线，理由如下）：
   - 它只做「装配」：状态与副作用已经按域拆到 composable（useAppearance / useBusyDelivery /
     useSessionSettings / useSystemSettings / useProjectDirectoryPick / useThemeTransition /
     useNotifications 等），本文件剩下的是 props/事件接线与顶栏、欢迎页、弹窗的模板。
@@ -9,14 +9,19 @@
     反而增加生命周期泄漏的风险。
   - 搜索抽屉（Issue #118）只留下「接线」：打开/关闭、输入转发、跳转目标（focusMessageId + nonce），
     定位规则本身在 components/searchPanel.ts 里，可脱离 DOM 测试。
+  - 命令面板（Issue #123）同样只留「接线」：命令清单与键盘语义在 commands/registry.ts，
+    匹配与高亮在 commands/match.ts，本文件只提供 CommandActions（把每条命令接到真实的
+    打开/切换动作上）与 paletteOpen 的开关。
   - 主题切换（setTheme）、历史记录（history）与通知订阅（useNotifications）必须留在壳层：
     它们都是全应用唯一的入口，订阅/释放必须成对发生在这里。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { Bell, ChevronLeft, ChevronRight, GitBranch, PanelLeft, PanelRight, Plus, Search } from "@lucide/vue";
+import { COMMANDS, commandContext, type CommandActions, type CommandEntry } from "./commands/registry.ts";
 import AppTooltip from "./components/AppTooltip.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import CommandPalette from "./components/CommandPalette.vue";
 import GitDrawer from "./components/GitDrawer.vue";
 import NotificationHistoryDrawer from "./components/NotificationHistoryDrawer.vue";
 import NotificationToasts from "./components/NotificationToasts.vue";
@@ -35,6 +40,7 @@ import { useSessionSettings } from "./composables/useSessionSettings.ts";
 import { useSystemSettings } from "./composables/useSystemSettings.ts";
 import { copyText } from "./services/clipboard.ts";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
+import type { SettingsTabId } from "./settings/catalog.ts";
 import { dataDirectoryHint } from "./settings/dataDirectory.ts";
 import type { Appearance } from "./theme/appearance.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
@@ -68,6 +74,21 @@ const info = ref<RuntimeInfo | null>(null);
 const sidebarOpen = ref(true);
 const inspectorOpen = ref(true);
 const settingsOpen = ref(false);
+/**
+ * 设置弹窗打开时先落到哪一页（Issue #123 的命令面板会带着目标页打开）；
+ * null = 沿用上次看的那页（顶栏齿轮、Ctrl+, 走这条）。
+ */
+const settingsTab = ref<SettingsTabId | null>(null);
+/**
+ * 「打开设置」请求序号（单调递增，Issue #123 复审修正）。
+ *
+ * 光靠 settingsOpen 的 false→true 变化不够：设置已经开着时再从命令面板执行
+ * 「设置 · 系统」，open 一直是 true，那次请求会被静默丢掉。弹窗据此把「同一个
+ * 目标页被再请求一次」也当成新请求（判定见 settings/openRequest.ts）。
+ */
+const settingsRequest = ref(0);
+/** 命令面板是否打开（Ctrl/⌘+K）。 */
+const paletteOpen = ref(false);
 /** 右侧搜索抽屉（Issue #118）；与「会话状态」「Git」面板互斥，一次只开一个。 */
 const searchOpen = ref(false);
 /** 右侧 Git 抽屉（Issue #121）：观察当前会话所属项目/工作树的仓库事实。 */
@@ -398,6 +419,80 @@ function closeSearch() {
   searchOpen.value = false;
 }
 
+/**
+ * 设置弹窗的唯一入口：顶栏齿轮、Ctrl+, 与命令面板都走这里。
+ *
+ * tab 为 null 时沿用上次看的那页；命令面板带目标页打开时（例如「设置 · 消息时间戳」）
+ * 直接落到那一页，用户不必再自己找。
+ */
+function openSettings(tab: SettingsTabId | null) {
+  // 设置是模态弹窗：先收起命令面板，避免两个浮层叠在一起（Ctrl+, 与面板命令都走这里）。
+  paletteOpen.value = false;
+  settingsTab.value = tab;
+  settingsOpen.value = true;
+  // 每次调用都算一次新请求：设置已经开着时也要能切页，而不是静默不动。
+  settingsRequest.value += 1;
+}
+
+/**
+ * 命令面板的动作实现（Issue #123）。
+ *
+ * 注册表（commands/registry.ts）只声明「有哪些命令、能不能用」，落地全部收在这里：
+ * 命令面板因此不需要认识 store，App.vue 仍然是所有跨域副作用的唯一入口
+ * （与 openSearch / resetLayout / copyDataDirectory 同一套纪律）。
+ */
+const commandActions: CommandActions = {
+  openSettings,
+  openSearch,
+  toggleSidebar: () => {
+    sidebarOpen.value = !sidebarOpen.value;
+  },
+  toggleInspector: () => {
+    inspectorOpen.value = !inspectorOpen.value;
+  },
+  toggleGit: () => {
+    gitOpen.value = !gitOpen.value;
+  },
+  openNotifications: () => {
+    notificationsOpen.value = true;
+    notifications.markAllRead();
+  },
+  openWorktrees: () => {
+    // 与 Git 抽屉同一口径：优先当前会话的项目，没有会话时退回第一个已登记项目。
+    const projectId = gitProjectId.value ?? store.state.projects[0]?.id ?? null;
+    if (projectId) worktreeProjectId.value = projectId;
+  },
+  newTemporarySession: newTemporary,
+  closeActiveSession: () => {
+    const tab = activeTab.value;
+    if (tab) void store.closeTab(tab.sessionId);
+  },
+  reopenActiveSession: retry,
+  toggleTheme,
+  copyDataDirectory: () => {
+    void copyDataDirectory();
+  },
+};
+
+/**
+ * 命令面板的可用性上下文。
+ *
+ * 只传「有没有会话 / 项目」这类布尔事实：把整个 workspace 状态交给注册表，
+ * 纯逻辑就会悄悄依赖响应式结构，测试也就造不出夹具了。
+ */
+const paletteContext = computed(() =>
+  commandContext({
+    hasActiveSession: activeTab.value !== null,
+    hasProject: store.hasProjects,
+  }),
+);
+
+/** 执行一条命令：先收起面板再执行，设置弹窗/抽屉才不会被面板盖住。 */
+function runCommand(command: CommandEntry) {
+  paletteOpen.value = false;
+  command.run(commandActions);
+}
+
 /** 输入变化：防抖在 store 侧按会话登记，这里只决定「发请求」还是「取消待触发」。 */
 function onSearchQuery(value: string) {
   const tab = activeTab.value;
@@ -553,8 +648,14 @@ function onKeydown(event: KeyboardEvent) {
     event.preventDefault();
     inspectorOpen.value = !inspectorOpen.value;
   } else if (key === "k") {
+    // Ctrl/⌘+K：命令面板（V4 interaction-inventory 的「命令面板触发」）。
+    // 「新建临时会话」改为命令面板里的一条命令，不再占用这个组合键。
     event.preventDefault();
-    newTemporary();
+    paletteOpen.value = !paletteOpen.value;
+  } else if (key === ",") {
+    // Ctrl/⌘+,：打开设置（与 macOS 的通用约定一致）。
+    event.preventDefault();
+    openSettings(null);
   } else if (key === "f") {
     // Ctrl+F / ⌘F：打开搜索抽屉并把焦点放进搜索框（浏览器默认的页内查找在这里没有意义）。
     event.preventDefault();
@@ -614,7 +715,7 @@ onUnmounted(() => {
       @add-project="(root: string) => void store.addProject(root)"
       @refresh-project="(id: string) => void store.refreshProject(id)"
       @open-worktrees="openWorktrees"
-      @open-settings="settingsOpen = true"
+      @open-settings="openSettings(null)"
       @toggle-theme="toggleTheme"
     />
 
@@ -844,8 +945,18 @@ onUnmounted(() => {
       @prune="pruneWorktrees"
     />
 
+    <CommandPalette
+      v-if="paletteOpen"
+      :commands="COMMANDS"
+      :context="paletteContext"
+      @close="paletteOpen = false"
+      @run="runCommand"
+    />
+
     <SettingsDialog
       :open="settingsOpen"
+      :initial-tab="settingsTab"
+      :request="settingsRequest"
       :theme="theme"
       :appearance="appearance"
       :busy-delivery="busyDelivery"

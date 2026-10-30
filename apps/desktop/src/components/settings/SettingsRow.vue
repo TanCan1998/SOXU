@@ -1,28 +1,39 @@
-<script setup lang="ts">
-/**
- * 设置项的统一行布局（Issue #116）：左侧标题 + 说明，右侧控件，下方可选注释。
- *
- * 为什么做成组件：四个页面共 26 个设置项，行距、标签字号、注释样式必须一致；
- * 逐个页面手写 <div class="field"> 迟早漂移。
- *
- * 无障碍：标题元素带 useId 生成的 id，并通过插槽把 labelId 交给控件，
- * 控件用它做 aria-labelledby —— 读屏读到的名字与界面上的可见标题逐字一致。
- */
+<!--
+  设置项的统一行布局（Issue #116，Issue #123 起标题改由元数据目录提供）。
 
+  为什么做成组件：四个页面共 20 个设置项，行距、标签字号、注释样式必须一致；
+  逐个页面手写 <div class="field"> 迟早漂移。
+
+  为什么标题不写在面板里：Issue #123 要求「命令注册表与设置项共用一份元数据」。
+  标题与默认说明统一来自 settings/catalog.ts，面板只写 setting="appearance.theme"，
+  于是「设置页显示的名字」与「命令面板搜到的名字」在结构上不可能不一致。
+
+  无障碍：标题元素带 useId 生成的 id，并通过插槽把 labelId 交给控件，
+  控件用它做 aria-labelledby —— 读屏读到的名字与界面上的可见标题逐字一致。
+-->
+<script setup lang="ts">
+import { computed } from "vue";
 import { useId } from "reka-ui";
 
-defineProps<{
-  label: string;
+import { settingsEntry } from "../../settings/catalog.ts";
+
+const props = defineProps<{
+  /** 设置项 id（settings/catalog.ts），标题与默认说明都由它决定。 */
+  setting: string;
+  /** 覆盖目录里的说明：仅用于含动态值的行（当前版本 / 数据目录 / 平台）。 */
   description?: string;
 }>();
+
+const meta = computed(() => settingsEntry(props.setting));
+const description = computed(() => props.description ?? meta.value.description);
 
 const labelId = useId();
 </script>
 
 <template>
-  <div class="row">
+  <div class="row" :data-setting="setting">
     <div class="row-text">
-      <p :id="labelId" class="row-label">{{ label }}</p>
+      <p :id="labelId" class="row-label">{{ meta.label }}</p>
       <p v-if="description" class="row-desc">{{ description }}</p>
     </div>
     <div class="row-control">

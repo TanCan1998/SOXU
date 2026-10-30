@@ -81,7 +81,8 @@ test("版本与平台信息只保留在「设置 → 关于」，不在主界面
     join(SRC_ROOT, "components", "settings", "SettingsSystem.vue"),
     "utf8",
   );
-  assert.ok(settings.includes("关于"), "版本信息收进「设置 → 关于」");
+  // Issue #123 起行标题来自 settings/catalog.ts，这里按设置项 id 定位「关于」这一行。
+  assert.ok(settings.includes('setting="system.about"'), "版本信息收进「设置 → 关于」");
   assert.ok(settings.includes("appVersion"), "「关于」保留版本信息");
   assert.ok(settings.includes("连接状态"), "连接状态用状态表述，不写技术栈名词");
 });

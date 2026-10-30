@@ -569,7 +569,8 @@ test("设置面板文案与真实作用域一致：等宽档说的是「界面�
   const source = await readSource("components/settings/SettingsAppearance.vue");
   const withoutComments = source.replace(/<!--[\s\S]*?-->/g, "");
 
-  const fieldStart = withoutComments.indexOf('label="界面字体"');
+  // Issue #123 起行标题由 settings/catalog.ts 提供，锚点改成设置项 id。
+  const fieldStart = withoutComments.indexOf('setting="appearance.fontFamily"');
   assert.ok(fieldStart > 0, "外观页里应该有界面字体字段");
 
   // 说明文案写在该字段的 <template #note> 里；取到这一行的 </SettingsRow> 为止。
