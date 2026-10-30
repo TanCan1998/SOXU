@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "issueLabel": "agent:ready",
   "maxConcurrentAgents": 2,
   "maxRoundsPerInvocation": 5,
   "maxRetries": 1,
