@@ -105,7 +105,14 @@ fn normalize_name(program: &str) -> Result<String> {
         return Err(PtyError::new(PtyErrorCode::InvalidShell, "shell 不能为空"));
     }
     // 拒绝把参数塞进程序名的写法（"pwsh -c x"）：参数只走 argv 数组。
-    if trimmed.contains([' ', '\t', '"', '\'', ';', '|', '&', '>', '<', '`']) {
+    // 但绝对路径里的空格是合法的：Windows 的 PowerShell 7 就装在
+    // "C:\Program Files\PowerShell\7\pwsh.exe"，用它当默认 shell 时曾整个终端起不来。
+    let forbidden: &[char] = if looks_like_path(trimmed) {
+        &['"', '\'', ';', '|', '&', '>', '<', '`']
+    } else {
+        &[' ', '\t', '"', '\'', ';', '|', '&', '>', '<', '`']
+    };
+    if trimmed.contains(forbidden) {
         return Err(PtyError::new(
             PtyErrorCode::InvalidShell,
             format!("shell 只能是程序名或绝对路径，不能包含参数：{trimmed}"),
@@ -122,6 +129,12 @@ fn normalize_name(program: &str) -> Result<String> {
     }
     // 裸名要尽量解析成绝对路径：子进程的 PATH 可能与 SOXU 不同，绝对路径更确定。
     Ok(locate(trimmed).unwrap_or_else(|| trimmed.to_owned()))
+}
+
+/// 绝对路径或带目录分隔符的写法按路径处理；裸名（可能夹带参数）按程序名校验。
+fn looks_like_path(program: &str) -> bool {
+    let path = Path::new(program);
+    path.is_absolute() || path.components().count() > 1
 }
 
 /// 规范化基名：去目录、转小写、去 `.exe`。测试与白名单比较都用它。
@@ -197,6 +210,20 @@ mod tests {
             let error = ShellSpec::new(program, Vec::new()).expect_err("程序名不能夹带参数");
             assert_eq!(error.code(), PtyErrorCode::InvalidShell, "{program}");
         }
+    }
+
+    #[test]
+    fn absolute_paths_with_spaces_are_accepted() {
+        // Windows 的 PowerShell 7 装在 "C:\Program Files\PowerShell\7\pwsh.exe"：
+        // 空格属于路径的一部分，不能被当成「夹带参数」。
+        let program = if cfg!(windows) {
+            r"C:\Program Files\PowerShell\7\pwsh.exe"
+        } else {
+            "/opt/pwsh dir/pwsh"
+        };
+        let spec = ShellSpec::resolve(Some(program)).expect("绝对路径里的空格不应被拒绝");
+        assert_eq!(spec.program(), program);
+        assert_eq!(spec.args(), ["-NoLogo"]);
     }
 
     #[test]
