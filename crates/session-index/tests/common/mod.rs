@@ -24,7 +24,9 @@ impl TempDir {
             std::process::id()
         ));
         fs::create_dir_all(&path).expect("创建临时目录");
-        Self { path }
+        Self {
+            path: canonical_root(path),
+        }
     }
 
     pub fn path(&self) -> &Path {
@@ -39,6 +41,22 @@ impl TempDir {
         let path = self.child(name);
         fs::create_dir_all(&path).expect("创建子目录");
         path
+    }
+}
+
+/// 统一成 canonical 路径的字符串形式：真实大小写、长文件名、无 Windows verbatim 前缀。
+///
+/// 临时目录在 macOS 上是 `/var` → `/private/var` 的符号链接、在 Windows runner 上带
+/// 8.3 短名（`RUNNER~1`），不规范化就会让「测试给的路径」和「目录里存的 canonical 路径」
+/// 永远不相等 —— 这类断言本机过、CI 必挂。
+fn canonical_root(path: PathBuf) -> PathBuf {
+    let Ok(canonical) = fs::canonicalize(&path) else {
+        return path;
+    };
+    let text = canonical.to_string_lossy();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => canonical,
     }
 }
 
