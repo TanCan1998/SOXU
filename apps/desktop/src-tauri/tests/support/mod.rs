@@ -18,6 +18,13 @@ impl Sandbox {
             .unwrap_or_default();
         let root = std::env::temp_dir().join(format!("soxu-files-{name}-{stamp}"));
         std::fs::create_dir_all(&root).expect("创建测试沙箱");
+        let root = std::fs::canonicalize(&root).unwrap_or(root);
+        // 统一成 canonical 形式：真实大小写、长文件名、无 Windows verbatim 前缀。
+        let text = root.to_string_lossy().into_owned();
+        let root = match text.strip_prefix(r"\\?\") {
+            Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+            _ => root,
+        };
         Self { root }
     }
 

@@ -98,7 +98,13 @@ fn temp_dir(name: &str) -> std::path::PathBuf {
         .unwrap_or_default();
     let dir = std::env::temp_dir().join(format!("soxu-pty-{name}-{stamp}"));
     std::fs::create_dir_all(&dir).expect("创建临时目录");
-    dir
+    let dir = std::fs::canonicalize(&dir).unwrap_or(dir);
+    // 统一成 canonical 形式：真实大小写、长文件名、无 Windows verbatim 前缀。
+    let text = dir.to_string_lossy().into_owned();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => std::path::PathBuf::from(rest),
+        _ => dir,
+    }
 }
 
 #[test]
@@ -235,7 +241,10 @@ fn large_output_is_coalesced_into_a_few_events() {
     // 2000 行 ≈ 20 KiB：逐字节推送会产生上千次事件，节流后应该只有个位数。
     const LINES: usize = 2000;
     let dir = temp_dir("throttle");
-    let file = dir.join("big.txt");
+    // 只用相对文件名：绝对路径可能含空格（用户名、Program Files），
+    // 拼进 shell 命令后要靠引号才能正确解析，而引号在 cmd /C 下还有一层转义坑。
+    let file_name = "big.txt";
+    let file = dir.join(file_name);
     let mut content = String::new();
     for index in 0..LINES {
         content.push_str(&format!("line-{index}\n"));
@@ -243,9 +252,9 @@ fn large_output_is_coalesced_into_a_few_events() {
     std::fs::write(&file, &content).expect("写临时文件");
 
     let command = if cfg!(windows) {
-        format!("type {}", file.display())
+        format!("type {file_name}")
     } else {
-        format!("cat {}", file.display())
+        format!("cat {file_name}")
     };
     let recorder = Recorder::default();
     let service = PtyService::new(recorder.sink());

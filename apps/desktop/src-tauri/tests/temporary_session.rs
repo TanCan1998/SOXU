@@ -17,7 +17,14 @@ fn temp_dir(name: &str) -> PathBuf {
         .unwrap_or_default();
     let dir = std::env::temp_dir().join(format!("soxu-temp-{name}-{stamp}"));
     fs::create_dir_all(&dir).expect("创建临时目录");
-    dir
+    let dir = std::fs::canonicalize(&dir).unwrap_or(dir);
+    // 统一成 canonical 形式：真实大小写、长文件名、无 Windows verbatim 前缀。
+    // 测试给出的路径必须与 git/目录里存的形式一致，否则 win/mac 与本地结论不同。
+    let text = dir.to_string_lossy().into_owned();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => dir,
+    }
 }
 
 fn write_session(sessions_root: &Path, project_root: &Path, id: &str) -> PathBuf {
