@@ -21,6 +21,7 @@ import type {
   SendPromptOptions,
   SessionSearchResult,
   SessionId,
+  SessionStats,
   SessionMode,
   TemporarySessionView,
   WorktreeDiffView,
@@ -95,6 +96,34 @@ export function emptySearchResult(
   };
 }
 
+/** 「什么都没观测到」的统计快照：所有数值为 null，前端必须显示占位。 */
+export function emptyStats(sessionId: SessionId): SessionStats {
+  return {
+    sessionId,
+    runtimeId: null,
+    generation: null,
+    context: { used: null, total: null, percent: null },
+    turn: {
+      turns: null,
+      inFlight: false,
+      firstTokenMs: null,
+      durationMs: null,
+      streamTokensPerSec: null,
+      avgTokensPerSec: null,
+      cacheHitPct: null,
+    },
+    process: { rssMb: null, cpuPct: null, childCount: null, degraded: [] },
+    session: {
+      entriesTotal: null,
+      worktree: null,
+      inputTokens: null,
+      outputTokens: null,
+      retry: null,
+    },
+    updatedAtMs: null,
+  };
+}
+
 export function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve: () => void = () => {};
   const promise = new Promise<void>((settle) => {
@@ -127,6 +156,10 @@ export class FakeBridge implements WorkspaceBridge {
   searchError: string | null = null;
   searchGate: Promise<void> | null = null;
   status: RuntimeStatus | null = null;
+  /** 统计快照（Issue #119）：用例按需覆盖；默认是「什么都没观测到」。 */
+  stats: SessionStats | null = null;
+  statsError: string | null = null;
+  statsGate: Promise<void> | null = null;
   /** 后端下发的重试预算快照；测试按需注入，默认没有（旧后端行为）。 */
   retry: RetryStatus | null = null;
   worktreeRoot = "F:/work/project";
@@ -320,6 +353,13 @@ export class FakeBridge implements WorkspaceBridge {
   async runtimeStatus(): Promise<RuntimeStatus | null> {
     this.calls.push({ method: "runtimeStatus", args: [] });
     return this.status;
+  }
+
+  async sessionStats(sessionId: SessionId): Promise<SessionStats> {
+    this.calls.push({ method: "sessionStats", args: [sessionId] });
+    if (this.statsGate) await this.statsGate;
+    if (this.statsError) throw new Error(this.statsError);
+    return this.stats ?? emptyStats(sessionId);
   }
 
   async retainSession(sessionId: SessionId): Promise<void> {

@@ -2906,6 +2906,7 @@ dependencies = [
  "soxu-agent-runtime",
  "soxu-git-worktree",
  "soxu-pi-protocol",
+ "soxu-resource-monitor",
  "soxu-session-index",
  "tauri",
  "tauri-build",

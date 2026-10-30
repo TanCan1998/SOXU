@@ -170,6 +170,81 @@ export interface SearchOptions {
   afterOrdinal?: number | null;
 }
 
+/**
+ * 上下文占用（composer 右侧圆环的数据源，Issue #119）。
+ *
+ * 三个字段都可能为 null：**没有观测到就不给 0**。`percent` 需要 `used` 与 `total`
+ * 同时存在才成立——模型窗口未知时界面显示占位圆环，绝不猜一个比例出来。
+ */
+export interface StatsContext {
+  used: number | null;
+  total: number | null;
+  percent: number | null;
+}
+
+/** 最近一轮（或正在进行的这一轮）的耗时与吞吐；缺数据时为 null。 */
+export interface StatsTurn {
+  turns: number | null;
+  /** 为真时 `durationMs` / `firstTokenMs` 是进行中的实时值。 */
+  inFlight: boolean;
+  firstTokenMs: number | null;
+  durationMs: number | null;
+  streamTokensPerSec: number | null;
+  avgTokensPerSec: number | null;
+  cacheHitPct: number | null;
+}
+
+/** 受管 Pi 进程树的资源占用（按需单次采样，不是轮询）。 */
+export interface StatsProcess {
+  rssMb: number | null;
+  /** 当前平台的采样器不提供 CPU：恒为 null，界面显示占位。 */
+  cpuPct: number | null;
+  childCount: number | null;
+  /** 降级原因标识（运行时未启动、平台不支持、部分进程已退出…）。 */
+  degraded: string[];
+}
+
+/** 会话自身的信息：条目数、工作树、累计 token 与重试预算。 */
+export interface StatsSessionInfo {
+  entriesTotal: number | null;
+  worktree: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  retry: RetryStatus | null;
+}
+
+/** `session_stats` 的返回（Rust `dto::SessionStats` 的镜像）。 */
+export interface SessionStats {
+  sessionId: SessionId;
+  runtimeId: string | null;
+  generation: number | null;
+  context: StatsContext;
+  turn: StatsTurn;
+  process: StatsProcess;
+  session: StatsSessionInfo;
+  /** 最后一次观测到事件的时间；null 表示本次进程还没观测到任何事件。 */
+  updatedAtMs: number | null;
+}
+
+/**
+ * 一个 Tab 的统计状态。
+ *
+ * `seq` 是请求序号：统计是异步拉取的，迟到响应不得覆盖更新的结果。
+ * `pending` 是合并标记：刷新进行中又来了一次事件时，只排队一次补拉，
+ * 避免「settled 紧跟 state」时丢掉最后一次刷新。
+ */
+export interface SessionStatsState {
+  loading: boolean;
+  pending: boolean;
+  error: string | null;
+  data: SessionStats | null;
+  seq: number;
+}
+
+export function createStatsState(): SessionStatsState {
+  return { loading: false, pending: false, error: null, data: null, seq: 0 };
+}
+
 export interface RuntimeStarted {
   sessionId: SessionId;
   runtimeId: string;
@@ -364,6 +439,8 @@ export interface WorkspaceBridge {
   cancelRuntime(sessionId: SessionId): Promise<void>;
   stopRuntime(sessionId: SessionId): Promise<void>;
   runtimeStatus(sessionId: SessionId): Promise<RuntimeStatus | null>;
+  /** 上下文环 / 统计浮窗 / 底部统计行共用这一个入口；只在事件驱动的时机调用。 */
+  sessionStats(sessionId: SessionId): Promise<SessionStats>;
   retainSession(sessionId: SessionId): Promise<void>;
   releaseSession(sessionId: SessionId): Promise<void>;
   listWorktrees(projectId: ProjectId): Promise<WorktreeWorkspace>;
@@ -474,6 +551,8 @@ export interface SessionTab {
   messages: ChatMessage[];
   history: HistoryCursor;
   runtime: TabRuntime;
+  /** 统计快照（Issue #119）：由事件驱动刷新，不做轮询。 */
+  stats: SessionStatsState;
   draft: string;
   diagnostics: string[];
   /** 转正请求正在进行：UI 必须等后端结果，不能先显示「已保存」。 */

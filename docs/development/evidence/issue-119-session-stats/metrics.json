@@ -1,0 +1,293 @@
+{
+  "generatedAt": "2026-10-29T23:55:21.370Z",
+  "viewport": {
+    "width": 720,
+    "height": 560
+  },
+  "browser": "Edg/156.0.4314.50",
+  "shots": [
+    "stats-rings.png",
+    "stats-popover.png"
+  ],
+  "checks": [
+    {
+      "name": "四档 data-tone：accent / warn / danger / unknown",
+      "ok": true,
+      "actual": [
+        "accent",
+        "warn",
+        "danger",
+        "unknown"
+      ]
+    },
+    {
+      "name": "三档描边色互不相同",
+      "ok": true,
+      "actual": [
+        "rgb(58, 131, 247)",
+        "rgb(168, 118, 42)",
+        "rgb(192, 57, 43)"
+      ]
+    },
+    {
+      "name": "无窗口信息时不画弧（没有 ring-value）",
+      "ok": true,
+      "actual": null
+    },
+    {
+      "name": "圆环读屏标签写明占用率",
+      "ok": true,
+      "actual": "上下文占用 92.0%（184.0k / 200.0k token）（打开统计浮窗）"
+    },
+    {
+      "name": "空态统计行每一项都是占位（不是 0）",
+      "ok": true,
+      "actual": [
+        {
+          "label": "轮次",
+          "value": "—"
+        },
+        {
+          "label": "首 token",
+          "value": "—"
+        },
+        {
+          "label": "回复耗时",
+          "value": "—"
+        },
+        {
+          "label": "流式",
+          "value": "—"
+        },
+        {
+          "label": "均速",
+          "value": "—"
+        },
+        {
+          "label": "缓存命中",
+          "value": "—"
+        },
+        {
+          "label": "输入/输出",
+          "value": "— / —"
+        }
+      ]
+    },
+    {
+      "name": "有数据时统计行给出真实数值",
+      "ok": true,
+      "actual": "轮次=3 | 首 token=420 ms | 回复耗时=2.40 s | 流式=12.5 tok/s | 均速=9.5 tok/s | 缓存命中=80.0% | 输入/输出=9.0k / 1.2k"
+    },
+    {
+      "name": "浮窗背景不透明",
+      "ok": true,
+      "actual": "rgb(252, 252, 252)"
+    },
+    {
+      "name": "浮窗字号不超过 12px（浮层不是正文）",
+      "ok": true,
+      "actual": "11.5px"
+    },
+    {
+      "name": "浮窗包含「上下文」",
+      "ok": true,
+      "actual": "上下文"
+    },
+    {
+      "name": "浮窗包含「上一轮」",
+      "ok": true,
+      "actual": "上一轮"
+    },
+    {
+      "name": "浮窗包含「进程」",
+      "ok": true,
+      "actual": "进程"
+    },
+    {
+      "name": "浮窗包含「会话」",
+      "ok": true,
+      "actual": "会话"
+    },
+    {
+      "name": "浮窗包含「已用」",
+      "ok": true,
+      "actual": "已用"
+    },
+    {
+      "name": "浮窗包含「重试预算」",
+      "ok": true,
+      "actual": "重试预算"
+    },
+    {
+      "name": "浮窗展示 CPU 不可用的原因",
+      "ok": true,
+      "actual": true
+    },
+    {
+      "name": "页面没有脚本异常",
+      "ok": true,
+      "actual": []
+    }
+  ],
+  "observed": {
+    "cases": [
+      {
+        "key": "accent",
+        "tone": "accent",
+        "stroke": "rgb(58, 131, 247)",
+        "ariaLabel": "上下文占用 42.0%（84.0k / 200.0k token）（打开统计浮窗）",
+        "row": [
+          {
+            "label": "轮次",
+            "value": "3"
+          },
+          {
+            "label": "首 token",
+            "value": "420 ms"
+          },
+          {
+            "label": "回复耗时",
+            "value": "2.40 s"
+          },
+          {
+            "label": "流式",
+            "value": "12.5 tok/s"
+          },
+          {
+            "label": "均速",
+            "value": "9.5 tok/s"
+          },
+          {
+            "label": "缓存命中",
+            "value": "80.0%"
+          },
+          {
+            "label": "输入/输出",
+            "value": "9.0k / 1.2k"
+          }
+        ]
+      },
+      {
+        "key": "warn",
+        "tone": "warn",
+        "stroke": "rgb(168, 118, 42)",
+        "ariaLabel": "上下文占用 72.0%（144.0k / 200.0k token）（打开统计浮窗）",
+        "row": [
+          {
+            "label": "轮次",
+            "value": "3"
+          },
+          {
+            "label": "首 token",
+            "value": "420 ms"
+          },
+          {
+            "label": "回复耗时",
+            "value": "2.40 s"
+          },
+          {
+            "label": "流式",
+            "value": "12.5 tok/s"
+          },
+          {
+            "label": "均速",
+            "value": "9.5 tok/s"
+          },
+          {
+            "label": "缓存命中",
+            "value": "80.0%"
+          },
+          {
+            "label": "输入/输出",
+            "value": "9.0k / 1.2k"
+          }
+        ]
+      },
+      {
+        "key": "danger",
+        "tone": "danger",
+        "stroke": "rgb(192, 57, 43)",
+        "ariaLabel": "上下文占用 92.0%（184.0k / 200.0k token）（打开统计浮窗）",
+        "row": [
+          {
+            "label": "轮次",
+            "value": "3"
+          },
+          {
+            "label": "首 token",
+            "value": "420 ms"
+          },
+          {
+            "label": "回复耗时",
+            "value": "2.40 s"
+          },
+          {
+            "label": "流式",
+            "value": "12.5 tok/s"
+          },
+          {
+            "label": "均速",
+            "value": "9.5 tok/s"
+          },
+          {
+            "label": "缓存命中",
+            "value": "80.0%"
+          },
+          {
+            "label": "输入/输出",
+            "value": "9.0k / 1.2k"
+          }
+        ]
+      },
+      {
+        "key": "empty",
+        "tone": "unknown",
+        "stroke": null,
+        "ariaLabel": "上下文占用未知（打开统计浮窗）",
+        "row": [
+          {
+            "label": "轮次",
+            "value": "—"
+          },
+          {
+            "label": "首 token",
+            "value": "—"
+          },
+          {
+            "label": "回复耗时",
+            "value": "—"
+          },
+          {
+            "label": "流式",
+            "value": "—"
+          },
+          {
+            "label": "均速",
+            "value": "—"
+          },
+          {
+            "label": "缓存命中",
+            "value": "—"
+          },
+          {
+            "label": "输入/输出",
+            "value": "— / —"
+          }
+        ]
+      }
+    ],
+    "popoverText": "上下文与统计\n\n上下文\n\n已用\n92.0%\n184.0k / 200.0k token\n\n上一轮\n\n轮次\n3\n首 token\n420 ms\n回复耗时\n2.40 s\n流式速度\n12.5 tok/s\n均速\n9.5 tok/s\n缓存命中\n80.0%\n\n进程\n\n内存\n128.5 MB\nCPU\n—\n当前平台采样器不提供 CPU 占用\n子进程\n1\n\n会话\n\n载入 / 条目\n240 / 1,203\n输入 token\n9.0k\n输出 token\n1.2k\n重试预算\n—\n未发生重试\n\n当前平台不提供 CPU 占用\n\n工作树：F:/work/soxu",
+    "popoverStyle": {
+      "background": "rgb(252, 252, 252)",
+      "fontSize": "11.5px",
+      "zIndex": "60",
+      "rect": {
+        "x": 8,
+        "y": -111,
+        "w": 292,
+        "h": 420
+      }
+    }
+  },
+  "passed": true
+}

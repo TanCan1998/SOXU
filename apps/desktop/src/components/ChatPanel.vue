@@ -4,6 +4,7 @@ import { CircleAlert, CircleStop, RefreshCw, Save } from "@lucide/vue";
 import AppTooltip from "./AppTooltip.vue";
 import ChatComposer from "./ChatComposer.vue";
 import MessageList from "./MessageList.vue";
+import { composeStatsView } from "./sessionStats.ts";
 import type { BusySendDelivery } from "../settings/busyDelivery.ts";
 import type { SessionSettings } from "../settings/sessionSettings.ts";
 import type { SendMode, SessionTab } from "../workspace/types.ts";
@@ -29,8 +30,17 @@ const emit = defineEmits<{
   (event: "load-more"): void;
   (event: "retry"): void;
   (event: "promote"): void;
+  (event: "refresh-stats"): void;
   (event: "update:draft", value: string): void;
 }>();
+
+/**
+ * 统计视图：后端快照 + 本 Tab 的内存窗口（已载入条数）。
+ *
+ * 合成规则在 sessionStats.ts 里，组件不自己拼数字；这样浮窗与底部统计行
+ * 拿到的是**同一个对象**，不可能出现两处显示不同值。
+ */
+const statsView = computed(() => composeStatsView(props.tab.stats.data, props.tab));
 
 const statusLabel = computed(() => {
   switch (props.tab.status) {
@@ -163,6 +173,10 @@ const runtimeHint = computed(() => {
       :default-delivery="defaultDelivery"
       :enter-to-send="settings.enterToSend"
       :has-project="Boolean(tab.projectId)"
+      :stats-view="statsView"
+      :stats-loading="tab.stats.loading"
+      :stats-error="tab.stats.error"
+      @refresh-stats="emit('refresh-stats')"
       @update:draft="emit('update:draft', $event)"
       @send="(mode: SendMode | null) => emit('send', { text: tab.draft, mode })"
       @cancel="emit('cancel')"

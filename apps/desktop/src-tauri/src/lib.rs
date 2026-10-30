@@ -14,6 +14,7 @@ pub mod dto;
 pub mod retry_store;
 pub mod session_runtime;
 pub mod state;
+pub mod stats;
 pub mod tray;
 pub mod workspace;
 pub mod worktree;
@@ -82,6 +83,7 @@ pub fn run() {
             // ── pty（V4：新 command 只加在本行下方）──
             // ── model（V4：新 command 只加在本行下方）──
             // ── stats（V4：新 command 只加在本行下方）──
+            commands::session_stats,
             // ── outline（V4：新 command 只加在本行下方）──
             // ── extension（V4：新 command 只加在本行下方）──
             // ── notify（V4：新 command 只加在本行下方）──
@@ -118,5 +120,7 @@ mod tests {
         // workspace 与 history 的其余入口同样必须能从 commands 顶层取到。
         let _ = commands::runtime_info;
         let _ = commands::search_session;
+        // V4 新领域：stats 块里的第一条命令也必须能从 commands 顶层取到。
+        let _ = commands::session_stats;
     }
 }

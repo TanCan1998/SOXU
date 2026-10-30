@@ -18,6 +18,8 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::dto::RuntimeExit;
 use crate::events::{RuntimeEvent, RuntimeEventKind, map_event};
+use crate::state::lock;
+use crate::stats::StatsStore;
 use crate::watch::{EventFanout, GenerationGate};
 
 type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
@@ -126,6 +128,8 @@ pub struct DriverContext {
     pub gate: Arc<GenerationGate>,
     pub fanout: Arc<EventFanout>,
     pub statuses: Arc<Mutex<HashMap<String, RunStatus>>>,
+    /// 会话统计的唯一写者就是本驱动任务：与事件分发同一条路径，不额外起线程。
+    pub stats: Arc<Mutex<StatsStore>>,
     pub sink: Arc<dyn Fn(RuntimeEvent) + Send + Sync>,
 }
 
@@ -198,6 +202,9 @@ pub async fn drive(
                     context.update_status(&session_id, |status| {
                         status.state = "running".to_owned();
                     });
+                    // 只有 Pi 真的接受了 prompt 才开始计时：被拒绝的命令不算一轮，
+                    // 否则首 token 延迟会凭空多出一次失败的等待。
+                    lock(&context.stats).note_prompt(&session_id, std::time::Instant::now());
                 }
                 let _ = reply.send(result);
             }
@@ -238,6 +245,8 @@ fn handle_event(
     let Some(kind) = map_event(event) else {
         return false;
     };
+    // 统计累加与事件分发走同一条已过闸门的路径：迟到事件既不上屏，也不进统计。
+    lock(&context.stats).observe(session_id, &kind, std::time::Instant::now());
     match &kind {
         RuntimeEventKind::State { state } => context.update_status(session_id, |status| {
             status.state = state.clone();
@@ -316,8 +325,15 @@ mod tests {
             gate,
             fanout,
             statuses,
+            stats: Arc::new(Mutex::new(StatsStore::new())),
             sink: Arc::new(move |event| emitted.lock().unwrap().push(event)),
         }
+    }
+
+    /// 在既有上下文上换一份共享统计表：用例据此断言「统计与事件流同源」。
+    fn with_stats(mut context: DriverContext, stats: Arc<Mutex<StatsStore>>) -> DriverContext {
+        context.stats = stats;
+        context
     }
 
     fn status(session: &str, generation: u64) -> RunStatus {
@@ -484,6 +500,84 @@ mod tests {
             "命令必须按提交顺序串行执行，且停止只发生一次"
         );
         assert_eq!(statuses.lock().unwrap()["ses_a"].state, "exited");
+    }
+
+    /// Issue #119 验收「浮窗数值与事件流一致」：统计只由驱动消费的同一批事件累加，
+    /// 因此轮次 / 首 token / 上下文占用与上屏的事件完全对应。
+    #[tokio::test]
+    async fn statistics_are_accumulated_from_the_same_event_stream() {
+        let (tx, rx) = mpsc::channel(8);
+        let port = ScriptedPort {
+            events: rx,
+            calls: Arc::new(Mutex::new(Vec::new())),
+            runtime_id: "ses_a#1".to_owned(),
+        };
+        let gate = Arc::new(GenerationGate::new());
+        gate.begin("ses_a", 1);
+        let fanout = Arc::new(EventFanout::new());
+        fanout.attach("ses_a");
+        let statuses = Arc::new(Mutex::new(HashMap::from([(
+            "ses_a".to_owned(),
+            status("ses_a", 1),
+        )])));
+        let emitted = Arc::new(Mutex::new(Vec::new()));
+        let stats = Arc::new(Mutex::new(StatsStore::new()));
+        let (control_tx, control_rx) = mpsc::channel(4);
+        let driver = tokio::spawn(drive(
+            Box::new(port),
+            "ses_a".to_owned(),
+            1,
+            control_rx,
+            with_stats(
+                context(
+                    Arc::clone(&fanout),
+                    Arc::clone(&gate),
+                    Arc::clone(&statuses),
+                    Arc::clone(&emitted),
+                ),
+                Arc::clone(&stats),
+            ),
+        ));
+
+        // Pi 接受了 prompt：开始计时一轮。
+        let (reply_tx, reply_rx) = oneshot::channel();
+        control_tx
+            .send(RunCommand::Prompt {
+                text: "统计一下".to_owned(),
+                reply: reply_tx,
+            })
+            .await
+            .unwrap();
+        assert!(reply_rx.await.unwrap().is_ok());
+
+        tx.send(SupervisorEvent::AgentEvent {
+            kind: "message_update".to_owned(),
+            data: Some(serde_json::json!({
+                "delta": "好的",
+                "message": { "usage": { "input": 1_000, "output": 200, "cacheRead": 1_000 } }
+            })),
+        })
+        .await
+        .unwrap();
+        tx.send(SupervisorEvent::Settled).await.unwrap();
+        drop(tx);
+        driver.await.unwrap();
+        drop(control_tx);
+
+        let snapshot = stats
+            .lock()
+            .unwrap()
+            .snapshot("ses_a", std::time::Instant::now())
+            .expect("观测过事件就必须有统计");
+        assert_eq!(snapshot.turns, Some(1), "settled 才算一轮");
+        assert!(
+            snapshot.first_token_ms.is_some(),
+            "第一个带文本的流式事件就是首 token"
+        );
+        assert_eq!(snapshot.context_used, Some(2_000), "input + cacheRead");
+        assert_eq!(snapshot.cache_hit_pct, Some(50.0));
+        // 上屏的事件数量不受统计影响：统计是旁路，不是第二个消费者。
+        assert_eq!(emitted.lock().unwrap().len(), 2);
     }
 
     #[tokio::test]

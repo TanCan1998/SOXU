@@ -24,4 +24,7 @@ soxu-pi-protocol = { path = "../../../crates/pi-protocol" }
 soxu-agent-runtime = { path = "../../../crates/agent-runtime" }
 soxu-session-index = { path = "../../../crates/session-index" }
 soxu-git-worktree = { path = "../../../crates/git-worktree" }
+# 进程树采样（Issue #119 的统计浮窗）：复用内存预算的同一套平台实现，
+# 不再引入第三方的 sysinfo 之类依赖；单次按需采样，不新增常驻线程。
+soxu-resource-monitor = { path = "../../../crates/resource-monitor" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
