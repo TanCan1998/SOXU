@@ -74,7 +74,14 @@ test("版本与平台信息只保留在「设置 → 关于」，不在主界面
   const app = await readFile(join(SRC_ROOT, "App.vue"), "utf8");
   assert.ok(!app.includes("appVersion"), "顶部栏不应渲染版本号");
   assert.ok(!app.includes("info.platform"), "顶部栏不应渲染平台名");
-  assert.ok(app.includes("已连接"), "顶部栏仍需一眼可见的连接状态");
+  // 连接状态文案自 Issue #135 起走语言包：源码里是 key，字面量在基准包里。
+  assert.ok(app.includes('t("common.status.connected")'), "顶部栏仍需一眼可见的连接状态");
+  assert.ok(app.includes('t("common.status.disconnected")'), "未连接状态同样走语言包");
+  const common = JSON.parse(
+    await readFile(join(SRC_ROOT, "locales", "zh-CN", "common.json"), "utf8"),
+  ) as Record<string, string>;
+  assert.equal(common["status.connected"], "已连接", "基准包必须提供连接状态文案");
+  assert.equal(common["status.disconnected"], "未连接", "基准包必须提供未连接文案");
 
   // Issue #116 起「关于」在系统页（设置 → 系统 → 关于），外壳只保留标题与说明。
   const settings = await readFile(

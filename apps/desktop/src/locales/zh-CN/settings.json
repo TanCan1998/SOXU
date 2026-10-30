@@ -1,0 +1,21 @@
+{
+  "locale.section": "语言包 · {count} 个",
+  "locale.description": "语言包是纯 JSON 数据文件：复制基准包、翻译后提交或直接导入，不需要改代码。",
+  "locale.builtin": "内置语言",
+  "locale.imported": "导入的语言包",
+  "locale.none": "还没有导入过语言包",
+  "locale.import": "导入语言包",
+  "locale.importing": "正在读取…",
+  "locale.remove": "移除",
+  "locale.removed": "已移除 {tag}",
+  "locale.switched": "已切换到 {label}",
+  "locale.failed": "导入失败：{reason}",
+  "locale.imported.ok": "已导入 {tag}，共 {count} 条文案",
+  "locale.storage": "语言包保存在应用数据目录的 locales 子目录，不写入仓库，更新应用不会覆盖。",
+  "locale.dir": "目录：{path}",
+  "locale.bridge": "浏览器预览下不能导入语言包：需要桌面端的文件访问。",
+  "locale.partial": "缺失的键会回退到简体中文。",
+  "locale.active": "正在使用",
+  "locale.copied": "已复制基准包：翻译后存成 <tag>.json 再导入。",
+  "locale.copy.failed": "复制失败：剪贴板不可用。"
+}

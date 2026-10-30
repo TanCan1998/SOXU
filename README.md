@@ -132,6 +132,8 @@ UI 已批准采用 **参考 ChatGPT 的清爽对话优先体验**（不复制其
 
 V4 交互层（2026-10 起）已落地：设计 token 与深浅色双主题、设置四页（外观 / 会话 / 扩展 / 系统）、应用内通知（右下角 Toast + 声音提醒 + 历史抽屉，不使用 Windows 系统通知）、会话内全文搜索抽屉、上下文占用圆环与统计行、Git 更改抽屉、markdown + shiki 按需高亮、发送三选（加入当前 / 排到下轮 / 并行发送）。文件抽屉、终端抽屉、命令面板仍在排期中。
 
+国际化（Issue #135）：界面文案按模块拆成纯 JSON 语言包（`zh-CN` / `en-US`，一个切片只改自己模块），支持运行时切换与社区语言包导入；导入的包落在应用数据目录、不写入仓库也不随更新丢失。规则与社区翻译流程见 [国际化与语言包](docs/development/i18n.md)。
+
 ## 依赖锁文件与 CI 门禁
 
 仓库已提交 `pnpm-lock.yaml` 与 `Cargo.lock`。使用 `pnpm install --frozen-lockfile` 按锁文件安装，Rust 检查可使用 Cargo 的 `--locked` 参数。依赖版本变更应同时更新相应锁文件；锁文件存在不等于目标平台构建或验收已通过。工具链版本见 [工具链清单](docs/development/approved-toolchain.md)；其中有关锁文件尚未生成的历史说明已过时。
@@ -148,6 +150,7 @@ V4 交互层（2026-10 起）已落地：设计 token 与深浅色双主题、�
 | `docs/development/models.md` | 模型选择、角色、额度与命令 |
 | `docs/development/monitoring.md` | 本地 Web 控制台、pnpm、GitHub 进度监控 |
 | `docs/development/multi-session-workspace.md` | 多会话工作区：IPC 契约、事件过滤、历史分页与测试证据 |
+| `docs/development/i18n.md` | 国际化：语言包模块划分、key 约定、社区翻译导入与 CI 校验 |
 | `docs/architecture/worktree-service.md` | Git 工作树：枚举/创建、Diff、会话关联与受确认删除的安全契约 |
 | `docs/architecture/git-drawer.md` | Git 抽屉：更改列表徽章、单文件 diff、暂存/提交、推送/拉取的安全边界 |
 | `docs/design/` | 已审批的 UI/UX 设计基线与历史提案 |

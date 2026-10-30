@@ -1,0 +1,21 @@
+{
+  "locale.section": "Language packs · {count}",
+  "locale.description": "A language pack is plain JSON: copy the base pack, translate it, then commit or import it. No code changes.",
+  "locale.builtin": "Built-in languages",
+  "locale.imported": "Imported language packs",
+  "locale.none": "No language pack imported yet",
+  "locale.import": "Import language pack",
+  "locale.importing": "Reading…",
+  "locale.remove": "Remove",
+  "locale.removed": "Removed {tag}",
+  "locale.switched": "Switched to {label}",
+  "locale.failed": "Import failed: {reason}",
+  "locale.imported.ok": "Imported {tag} with {count} strings",
+  "locale.storage": "Language packs live in the locales folder of the app data directory: outside the repository, and kept across updates.",
+  "locale.dir": "Folder: {path}",
+  "locale.bridge": "Importing language packs needs the desktop app: the browser preview has no file access.",
+  "locale.partial": "Missing keys fall back to Simplified Chinese.",
+  "locale.active": "In use",
+  "locale.copied": "Base pack copied: translate it, save as <tag>.json, then import.",
+  "locale.copy.failed": "Copy failed: clipboard unavailable."
+}

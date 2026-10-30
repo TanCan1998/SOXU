@@ -135,7 +135,12 @@ test("App.vue：铃铛是活按钮，接上抽屉与 Toast 堆栈", async () => 
   const app = await read("App.vue");
 
   assert.ok(app.includes("Bell"), "顶栏需要铃铛图标");
-  assert.ok(app.includes('aria-label="通知历史"'), "铃铛要有无障碍名称");
+  // 文案自 Issue #135 起走语言包：断言绑定到 key，字面量在 zh-CN/common.json 里。
+  assert.match(
+    app,
+    /:aria-label="t\('common\.nav\.notifications'\)"/,
+    "铃铛要有无障碍名称（来自语言包 key）",
+  );
   assert.ok(app.includes('@click="toggleNotifications"'), "铃铛不能是死按钮");
   assert.ok(app.includes(':aria-expanded="notificationsOpen"'), "展开状态要暴露给读屏");
   assert.ok(app.includes("function toggleNotifications()"), "开关必须落到状态上");

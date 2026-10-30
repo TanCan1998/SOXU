@@ -126,6 +126,8 @@ The owner has approved a **ChatGPT-inspired, conversation-first layout** without
 
 V4 interaction layer (since 2026-10) is in place: design tokens with light/dark themes, a four-page settings dialog (appearance / session / extensions / system), in-app notifications (bottom-right toasts with sound and a history drawer — Windows system notifications are intentionally not used), an in-session full-text search drawer, a context-usage ring with a stats line, a Git changes drawer, on-demand markdown + shiki highlighting, and three send modes (join current / queue next / parallel). The file drawer, terminal drawer and command palette are still scheduled.
 
+Internationalization (Issue #135): UI strings live in per-module JSON language packs (`zh-CN` / `en-US`; a slice only edits its own module), with runtime switching and community language-pack import. Imported packs are stored in the app data directory — never in the repository, and never lost on update. Rules and the community translation workflow: [i18n and language packs](docs/development/i18n.md).
+
 ## Dependency locks and CI gate
 
 The repository includes `pnpm-lock.yaml` and `Cargo.lock`. Use `pnpm install --frozen-lockfile` and Cargo's `--locked` option to use the committed resolution. Update the relevant lockfile with dependency changes; committed lockfiles do not establish that target-platform builds or acceptance have passed. See the [approved toolchain](docs/development/approved-toolchain.md); its historical statement that lockfiles have not been generated is outdated.
@@ -141,6 +143,7 @@ The repository includes `pnpm-lock.yaml` and `Cargo.lock`. Use `pnpm install --f
 | `docs/product/prd.md` | Product scope and measurable acceptance targets |
 | `docs/development/models.md` | Model selection and budget rules |
 | `docs/development/monitoring.md` | Progress through the local dashboard, pnpm, and GitHub |
+| `docs/development/i18n.md` | i18n: module layout, key conventions, community translation import, CI validation |
 | `docs/architecture/worktree-service.md` | Git worktrees: enumeration/creation, diffs, session links, and confirmation-gated deletion |
 | `docs/architecture/git-drawer.md` | Git drawer: change-list badges, per-file diffs, staging/commits, and push/pull safety boundaries |
 | `docs/design/` | Approved UI/UX baseline and historical proposals |

@@ -11,6 +11,8 @@
     定位规则本身在 components/searchPanel.ts 里，可脱离 DOM 测试。
   - 主题切换（setTheme）、历史记录（history）与通知订阅（useNotifications）必须留在壳层：
     它们都是全应用唯一的入口，订阅/释放必须成对发生在这里。
+  - 顶栏文案自 Issue #135 起走语言包（t()），壳层为此只多了一行 useLocale()，
+    其余界面按 docs/development/i18n.md 的排期分批迁移。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
@@ -27,6 +29,7 @@ import { resolveJumpTarget } from "./components/searchPanel.ts";
 import SessionTabs from "./components/SessionTabs.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
 import WorktreeDialog from "./components/WorktreeDialog.vue";
+import { useLocale } from "./locales/index.ts";
 import { useAppearance } from "./composables/useAppearance.ts";
 import { useBusyDelivery } from "./composables/useBusyDelivery.ts";
 import { useNotifications } from "./composables/useNotifications.ts";
@@ -64,6 +67,12 @@ import type {
 } from "./workspace/types.ts";
 
 const store = useWorkspaceStore();
+/**
+ * 界面语言（Issue #135）：顶栏的导航 / 状态徽章文案统一走 t()。
+ * 其余界面（设置页、会话区、抽屉）按 docs/development/i18n.md 的排期分批迁移，
+ * 本切片只示范 common 模块。
+ */
+const { t } = useLocale();
 const info = ref<RuntimeInfo | null>(null);
 const sidebarOpen = ref(true);
 const inspectorOpen = ref(true);
@@ -621,11 +630,11 @@ onUnmounted(() => {
     <div class="main-column">
       <header class="app-header">
         <div class="header-start">
-          <AppTooltip text="侧栏 (Ctrl+B)">
+          <AppTooltip :text="t('common.nav.sidebar')">
             <button
               class="icon-button"
               type="button"
-              :aria-label="sidebarOpen ? '收起侧栏' : '展开侧栏'"
+              :aria-label="sidebarOpen ? t('common.nav.sidebar.collapse') : t('common.nav.sidebar.expand')"
               :aria-expanded="sidebarOpen"
               aria-keyshortcuts="Control+B"
               @click="sidebarOpen = !sidebarOpen"
@@ -633,26 +642,26 @@ onUnmounted(() => {
               <PanelLeft :size="18" :stroke-width="1.75" aria-hidden="true" />
             </button>
           </AppTooltip>
-          <AppTooltip text="后退：上一个查看过的会话">
+          <AppTooltip :text="t('common.nav.back')">
             <span class="icon-button-frame">
               <button
                 class="icon-button"
                 type="button"
                 :disabled="!backTarget"
-                aria-label="后退到上一个查看过的会话"
+                :aria-label="t('common.nav.back.label')"
                 @click="goBack"
               >
                 <ChevronLeft :size="18" :stroke-width="1.75" aria-hidden="true" />
               </button>
             </span>
           </AppTooltip>
-          <AppTooltip text="前进：回到下一个查看过的会话">
+          <AppTooltip :text="t('common.nav.forward')">
             <span class="icon-button-frame">
               <button
                 class="icon-button"
                 type="button"
                 :disabled="!forwardTarget"
-                aria-label="前进到下一个查看过的会话"
+                :aria-label="t('common.nav.forward.label')"
                 @click="goForward"
               >
                 <ChevronRight :size="18" :stroke-width="1.75" aria-hidden="true" />
@@ -662,17 +671,25 @@ onUnmounted(() => {
         </div>
         <div class="header-end">
           <AppTooltip
-            :text="store.bridgeAvailable ? '已连接本机运行时' : '浏览器预览：未连接本机运行时'"
+            :text="
+              store.bridgeAvailable
+                ? t('common.status.connected.hint')
+                : t('common.status.disconnected.hint')
+            "
           >
             <span class="badge" :data-tone="store.bridgeAvailable ? undefined : 'danger'">
-              {{ store.bridgeAvailable ? "已连接" : "未连接" }}
+              {{
+                store.bridgeAvailable
+                  ? t("common.status.connected")
+                  : t("common.status.disconnected")
+              }}
             </span>
           </AppTooltip>
-          <AppTooltip text="会话内搜索 (Ctrl+F)">
+          <AppTooltip :text="t('common.nav.search')">
             <button
               class="icon-button"
               type="button"
-              :aria-label="searchOpen ? '关闭搜索面板' : '打开搜索面板'"
+              :aria-label="searchOpen ? t('common.nav.search.close') : t('common.nav.search.open')"
               :aria-expanded="searchOpen"
               aria-keyshortcuts="Control+F"
               @click="searchOpen ? closeSearch() : openSearch()"
@@ -680,11 +697,11 @@ onUnmounted(() => {
               <Search :size="18" :stroke-width="1.75" aria-hidden="true" />
             </button>
           </AppTooltip>
-          <AppTooltip text="通知历史">
+          <AppTooltip :text="t('common.nav.notifications')">
             <button
               class="icon-button bell-button"
               type="button"
-              aria-label="通知历史"
+              :aria-label="t('common.nav.notifications')"
               :aria-expanded="notificationsOpen"
               @click="toggleNotifications"
             >
@@ -694,11 +711,11 @@ onUnmounted(() => {
               </span>
             </button>
           </AppTooltip>
-          <AppTooltip text="Git 更改 (Ctrl+G)">
+          <AppTooltip :text="t('common.nav.git')">
             <button
               class="icon-button"
               type="button"
-              :aria-label="gitOpen ? '关闭 Git 面板' : '打开 Git 面板'"
+              :aria-label="gitOpen ? t('common.nav.git.close') : t('common.nav.git.open')"
               :aria-expanded="gitOpen"
               aria-keyshortcuts="Control+G"
               @click="gitOpen = !gitOpen"
@@ -706,11 +723,13 @@ onUnmounted(() => {
               <GitBranch :size="18" :stroke-width="1.75" aria-hidden="true" />
             </button>
           </AppTooltip>
-          <AppTooltip text="会话状态 (Ctrl+I)">
+          <AppTooltip :text="t('common.nav.inspector')">
             <button
               class="icon-button"
               type="button"
-              :aria-label="inspectorOpen ? '关闭会话状态面板' : '打开会话状态面板'"
+              :aria-label="
+                inspectorOpen ? t('common.nav.inspector.close') : t('common.nav.inspector.open')
+              "
               :aria-expanded="inspectorOpen"
               aria-keyshortcuts="Control+I"
               @click="inspectorOpen = !inspectorOpen"

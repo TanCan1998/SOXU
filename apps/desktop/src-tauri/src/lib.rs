@@ -9,6 +9,8 @@ mod driver;
 mod entry_text;
 mod events;
 mod watch;
+// 语言包存储（Issue #135）：只读写应用数据目录下的 locales/，不碰 Pi 会话文件。
+pub mod locale_store;
 // 适配层对集成测试开放：测试直接调用真实 catalog/runtime 封装，而不是复制实现。
 pub mod dto;
 pub mod git;
@@ -34,6 +36,9 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .map_err(|error| format!("无法解析应用数据目录：{error}"))?;
+            // 语言包目录与 AppState 并列受管：它有自己的 owner（locale_store::LocaleStore），
+            // 不挂在 AppState 上，避免「会话状态」与「用户导入的语言包」互相牵连。
+            app.manage(locale_store::LocaleStore::new(state_dir.join("locales")));
             let state = AppState::new(state_dir)
                 .map_err(|error| format!("初始化工作区状态失败：{error}"))?;
             app.manage(state);
@@ -95,6 +100,11 @@ pub fn run() {
             commands::session_stats,
             // ── outline（V4：新 command 只加在本行下方）──
             // ── extension（V4：新 command 只加在本行下方）──
+            commands::delete_locale_pack,
+            commands::list_locale_packs,
+            commands::read_locale_pack,
+            commands::read_locale_source,
+            commands::save_locale_pack,
             // ── notify（V4：新 command 只加在本行下方）──
             // ── search（V4：新 command 只加在本行下方）──
         ])
@@ -131,5 +141,7 @@ mod tests {
         let _ = commands::search_session;
         // V4 新领域：stats 块里的第一条命令也必须能从 commands 顶层取到。
         let _ = commands::session_stats;
+        // V4 新领域：extension 块里的语言包命令同样必须能从 commands 顶层取到（Issue #135）。
+        let _ = commands::list_locale_packs;
     }
 }
