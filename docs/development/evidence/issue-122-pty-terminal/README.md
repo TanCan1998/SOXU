@@ -34,7 +34,7 @@
     # soxu-pty-service / soxu-desktop：0 warning
 
     $ cargo test --workspace
-    # 全部测试二进制 0 failed（含新增 soxu-pty-service 的 22 单元 + 6 集成）
+    # 全部测试二进制 0 failed（含新增 soxu-pty-service 的 24 单元 + 7 集成）
 
     $ git diff --check
     exit=0
@@ -46,8 +46,8 @@
 | `crates/pty-service/src/output.rs`（单测） | 8 | 16ms 窗口常量；分片不逐条推送；超上限强制推送；跨分片的 UTF-8 字符重组（不乱码）；不完整尾巴等待下一个分片；非法字节不被永久扣住；`finish` 交出 lossy 尾巴；seq 单调 |
 | `crates/pty-service/src/shell.rs`（单测） | 6 | 白名单全部通过；`.exe`/大小写规范化；非白名单拒绝；程序名夹带参数拒绝；PowerShell 家族 `-NoLogo`；空白请求回落平台默认 |
 | `crates/pty-service/src/manager.rs`（单测） | 5 | 未知 ptyId 的稳定错误码；关闭幂等；非法尺寸/非法 shell 在启动前被拒；id 不复用；上限至少为 1 |
-| `crates/pty-service/src/session.rs`（单测） | 2 | 尺寸上下限；幂等关闭结果 |
-| `crates/pty-service/tests/pty_lifecycle.rs`（集成，真实 shell） | 6 | 真实往返输出；关闭回收子进程；write + resize 到达 shell；2000 行输出被合并；会话上限；默认 shell 在白名单内 |
+| `crates/pty-service/src/session.rs`（单测） | 4 | 尺寸上下限；幂等关闭结果；关闭后不再推送迟到输出；未关闭时仍交出最后一次 flush（对照组） |
+| `crates/pty-service/tests/pty_lifecycle.rs`（集成，真实 shell） | 7 | 真实往返输出；关闭回收子进程；write + resize 到达 shell；2000 行输出被合并；会话上限；默认 shell 在白名单内；**shell 自行退出后释放会话名额** |
 | `apps/desktop/src-tauri/src/pty.rs`（单测） | 6 | 项目内放行；项目外拒绝；前缀比较按路径分量；工作树放行 / 失效工作树拒绝；空目录与不存在目录的显式错误；无项目即无终端 |
 | `apps/desktop/src-tauri/tests/pty_bridge.rs`（集成，真实会话目录 + 真实 PTY） | 6 | 由会话目录推导 cwd 并报告 pid；未登记会话拒绝；临时会话回落到工作树；输入回显 + 事件数远小于字节数；关闭幂等与 `close_all`；非白名单 shell 拒绝 |
 | `apps/desktop/tests/terminalPanel.test.ts` | 15 | 尺寸夹紧/兜底/去重；seq 单调放行；状态与关闭结论文案；IPC 名称与 Rust 命令对应；事件名两侧一致；16ms 常量跨语言断言；组件先订阅后创建、卸载清理；可访问性与 token；App.vue 接线（Ctrl+`、抽屉互斥、以 sessionId 为 key） |
@@ -137,6 +137,22 @@
 - **切换会话会重建终端**：抽屉以 `sessionId` 为 key，切换即关闭旧 PTY（有意取舍，
   见架构文档第 10 节）。
 - 关闭时若子进程 3 秒内不肯退出，只记录诊断，不升级为强杀子孙进程树。
+
+## 5.1 同 Issue 的后续修复（2026-10-30）
+
+评审时发现两处实现与注释不符，已修复并补测试：
+
+1. `PtySession` 的 `closed` 标志与合并线程持有的**不是同一个** `AtomicBool`
+   （`spawn` 里各自 `new` 了一个），因此「关闭后不再推送迟到输出」实际上没有生效。
+   现在两者共享同一个 `Arc<AtomicBool>`，并用 `a_closed_session_never_delivers_late_output`
+   与对照组 `an_open_session_still_delivers_its_final_flush` 锁定。
+2. 注册表清理用的是 `is_closed()`，而「用户敲 exit」不会走 `close()`，
+   死终端会一直占着会话上限（注释却写着会清理）。新增 `is_finished()`
+   （显式关闭 ∨ 读取流结束 ∨ 子进程已退出），注册表的容量统计与清理都改用它；
+   `a_shell_that_exits_by_itself_releases_its_session_slot` 覆盖该路径。
+
+顺带记录一条平台事实（写测试时踩到）：**ConPTY 在收到 `ESC[6n` 的回应之前连子进程都不会真正开跑**，
+所以「等 shell 自己退出」的用例必须先扮演终端回答 DSR，否则测到的只是 ConPTY 在等回应。
 
 ## 6. 复现步骤
 

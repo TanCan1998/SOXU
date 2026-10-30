@@ -47,16 +47,31 @@ fn wait_for_output(
     marker: &str,
     budget: Duration,
 ) -> bool {
+    wait_until_replying(recorder, service, id, budget, || {
+        recorder.text().contains(marker)
+    })
+}
+
+/// 一边回答 ConPTY 的 DSR 查询、一边轮询条件。
+///
+/// ConPTY 在收到回应之前**连子进程都不会真正开跑**（只会吐出那一条 ESC[6n），
+/// 所以「等 shell 自己退出」这类用例必须先扮演终端，否则测到的只是「ConPTY 在等回应」。
+fn wait_until_replying(
+    recorder: &Recorder,
+    service: &PtyService,
+    id: &str,
+    budget: Duration,
+    mut condition: impl FnMut() -> bool,
+) -> bool {
     let deadline = Instant::now() + budget;
     let mut replied = 0;
     loop {
-        let text = recorder.text();
-        let pending = text.matches(DSR).count();
+        let pending = recorder.text().matches(DSR).count();
         while replied < pending {
             let _ = service.write(id, DSR_REPLY);
             replied += 1;
         }
-        if text.contains(marker) {
+        if condition() {
             return true;
         }
         if Instant::now() >= deadline {
@@ -106,7 +121,9 @@ fn real_shell_output_round_trips_through_the_pty() {
         info.pid.is_some(),
         "必须能拿到子进程 pid，否则无法核对孤儿进程"
     );
-    assert!(service.is_open("pty_round_trip"));
+    // 这里不断言 is_open：`echo` 会立刻退出，读取流可能在断言前就结束，
+    // 那时 is_open 为 false 是**正确**行为（见 a_shell_that_exits_by_itself_*）。
+    // 终端是否可用由下面的输出断言覆盖。
 
     assert!(
         wait_for_output(
@@ -269,6 +286,56 @@ fn large_output_is_coalesced_into_a_few_events() {
 
     service.close("pty_throttle").expect("关闭终端");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_shell_that_exits_by_itself_releases_its_session_slot() {
+    // 用户在终端里敲 exit 不走 close_pty：只有「显式关闭」才会置 closed 标志。
+    // 若注册表只看 is_closed，死终端会一直占着上限（默认 8 个），
+    // 表现为「开关几次之后再也开不出终端」。
+    let recorder = Recorder::default();
+    let service = PtyService::with_limit(recorder.sink(), 1);
+    let exited = service
+        .create_with(PtySpec {
+            id: "pty_self_exit".to_owned(),
+            cols: 80,
+            rows: 24,
+            cwd: None,
+            shell: shell_for("exit 0"),
+        })
+        .expect("应能创建 PTY");
+
+    assert!(
+        wait_until_replying(
+            &recorder,
+            &service,
+            &exited.id,
+            Duration::from_secs(10),
+            || !service.is_open(&exited.id)
+        ),
+        "shell 自行退出后必须不再算作可交互的终端"
+    );
+    assert_eq!(service.open_count(), 0, "自行退出的终端不得计入打开数量");
+
+    // 上限是 1：还能再开一个，说明死终端没有占位。
+    let next = service
+        .create_with(PtySpec {
+            id: "pty_after_exit".to_owned(),
+            cols: 80,
+            rows: 24,
+            cwd: None,
+            shell: shell_for(if cfg!(windows) {
+                "ping -n 60 127.0.0.1"
+            } else {
+                "sleep 60"
+            }),
+        })
+        .expect("自行退出的终端不得占用会话上限");
+    assert!(service.is_open(&next.id));
+
+    let outcome = service.close(&next.id).expect("关闭终端");
+    assert!(outcome.exited, "关闭必须等到子进程退出");
+    assert_eq!(service.open_count(), 0);
 }
 
 #[test]

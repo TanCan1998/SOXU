@@ -4,6 +4,10 @@
 //! master，把分片送进 mpsc；pump 线程按 16ms 窗口合并分片后交给 sink，因此前端
 //! 不会收到逐字节的事件。
 //!
+//! 「shell 自己退出」（用户在终端里敲 exit）与「我们关闭它」是两条不同的路径：
+//! 前者不走 `close()`，注册表靠 `is_finished()`（子进程状态 + 流结束）发现它，
+//! 否则死终端会一直占着会话上限。
+//!
 //! 关闭顺序是硬性要求（见 PtySession::close）：
 //!
 //! 1. kill() 子进程——这是「不留孤儿」的唯一权威动作；
@@ -92,7 +96,12 @@ pub struct PtySession {
     writer: Mutex<Option<Box<dyn Write + Send>>>,
     reader: Mutex<Option<JoinHandle<()>>>,
     pump: Mutex<Option<JoinHandle<()>>>,
-    closed: AtomicBool,
+    /// 显式关闭标志。**必须与合并线程持有的是同一个 Arc**：合并线程靠它丢弃迟到输出，
+    /// 两个独立的 AtomicBool 会让「关闭后不再推送」变成空话。
+    closed: Arc<AtomicBool>,
+    /// 读取流已经结束（子进程自行退出，或 PTY 被销毁）。与 `closed` 分开：
+    /// 关闭是我们主动做的，流结束是 shell 自己退出的事实。
+    stream_ended: Arc<AtomicBool>,
     outcome: Mutex<Option<PtyCloseOutcome>>,
 }
 
@@ -137,6 +146,7 @@ impl PtySession {
 
         let id = spec.id;
         let closed = Arc::new(AtomicBool::new(false));
+        let stream_ended = Arc::new(AtomicBool::new(false));
         let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
         let reader_handle = spawn_thread(format!("soxu-pty-read-{id}"), move || {
             read_loop(reader, sender);
@@ -144,7 +154,8 @@ impl PtySession {
         let pump_handle = spawn_thread(format!("soxu-pty-pump-{id}"), {
             let id = id.clone();
             let closed = Arc::clone(&closed);
-            move || pump_loop(&id, receiver, sink, closed)
+            let stream_ended = Arc::clone(&stream_ended);
+            move || pump_loop(&id, receiver, sink, closed, stream_ended)
         })?;
 
         Ok(Self {
@@ -157,7 +168,8 @@ impl PtySession {
             writer: Mutex::new(Some(writer)),
             reader: Mutex::new(Some(reader_handle)),
             pump: Mutex::new(Some(pump_handle)),
-            closed: AtomicBool::new(false),
+            closed,
+            stream_ended,
             outcome: Mutex::new(None),
         })
     }
@@ -178,8 +190,27 @@ impl PtySession {
         lock(&self.child).process_id()
     }
 
+    /// 是否已被显式关闭（`close()` 调过）。
     pub fn is_closed(&self) -> bool {
         self.closed.load(Ordering::SeqCst)
+    }
+
+    /// 是否已经不再可交互：被显式关闭，**或者 shell 自己退出了**。
+    ///
+    /// 注册表的容量统计与清理必须用这个而不是 `is_closed()`：用户在终端里敲 `exit`
+    /// 不会走 `close()`，只看 `is_closed()` 会让死终端永久占着会话上限。
+    ///
+    /// 判断依据有两个，缺一不可：
+    /// - 读取流结束（Unix 下 shell 退出后 master 立即 EOF，很快就能发现）；
+    /// - 子进程状态。**Windows 的 ConPTY 不会在 shell 退出时立刻给读取端 EOF**
+    ///   （输出管道要等伪控制台关闭），只靠流结束会漏掉「敲了 exit」的终端。
+    ///   `try_wait` 在两个平台上都可以反复调用：Windows 走 `GetExitCodeProcess`，
+    ///   Unix 走 `std::process::Child::try_wait` 并缓存结果，都不会丢退出码。
+    pub fn is_finished(&self) -> bool {
+        if self.is_closed() || self.stream_ended.load(Ordering::SeqCst) {
+            return true;
+        }
+        matches!(lock(&self.child).try_wait(), Ok(Some(_)))
     }
 
     /// 把用户输入写进 shell。数据原样转发，不做任何转义或行编辑。
@@ -291,7 +322,13 @@ fn read_loop(mut reader: Box<dyn Read + Send>, sender: std::sync::mpsc::Sender<V
     // sender 随线程结束被丢弃：合并线程在 Disconnected 分支做最后一次 flush 后退出。
 }
 
-fn pump_loop(pty_id: &str, receiver: Receiver<Vec<u8>>, sink: OutputSink, closed: Arc<AtomicBool>) {
+fn pump_loop(
+    pty_id: &str,
+    receiver: Receiver<Vec<u8>>,
+    sink: OutputSink,
+    closed: Arc<AtomicBool>,
+    stream_ended: Arc<AtomicBool>,
+) {
     let mut throttle = OutputThrottle::new(pty_id, MAX_PENDING_BYTES);
     let mut last_flush = Instant::now();
     loop {
@@ -322,6 +359,8 @@ fn pump_loop(pty_id: &str, receiver: Receiver<Vec<u8>>, sink: OutputSink, closed
             }
         }
     }
+    // 读取流结束 = shell 已经走了（或 PTY 被销毁）：让注册表能如实统计与清理。
+    stream_ended.store(true, Ordering::SeqCst);
 }
 
 /// 关闭之后到达的输出直接丢弃：界面已经不再有这块终端了。
@@ -396,6 +435,65 @@ mod tests {
             let error = validate_size(cols, rows).expect_err("非法尺寸必须被拒绝");
             assert_eq!(error.code(), PtyErrorCode::InvalidSize);
         }
+    }
+
+    /// 合并线程只在这条路径上推送输出，因此这里能确定性地验证「关闭后不再推送」。
+    #[test]
+    fn a_closed_session_never_delivers_late_output() {
+        let closed = Arc::new(AtomicBool::new(true));
+        let stream_ended = Arc::new(AtomicBool::new(false));
+        let sink: OutputSink = Arc::new(|output| {
+            panic!("已关闭的会话不得再推送输出：{output:?}");
+        });
+        let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+        sender.send(b"late output".to_vec()).expect("发送分片");
+        drop(sender);
+
+        pump_loop(
+            "pty_closed",
+            receiver,
+            sink,
+            Arc::clone(&closed),
+            Arc::clone(&stream_ended),
+        );
+
+        assert!(
+            stream_ended.load(Ordering::SeqCst),
+            "流结束后必须置位 stream_ended，否则注册表无法清理自行退出的 shell"
+        );
+    }
+
+    /// 对照组：证明上一条用例不是恒真（未关闭时会话确实会收到最后一次 flush）。
+    #[test]
+    fn an_open_session_still_delivers_its_final_flush() {
+        let closed = Arc::new(AtomicBool::new(false));
+        let stream_ended = Arc::new(AtomicBool::new(false));
+        let received: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let sink: OutputSink = {
+            let received = Arc::clone(&received);
+            Arc::new(move |output: PtyOutput| {
+                received.lock().expect("输出缓冲未被投毒").push(output.data);
+            })
+        };
+        let (sender, receiver) = std::sync::mpsc::channel::<Vec<u8>>();
+        sender
+            .send("tail-汉字".as_bytes().to_vec())
+            .expect("发送分片");
+        drop(sender);
+
+        pump_loop(
+            "pty_open",
+            receiver,
+            sink,
+            closed,
+            Arc::clone(&stream_ended),
+        );
+
+        assert_eq!(
+            received.lock().expect("输出缓冲未被投毒").concat(),
+            "tail-汉字",
+            "未关闭的会话必须收到流结束时的一次性 flush（含跨分片的 UTF-8 尾巴）"
+        );
     }
 
     #[test]

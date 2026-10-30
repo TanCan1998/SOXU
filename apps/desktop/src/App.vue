@@ -25,16 +25,13 @@ import {
   ChevronRight,
   FolderTree,
   GitBranch,
-  ChevronLeft,
-  ChevronRight,
   PanelLeft,
   PanelRight,
   Plus,
   Search,
-} from "@lucide/vue";
-import { COMMANDS, commandContext, type CommandActions, type CommandEntry } from "./commands/registry.ts";
   SquareTerminal,
 } from "@lucide/vue";
+import { COMMANDS, commandContext, type CommandActions, type CommandEntry } from "./commands/registry.ts";
 import AppTooltip from "./components/AppTooltip.vue";
 import ChatPanel from "./components/ChatPanel.vue";
 import CommandPalette from "./components/CommandPalette.vue";
@@ -572,6 +569,9 @@ const paletteContext = computed(() =>
 function runCommand(command: CommandEntry) {
   paletteOpen.value = false;
   command.run(commandActions);
+}
+
+/**
  * 打开终端抽屉（顶栏按钮与 Ctrl+` 共用）。
  *
  * 焦点必须在打开后进到 xterm：快捷键之后用户的第一动作就是敲命令，
@@ -909,12 +909,11 @@ onUnmounted(() => {
               </span>
             </button>
           </AppTooltip>
-          <AppTooltip :text="t('common.nav.files')">
-          <AppTooltip text="终端 (Ctrl+`)">
+          <AppTooltip :text="t('common.nav.terminal')">
             <button
               class="icon-button"
               type="button"
-              :aria-label="terminalOpen ? '关闭终端面板' : '打开终端面板'"
+              :aria-label="terminalOpen ? t('common.nav.terminal.close') : t('common.nav.terminal.open')"
               :aria-expanded="terminalOpen"
               aria-keyshortcuts="Control+`"
               @click="toggleTerminal"
@@ -922,7 +921,7 @@ onUnmounted(() => {
               <SquareTerminal :size="18" :stroke-width="1.75" aria-hidden="true" />
             </button>
           </AppTooltip>
-          <AppTooltip text="会话状态 (Ctrl+I)">
+          <AppTooltip :text="t('common.nav.inspector')">
             <button
               class="icon-button"
               type="button"
@@ -1085,6 +1084,7 @@ onUnmounted(() => {
       @create="(path: string) => void store.createFile(path)"
       @rename="(from: string, to: string) => void store.renameFile(from, to)"
       @remove="(path: string, options: { recursive: boolean; confirmName: string }) => void store.removeFile(path, options)"
+    />
     <!--
       终端抽屉：key 绑定会话 id，切换会话就重建（旧的 unmount 会 close_pty，
       因此不会留下后台 shell）。见 components/TerminalDrawer.vue 的说明。

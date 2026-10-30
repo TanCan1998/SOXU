@@ -52,6 +52,11 @@
 2. **关闭顺序固定**：kill 子进程 → 释放 master/writer → 有界等待退出。
    反过来（先放 PTY）在 Windows 下会先断输出、进程仍在跑，那就真的留下孤儿。
 3. 关闭是幂等的：第二次 `close_pty` 返回 `existed: false`，不动任何进程。
+4. **关闭标志与合并线程共享同一个 `Arc<AtomicBool>`**：合并线程靠它丢弃迟到输出。
+   两者若是各自独立的标志，「关闭后不再推送」就只是注释里的承诺。
+5. **自行退出也要让出名额**：用户在终端里敲 `exit` 不走 `close()`，
+   注册表按 `is_finished()`（显式关闭 ∨ 读取流结束 ∨ 子进程已退出）统计与清理，
+   否则死终端会一直占着会话上限。
 
 ## 3. 输出通路与 16ms 合并
 
@@ -64,6 +69,8 @@
   否则跨 `read` 的汉字会被解码成 U+FFFD（看起来就是乱码）。真实非法字节（`error_len`
   为 `Some`）会立刻按 lossy 推出，不会被永久扣住。
 - **流结束**：读取线程结束（EOF/错误）后 `finish()` 把剩余字节一次性交出。
+- **关闭后的迟到输出一律丢弃**：`close()` 置位的是合并线程持有的同一个 `closed` 标志，
+  关闭期间仍在管道里的字节不会再推给前端。
 - 前端**不再做二次节流**：两层窗口叠加会变成可见延迟。
 
 为什么不在后端逐字节 emit：IPC 队列会被打满，表现为「大输出时界面卡住」。
@@ -79,6 +86,7 @@
 | 切换会话 | 抽屉以 `sessionId` 为 key，切换即卸载重建 → 旧 PTY 被关闭 |
 | 应用退出 | `RunEvent::Exit` 里 `PtyService::close_all()`（先于 Pi 运行时回收） |
 | 组件异常销毁 | `PtySession::drop` 兜底走同一回收路径 |
+| shell 自己退出（用户敲 `exit`） | 不走 `close_pty`；注册表按 `is_finished()` 发现，下一次 `create_pty` 清理时 `drop` 走同一回收路径，名额随之释放 |
 
 回收是**有界**的：等待子进程退出最多 3 秒、等待线程结束最多 1 秒；超时不会卡住界面，
 但会如实上报（`exited: false`），命令层同时打印一条诊断——「无残留进程」这条验收不允许
@@ -102,6 +110,7 @@
 | 继承 Runner 凭据 | 子进程启动时移除 `GH_TOKEN`、`GITHUB_TOKEN`、`ATOMGIT_TOKEN`、`GITHUB_PAT`、`NPM_TOKEN` |
 | 新增 Tauri capability | **没有新增**：命令由本进程实现，不引入 shell 插件，`capabilities/default.json` 未改动 |
 | 资源耗尽 | 同时打开的终端上限 `DEFAULT_MAX_SESSIONS = 8`；输出缓冲与回滚行数都有界 |
+| 用别的 `ptyId` 操作终端 | **尚未绑定会话归属**：`write_pty` / `resize_pty` / `close_pty` 只按 id 查找。`ptyId` 在进程内单调分配（`pty_1`、`pty_2`…）因此可猜。当前是单窗口单 WebView，影响仅限于「操作本窗口里已存在的终端」；**多窗口或多 WebView 之前必须把 `ptyId` 与会话绑定**（记录 owner sessionId 并在命令层校验） |
 
 工作目录守卫的错误码：
 
@@ -163,7 +172,7 @@ git diff --check
 | --- | --- |
 | clippy 无新增 warning | `cargo clippy --workspace --all-targets`：`soxu-pty-service` / `soxu-desktop` 0 warning（仅 `soxu-agent-runtime` 的 `process_tree` 测试存在既有 warning） |
 | 终端可交互，输出不乱码 | `pty_lifecycle.rs`：`real_shell_output_round_trips_through_the_pty`、`write_and_resize_reach_the_running_shell`；`output.rs` 单测：`utf8_split_across_chunks_is_reassembled_without_replacement_chars`；浏览器实测 `banner-rendered` / `cjk-no-mojibake` / `typed-input-echoed` |
-| 关闭会话后无残留 pwsh 进程 | `pty_lifecycle.rs`：`closing_a_terminal_reclaims_the_shell_process`（断言 `exited`、退出码、线程结束、重复关闭幂等）；`pty_bridge.rs`：`closing_is_idempotent_and_close_all_reclaims_every_terminal`；浏览器实测 `close-reclaims-pty` |
+| 关闭会话后无残留 pwsh 进程 | `pty_lifecycle.rs`：`closing_a_terminal_reclaims_the_shell_process`（断言 `exited`、退出码、线程结束、重复关闭幂等）、`a_shell_that_exits_by_itself_releases_its_session_slot`（自行退出也释放名额）；`pty_bridge.rs`：`closing_is_idempotent_and_close_all_reclaims_every_terminal`；浏览器实测 `close-reclaims-pty` |
 | 输出节流生效（大输出不卡 UI） | `large_output_is_coalesced_into_a_few_events`（2000 行 → 事件数远小于行数，seq 连续）；`burst-keeps-ui-responsive`（最长帧间隔 16.8ms） |
 | 尺寸变化时 resize | `resize-on-container-change`（抽屉 320px → 520px，列数 41 → 69）；`createResizeGate` 单测（同尺寸不重复发） |
 
@@ -172,7 +181,9 @@ git diff --check
 本机实测通过（2026-10-30，Windows 11 / Rust 1.99.1 / Node 26.10.0 / pnpm 12.15.0 /
 Edge 156.0.4314.50 headless）：
 
-- `cargo test -p soxu-pty-service` → 22 单元 + 6 集成用例通过。
+- `cargo test -p soxu-pty-service` → 24 单元 + 7 集成用例通过
+  （含 `a_closed_session_never_delivers_late_output`、
+  `a_shell_that_exits_by_itself_releases_its_session_slot`）。
 - `cargo test -p soxu-desktop` → 6 个守卫单测 + 6 个 `pty_bridge` 集成用例通过。
 - `cargo test --workspace` 全绿；`cargo fmt --all -- --check` 与 `git diff --check` 通过。
 - `pnpm check` → 桌面端 273 用例 + 脚本 58 用例全绿（在开发 Agent 会话里

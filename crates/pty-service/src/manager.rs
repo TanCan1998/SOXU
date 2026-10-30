@@ -84,8 +84,11 @@ impl PtyService {
         validate_size(spec.cols, spec.rows)?;
         {
             let mut sessions = lock(&self.sessions);
-            // 顺手清理已经自行退出（shell 里敲了 exit）的会话，上限只统计活着的。
-            sessions.retain(|_, session| !session.is_closed());
+            // 顺手清理已经不可交互的会话：被关闭的，以及 shell 自己退出的
+            // （用户在终端里敲了 exit）。只按 is_closed 判断会漏掉后者——
+            // 那条路径不走 close()，死终端会一直占着上限，直到用户手动关掉。
+            // retain 丢掉最后一个 Arc 时 PtySession::drop 会顺手回收子进程。
+            sessions.retain(|_, session| !session.is_finished());
             if sessions.len() >= self.max_sessions {
                 return Err(PtyError::new(
                     PtyErrorCode::SessionLimitReached,
@@ -139,33 +142,35 @@ impl PtyService {
         count
     }
 
+    /// 该终端是否仍然可交互（未关闭，且 shell 还在）。
     pub fn is_open(&self, id: &str) -> bool {
         lock(&self.sessions)
             .get(id)
-            .is_some_and(|session| !session.is_closed())
+            .is_some_and(|session| !session.is_finished())
     }
 
     pub fn open_ids(&self) -> Vec<String> {
         let mut ids: Vec<String> = lock(&self.sessions)
             .iter()
-            .filter(|(_, session)| !session.is_closed())
+            .filter(|(_, session)| !session.is_finished())
             .map(|(id, _)| id.clone())
             .collect();
         ids.sort();
         ids
     }
 
+    /// 仍可交互的终端数量。自行退出的 shell 不计入：它们不该占会话上限。
     pub fn open_count(&self) -> usize {
         lock(&self.sessions)
             .values()
-            .filter(|session| !session.is_closed())
+            .filter(|session| !session.is_finished())
             .count()
     }
 
     fn session(&self, id: &str) -> Result<Arc<PtySession>> {
         lock(&self.sessions)
             .get(id)
-            .filter(|session| !session.is_closed())
+            .filter(|session| !session.is_finished())
             .cloned()
             .ok_or_else(|| {
                 PtyError::new(
