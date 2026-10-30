@@ -156,10 +156,16 @@ node scripts/check-release-readiness.mjs --json   # 机器可读报告
 - `scripts/release.mjs`（受保护）：要求当前分支 `main`、工作区干净、本地 HEAD 与
   `origin/main` 完全一致、`ci.yml` 对该 SHA 有成功运行、Tag 尚不存在，才创建并推送
   `v0.x.y[-rc.N]` Tag。
-- `scripts/check-release-context.mjs`：发布 workflow 里独立复核「Tag 指向的 commit 属于
-  `origin/main`」且该 commit 有成功 CI，再核对三处版本；不信任 Tag 名字。
-- `.github/workflows/release.yml`：`prerelease: true`，权限最小化（校验作业
-  `contents: read` + `actions: read`，构建作业 `contents: write`），非法 Tag 直接失败。
+- `scripts/check-release-context.mjs`：发布 workflow 里独立复核 Tag 与版本，不信任 Tag 名字。
+  正式 Tag（`v0.x.y`）要求 commit 属于 `origin/main`；预发布 Tag（`v0.x.y-rc.N`）允许属于
+  `origin/main` 或集成分支 `origin/dev`（看板「发布 preview」直接在 dev 打 tag，不改编产品版本）。
+  两种 Tag 都要求该 commit 在对应分支上有成功 CI，并核对四处版本声明（root `package.json`、
+  `apps/desktop/package.json`、`tauri.conf.json`、`src-tauri/Cargo.toml`）；预发布 Tag 允许清单
+  仍是基线版本（`0.1.0`）或已带 rc 后缀。规则实现与单测见 `scripts/lib/release-context.mjs`、
+  `scripts/tests/release-context.test.mjs`。
+- `.github/workflows/release.yml`：`prerelease` 按 Tag 名判定（`contains(github.ref_name, '-rc.')`），
+  `releaseBody` 同步区分 prerelease / release；权限最小化（校验作业 `contents: read` +
+  `actions: read`，构建作业 `contents: write`），非法 Tag 直接失败。
 
 因此本任务**没有**执行任何 Tag、Release 或推送操作；发布通道的显式授权仍归维护者。
 
@@ -195,7 +201,7 @@ node scripts/check-release-readiness.mjs
 - `pnpm release:readiness` 目前**没有接进 CI**：`.github/workflows/` 是受保护路径，
   接入需要维护者批准后单独改动（建议在 `ci.yml` 的 quality 作业里、图标生成之后加一步）。
 - 该检查只覆盖静态一致性，不替代 P-01～P-08 的功能/资源验收，也不验证安装包能否启动。
-- 「更新说明」目前不可按版本生成：`release.yml` 的 `releaseBody` 是固定字符串
-  （「SOXU prerelease. Unsigned/not-notarized builds may require OS trust prompts.」）。
+- 「更新说明」目前不可按版本生成：`release.yml` 的 `releaseBody` 仍是固定文案
+  （仅按 Tag 名区分 prerelease / release，不含逐版本变更内容）。
   若需要逐版本变更说明，必须由维护者改受保护 workflow，或改用带变更内容的 annotated Tag；
   本任务不能改该文件，故按限制记录而非宣称已具备。
