@@ -188,9 +188,16 @@ pub async fn create(
     let id = WorktreeId::derive(&project, &path);
     {
         let mut catalog = state.catalog.lock().await;
-        if let Err(error) = catalog.add_worktree(&project, &path, created.branch.as_deref()) {
+        let registered = catalog.add_worktree(&project, &path, created.branch.as_deref());
+        if let Ok(record) = &registered {
+            // git 返回的是规范化路径，而 Pi 按用户请求的路径写会话目录：把原文补记为别名。
+            catalog.remember_worktree_alias(&project, &record.id, &destination);
+        }
+        if let Err(error) = &registered {
             eprintln!("SOXU: 新工作树登记失败（{error}）");
         }
+        // 用登记记录里的 id：它由规范化路径派生，短名/符号链接下才和会话目录一致。
+        let id = registered.map(|record| record.id).unwrap_or(id);
         if let Err(error) = catalog.update_worktree(&project, &id, created.branch.as_deref(), false)
         {
             eprintln!("SOXU: 新工作树状态回填失败（{error}）");

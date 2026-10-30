@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::hash::fnv1a64_parts;
-use crate::identity::{ProjectId, RuntimeLink, SessionId, WorktreeId, home_dir, now_ms};
+use crate::identity::{
+    ProjectId, RuntimeLink, SessionId, WorktreeId, home_dir, now_ms, strip_verbatim,
+};
 use crate::snapshot::CATALOG_SCHEMA_VERSION;
 
 /// 目录快照：应用状态目录下的 catalog.json 内容。
@@ -105,6 +107,8 @@ impl WorktreeRecord {
 
     /// 记住用户给出的原始路径；与 canonical 路径字符串相同则不重复保存。
     pub fn remember_alias(&mut self, requested: &Path) {
+        // Windows 的 `\\?\` verbatim 前缀会让目录名带上 `?`，在 Windows 上非法。
+        let requested = strip_verbatim(requested);
         let alias = requested.to_string_lossy().to_string();
         if alias.is_empty()
             || alias == self.path

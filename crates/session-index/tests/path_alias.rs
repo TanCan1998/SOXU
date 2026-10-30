@@ -63,6 +63,44 @@ fn sessions_written_under_the_requested_path_alias_are_indexed() {
 }
 
 #[test]
+fn a_recorded_request_alias_covers_git_style_canonical_paths() {
+    // worktree::create 从 git 拿到的是规范化路径，用户请求的原文需要显式补记，
+    // 否则 Pi 按原文写的会话目录仍然找不到。
+    let sandbox = TempDir::new("worktree-alias");
+    let project_root = sandbox.mkdir("project");
+    let sessions_root = sandbox.mkdir("sessions");
+    let state = sandbox.mkdir("state");
+    let real = sandbox.mkdir("wt-real");
+    let alias = sandbox.child("wt-alias");
+    if let Err(reason) = try_dir_link(&real, &alias) {
+        eprintln!("跳过工作树别名用例：{reason}");
+        return;
+    }
+    let mut catalog =
+        ProjectCatalog::open_with(&state, CatalogConfig::with_sessions_root(&sessions_root))
+            .expect("打开目录");
+    let project = catalog.register_project(&project_root).expect("登记项目");
+    let canonical = std::fs::canonicalize(&real).expect("解析工作树路径");
+    let worktree = catalog
+        .add_worktree(&project.id, &canonical, Some("feature"))
+        .expect("登记工作树");
+    // Windows 的 canonicalize 会带 `\\?\` 前缀，所以这里可能已有一条来自 add_worktree 的别名；
+    // 关键是用户请求的原文必须被补记进来。
+    assert!(
+        catalog.remember_worktree_alias(&project.id, &worktree.id, &alias),
+        "用户请求的原文应被记为别名"
+    );
+
+    write_session_under(&sessions_root, &alias, "session-worktree", &worktree.path);
+    catalog.sync(&project.id).expect("同步会话目录");
+    assert_eq!(
+        catalog.sessions_in_worktree(&worktree.id).len(),
+        1,
+        "按请求原文写的会话目录也要被索引"
+    );
+}
+
+#[test]
 fn canonical_directory_stays_the_preferred_candidate() {
     let sandbox = TempDir::new("path-canonical");
     let project_root = sandbox.mkdir("project");

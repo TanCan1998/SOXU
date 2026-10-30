@@ -264,6 +264,34 @@ impl ProjectCatalog {
         Ok(record)
     }
 
+    /// 记下创建时用户请求的路径：`add_worktree` 收到的可能是 git 输出的规范化路径，
+    /// 而 Pi 是按用户看到的路径写会话目录的。返回是否新增了别名。
+    pub fn remember_worktree_alias(
+        &mut self,
+        project: &ProjectId,
+        worktree: &WorktreeId,
+        requested: &Path,
+    ) -> bool {
+        let Some(parent) = self.project_mut(project) else {
+            return false;
+        };
+        let Some(record) = parent
+            .worktrees
+            .iter_mut()
+            .find(|candidate| &candidate.id == worktree)
+        else {
+            return false;
+        };
+        let before = record.aliases.len();
+        record.remember_alias(requested);
+        if record.aliases.len() == before {
+            return false;
+        }
+        parent.updated_at_ms = now_ms();
+        self.touch();
+        true
+    }
+
     /// 用 Git 服务枚举的结果回填已登记工作树的分支与可用状态。
     ///
     /// 只更新引用：不创建目录、不删除会话记录。Git 侧发现的新工作树先用
@@ -354,7 +382,7 @@ impl ProjectCatalog {
             }
             let mut found: Option<fs::ReadDir> = None;
             let mut chosen = PathBuf::new();
-            for candidate in &candidates {
+            for (index, candidate) in candidates.iter().enumerate() {
                 match fs::read_dir(candidate) {
                     Ok(entries) => {
                         found = Some(entries);
@@ -362,13 +390,16 @@ impl ProjectCatalog {
                         break;
                     }
                     Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                    Err(error) => {
+                    // 只有主候选（canonical 路径）的读取失败才值得上报；
+                    // 别名可能算出平台不接受的名字（例如带 `?` 的 Windows 路径），跳过即可。
+                    Err(error) if index == 0 => {
                         return Err(CatalogError::io(
                             ErrorCode::IoFailure,
                             format!("无法读取会话目录：{}", candidate.display()),
                             &error,
                         ));
                     }
+                    Err(_) => continue,
                 }
             }
             let Some(entries) = found else {
