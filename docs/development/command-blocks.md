@@ -26,11 +26,13 @@ apps/desktop/src-tauri/src/
         workspace.rs        应用信息、项目枚举/登记/刷新
         worktree.rs         工作树枚举/创建/差异/删除/清理
         history.rs          历史分页、正文按需读取、会话内搜索、临时会话生命周期
+        files.rs            文件抽屉：目录枚举、只读预览、新建/重命名/删除、文件内搜索（Issue #120）
     dto/
         mod.rs              只做 pub use 再导出，保持 crate::dto::<Type> 路径
         session.rs          会话/历史/运行时 DTO
         workspace.rs        项目/工作区 DTO
         worktree.rs         工作树 DTO
+        files.rs            文件抽屉 DTO（相对路径、条目、预览、写结果、搜索命中）
 ```
 
 `mod.rs` 只允许 `mod x;` + `pub use x::*;`。不要在这里写业务代码或结构体：
@@ -93,7 +95,8 @@ session → workspace → worktree → history
         → files → git → pty → model → stats → outline → extension → notify → search
 ```
 
-前四个是拆分时已有内容的领域块；后九个是 V4 预置的空占位块。
+前四个是拆分时已有内容的领域块；后九个是 V4 预置的占位块
+（`files` 已由 Issue #120 填入 7 个文件抽屉命令，其余仍为空）。
 顺序固定，任何重排都会让后续所有切片的 diff 失效。
 
 ## 7. 边界

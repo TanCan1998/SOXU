@@ -10,8 +10,12 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type {
   CreateWorktreeInput,
+  DirListing,
   EntryRef,
   EntryText,
+  FileContent,
+  FileMutation,
+  FileSearchResult,
   HistoryPage,
   ProjectId,
   ProjectSummary,
@@ -98,6 +102,35 @@ export function createTauriBridge(): WorkspaceBridge {
       invoke<WorktreeRemovalView>("remove_worktree", { projectId, worktreeId, token }),
     pruneWorktrees: (projectId: ProjectId, token: string) =>
       invoke<number>("prune_worktrees", { projectId, token }),
+    listDir: (projectId: ProjectId, path: string) =>
+      invoke<DirListing>("list_dir", { projectId, path }),
+    readFile: (projectId: ProjectId, path: string) =>
+      invoke<FileContent>("read_file", { projectId, path }),
+    writeFile: (projectId: ProjectId, path: string, content: string) =>
+      invoke<FileMutation>("write_file", { projectId, path, content }),
+    // content 省略时序列化成 undefined 被丢掉，Rust 侧按 Option<String> 接收。
+    createFile: (projectId: ProjectId, path: string, content?: string | null) =>
+      invoke<FileMutation>("create_file", { projectId, path, content: content ?? undefined }),
+    renamePath: (projectId: ProjectId, from: string, to: string) =>
+      invoke<FileMutation>("rename_path", { projectId, from, to }),
+    // 后端参数名是 confirm_name：Tauri 自动把 camelCase 映射到 snake_case。
+    deletePath: (
+      projectId: ProjectId,
+      path: string,
+      options: { recursive?: boolean; confirmName: string },
+    ) =>
+      invoke<FileMutation>("delete_path", {
+        projectId,
+        path,
+        recursive: options.recursive ?? false,
+        confirmName: options.confirmName,
+      }),
+    searchFiles: (projectId: ProjectId, query: string, limit?: number) =>
+      invoke<FileSearchResult>("search_files", {
+        projectId,
+        query,
+        limit: limit ?? null,
+      }),
     subscribe(handler: (event: RuntimeEvent) => void): () => void {
       let disposed = false;
       let unlisten: UnlistenFn | null = null;
@@ -148,6 +181,13 @@ export function createUnavailableBridge(reason: string): WorkspaceBridge {
     worktreeDiff: fail,
     removeWorktree: fail,
     pruneWorktrees: fail,
+    listDir: fail,
+    readFile: fail,
+    writeFile: fail,
+    createFile: fail,
+    renamePath: fail,
+    deletePath: fail,
+    searchFiles: fail,
     subscribe: () => () => undefined,
   };
 }

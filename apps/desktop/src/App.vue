@@ -11,9 +11,18 @@
 -->
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { ChevronLeft, ChevronRight, PanelLeft, PanelRight, Plus, Search } from "@lucide/vue";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FolderTree,
+  PanelLeft,
+  PanelRight,
+  Plus,
+  Search,
+} from "@lucide/vue";
 import AppTooltip from "./components/AppTooltip.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import FileDrawer from "./components/FileDrawer.vue";
 import ProjectSidebar from "./components/ProjectSidebar.vue";
 import RuntimeInspector from "./components/RuntimeInspector.vue";
 import SearchDrawer from "./components/SearchDrawer.vue";
@@ -62,6 +71,8 @@ const inspectorOpen = ref(true);
 const settingsOpen = ref(false);
 /** 右侧搜索抽屉（Issue #118）；与「会话状态」面板互斥，一次只开一个。 */
 const searchOpen = ref(false);
+/** 右侧文件抽屉（Issue #120）；同样与其它抽屉互斥。 */
+const filesOpen = ref(false);
 const searchDrawer = ref<InstanceType<typeof SearchDrawer> | null>(null);
 /** 搜索跳转的目标消息 + 递增序号：同一条命中连点两次也要重新定位。 */
 const focusMessageId = ref<string | null>(null);
@@ -125,6 +136,44 @@ const forwardTarget = computed(() => findTarget(history.value, "forward", isOpen
  */
 watch(inspectorOpen, (open) => {
   if (open) searchOpen.value = false;
+});
+
+/** 文件抽屉同样与「会话状态」面板互斥（Issue #120）：两个 320px 抽屉并排会把正文挤没。 */
+watch(inspectorOpen, (open) => {
+  if (open) filesOpen.value = false;
+});
+
+/**
+ * 文件抽屉观察的项目：优先跟随当前会话，没有会话时用第一个登记项目。
+ * 抽屉不自己挑项目——那会让「打开的是哪个项目」变成第二套规则。
+ */
+const filesProjectId = computed(
+  () => activeTab.value?.projectId ?? store.state.projects[0]?.id ?? null,
+);
+const filesProjectName = computed(
+  () =>
+    store.state.projects.find((project) => project.id === filesProjectId.value)?.name ?? "未选择项目",
+);
+
+/**
+ * 打开文件抽屉：与其它两个右侧面板互斥，并立刻读根目录一层。
+ *
+ * 只读根目录一层是有意的（懒加载）：打开抽屉不等于遍历整个仓库。
+ */
+function openFilesPanel() {
+  inspectorOpen.value = false;
+  searchOpen.value = false;
+  filesOpen.value = true;
+  void store.openFiles(filesProjectId.value);
+}
+
+function closeFilesPanel() {
+  filesOpen.value = false;
+}
+
+/** 切到别的项目时，已打开的抽屉跟着换根目录；关闭状态下不发任何请求。 */
+watch(filesProjectId, (projectId) => {
+  if (filesOpen.value) void store.openFiles(projectId);
 });
 
 /** 切换会话时清掉上一条跳转目标与提示：它们只对原来的会话有意义。 */
@@ -307,6 +356,7 @@ function loadMore() {
 function openSearch() {
   searchOpen.value = true;
   inspectorOpen.value = false;
+  filesOpen.value = false;
   searchNotice.value = null;
   void nextTick(() => searchDrawer.value?.focus());
 }
@@ -449,6 +499,7 @@ async function clearSessionCache() {
 function resetLayout() {
   sidebarOpen.value = true;
   inspectorOpen.value = true;
+  filesOpen.value = false;
   if (appearance.value.contentWidth !== "fixed") {
     patchAppearance({ ...appearance.value, contentWidth: "fixed" });
   }
@@ -593,6 +644,17 @@ onUnmounted(() => {
               <Search :size="18" :stroke-width="1.75" aria-hidden="true" />
             </button>
           </AppTooltip>
+          <AppTooltip text="文件（项目目录内只读预览）">
+            <button
+              class="icon-button"
+              type="button"
+              :aria-label="filesOpen ? '关闭文件面板' : '打开文件面板'"
+              :aria-expanded="filesOpen"
+              @click="filesOpen ? closeFilesPanel() : openFilesPanel()"
+            >
+              <FolderTree :size="18" :stroke-width="1.75" aria-hidden="true" />
+            </button>
+          </AppTooltip>
           <AppTooltip text="会话状态 (Ctrl+I)">
             <button
               class="icon-button"
@@ -690,6 +752,27 @@ onUnmounted(() => {
       @close="closeSearch"
       @query="onSearchQuery"
       @jump="onSearchJump"
+    />
+
+    <FileDrawer
+      v-if="filesOpen"
+      :view="store.fileView"
+      :rows="store.fileRows"
+      :bridge-available="store.bridgeAvailable"
+      :project-name="filesProjectName"
+      @close="closeFilesPanel"
+      @refresh="() => void store.refreshFiles()"
+      @toggle="(path: string) => void store.toggleFileDirectory(path)"
+      @sort="store.setFileSort"
+      @view="store.setFileView"
+      @show-hidden="store.setFileShowHidden"
+      @select="(path: string) => void store.selectFile(path)"
+      @close-preview="store.closeFilePreview"
+      @search="(query: string) => void store.searchFiles(query)"
+      @clear-search="store.clearFileSearch"
+      @create="(path: string) => void store.createFile(path)"
+      @rename="(from: string, to: string) => void store.renameFile(from, to)"
+      @remove="(path: string, options: { recursive: boolean; confirmName: string }) => void store.removeFile(path, options)"
     />
 
     <WorktreeDialog

@@ -7,8 +7,13 @@
 
 import type {
   CreateWorktreeInput,
+  DirListing,
   EntryRef,
   EntryText,
+  FileContent,
+  FileEntry,
+  FileMutation,
+  FileSearchResult,
   HistoryPage,
   ProjectId,
   ProjectSummary,
@@ -146,6 +151,19 @@ export class FakeBridge implements WorkspaceBridge {
   pruneError: string | null = null;
   /** 每次删除成功后从 worktreeList 里移除的工作树 id。 */
   readonly removed: WorktreeId[] = [];
+  /** 文件抽屉：按相对路径存放的目录层（未命中的路径返回空目录）。 */
+  readonly directories = new Map<string, FileEntry[]>();
+  /** 按相对路径存放的文件正文。 */
+  readonly fileContents = new Map<string, string>();
+  fileReadError: string | null = null;
+  fileReadGate: Promise<void> | null = null;
+  fileListError: string | null = null;
+  fileListGate: Promise<void> | null = null;
+  fileSearchError: string | null = null;
+  fileMutationError: string | null = null;
+  fileMutationGate: Promise<void> | null = null;
+  /** 已删除的路径（按调用顺序）。 */
+  readonly deletedPaths: string[] = [];
 
   count(method: string): number {
     return this.calls.filter((call) => call.method === method).length;
@@ -418,6 +436,110 @@ export class FakeBridge implements WorkspaceBridge {
     const count = this.staleWorktrees.length;
     this.staleWorktrees = [];
     return count;
+  }
+
+  /** 注册一层目录：用例只写它关心的条目。 */
+  setDirectory(path: string, entries: FileEntry[]): void {
+    this.directories.set(path, entries);
+  }
+
+  async listDir(_projectId: ProjectId, path: string): Promise<DirListing> {
+    this.calls.push({ method: "listDir", args: [_projectId, path] });
+    if (this.fileListGate) await this.fileListGate;
+    if (this.fileListError) throw new Error(this.fileListError);
+    const entries = this.directories.get(path) ?? [];
+    return {
+      projectId: _projectId,
+      path,
+      entries: entries.map((entry) => ({ ...entry })),
+      total: entries.length,
+      truncated: false,
+    };
+  }
+
+  async readFile(_projectId: ProjectId, path: string): Promise<FileContent> {
+    this.calls.push({ method: "readFile", args: [_projectId, path] });
+    if (this.fileReadGate) await this.fileReadGate;
+    if (this.fileReadError) throw new Error(this.fileReadError);
+    const text = this.fileContents.get(path);
+    if (text === undefined) throw new Error("E_FILES_PATH_MISSING: 路径不存在或不可访问");
+    return {
+      path,
+      text,
+      size: text.length,
+      bytesRead: text.length,
+      truncated: false,
+      binary: false,
+      modifiedAtMs: 1,
+    };
+  }
+
+  async writeFile(_projectId: ProjectId, path: string, content: string): Promise<FileMutation> {
+    this.calls.push({ method: "writeFile", args: [_projectId, path, content] });
+    if (this.fileMutationGate) await this.fileMutationGate;
+    if (this.fileMutationError) throw new Error(this.fileMutationError);
+    this.fileContents.set(path, content);
+    return { path, kind: "file", size: content.length };
+  }
+
+  async createFile(
+    _projectId: ProjectId,
+    path: string,
+    content?: string | null,
+  ): Promise<FileMutation> {
+    this.calls.push({ method: "createFile", args: [_projectId, path, content] });
+    if (this.fileMutationGate) await this.fileMutationGate;
+    if (this.fileMutationError) throw new Error(this.fileMutationError);
+    this.fileContents.set(path, content ?? "");
+    return { path, kind: "file", size: (content ?? "").length };
+  }
+
+  async renamePath(_projectId: ProjectId, from: string, to: string): Promise<FileMutation> {
+    this.calls.push({ method: "renamePath", args: [_projectId, from, to] });
+    if (this.fileMutationGate) await this.fileMutationGate;
+    if (this.fileMutationError) throw new Error(this.fileMutationError);
+    const content = this.fileContents.get(from);
+    if (content !== undefined) {
+      this.fileContents.delete(from);
+      this.fileContents.set(to, content);
+    }
+    return { path: to, kind: "file", size: content?.length ?? 0 };
+  }
+
+  async deletePath(
+    _projectId: ProjectId,
+    path: string,
+    options: { recursive?: boolean; confirmName: string },
+  ): Promise<FileMutation> {
+    this.calls.push({ method: "deletePath", args: [_projectId, path, options] });
+    if (this.fileMutationGate) await this.fileMutationGate;
+    if (this.fileMutationError) throw new Error(this.fileMutationError);
+    this.deletedPaths.push(path);
+    this.fileContents.delete(path);
+    return { path, kind: "file", size: 0 };
+  }
+
+  async searchFiles(_projectId: ProjectId, query: string, limit?: number): Promise<FileSearchResult> {
+    this.calls.push({ method: "searchFiles", args: [_projectId, query, limit] });
+    if (this.fileSearchError) throw new Error(this.fileSearchError);
+    const hits = [...this.fileContents.entries()]
+      .filter(([, text]) => text.includes(query))
+      .slice(0, limit ?? 200)
+      .map(([path, text]) => ({
+        path,
+        line: 1,
+        preview: text.split("\n")[0] ?? "",
+        matchStart: 0,
+        matchEnd: query.length,
+      }));
+    return {
+      query,
+      hits,
+      scannedFiles: this.fileContents.size,
+      skippedFiles: 0,
+      truncated: false,
+      tookMs: 0,
+    };
   }
 
   subscribe(handler: (event: RuntimeEvent) => void): () => void {

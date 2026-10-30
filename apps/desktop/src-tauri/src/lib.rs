@@ -11,6 +11,7 @@ mod events;
 mod watch;
 // 适配层对集成测试开放：测试直接调用真实 catalog/runtime 封装，而不是复制实现。
 pub mod dto;
+pub mod files;
 pub mod retry_store;
 pub mod session_runtime;
 pub mod state;
@@ -78,6 +79,13 @@ pub fn run() {
             commands::read_session_texts,
             commands::search_session,
             // ── files（V4：新 command 只加在本行下方）──
+            commands::create_file,
+            commands::delete_path,
+            commands::list_dir,
+            commands::read_file,
+            commands::rename_path,
+            commands::search_files,
+            commands::write_file,
             // ── git（V4：新 command 只加在本行下方）──
             // ── pty（V4：新 command 只加在本行下方）──
             // ── model（V4：新 command 只加在本行下方）──

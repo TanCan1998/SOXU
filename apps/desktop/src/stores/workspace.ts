@@ -9,11 +9,14 @@ import { computed, reactive, ref } from "vue";
 import { defineStore } from "pinia";
 
 import { createTauriBridge, createUnavailableBridge, isTauriRuntime } from "../workspace/bridge.ts";
+import { FileBrowser } from "../workspace/filesWorkspace.ts";
 import { WorkspaceSession } from "../workspace/sessionWorkspace.ts";
 import { WorktreeCatalog } from "../workspace/worktreeWorkspace.ts";
 import {
   createWorkspaceState,
   type CreateWorktreeInput,
+  type FileSortKey,
+  type FileViewMode,
   type SendPromptOptions,
   type SessionId,
   type SessionMode,
@@ -29,6 +32,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   state.bridgeAvailable = bridgeAvailable;
   const session = new WorkspaceSession(bridge, state);
   const worktrees = new WorktreeCatalog(bridge, state);
+  const files = new FileBrowser(bridge, state);
 
   const bootstrapped = ref(false);
   const busy = ref(false);
@@ -50,6 +54,9 @@ export const useWorkspaceStore = defineStore("workspace", () => {
   const selectedWorktree = computed(
     () => state.worktrees.worktrees.find((item) => item.id === state.worktrees.selectedId) ?? null,
   );
+  /** 文件抽屉状态：只装已展开过的目录层，与 Tab 状态完全分开。 */
+  const fileView = computed(() => state.files);
+  const fileRows = computed(() => files.rows());
 
   async function bootstrap(): Promise<void> {
     if (bootstrapped.value) return;
@@ -192,8 +199,64 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     return worktrees.prune();
   }
 
+  function openFiles(projectId: string | null): Promise<void> {
+    return files.open(projectId);
+  }
+
+  function refreshFiles(path?: string): Promise<void> {
+    return files.refresh(path);
+  }
+
+  function toggleFileDirectory(path: string): Promise<void> {
+    return files.toggle(path);
+  }
+
+  function setFileSort(key: FileSortKey): void {
+    files.setSort(key);
+  }
+
+  function setFileView(mode: FileViewMode): void {
+    files.setView(mode);
+  }
+
+  function setFileShowHidden(show: boolean): void {
+    files.setShowHidden(show);
+  }
+
+  function selectFile(path: string): Promise<unknown> {
+    return files.select(path);
+  }
+
+  function closeFilePreview(): void {
+    files.clearPreview();
+  }
+
+  function searchFiles(query: string): Promise<unknown> {
+    return files.search(query);
+  }
+
+  function clearFileSearch(): void {
+    files.clearSearch();
+  }
+
+  function createFile(path: string): Promise<boolean> {
+    return files.createFile(path);
+  }
+
+  function renameFile(from: string, to: string): Promise<boolean> {
+    return files.rename(from, to);
+  }
+
+  function removeFile(
+    path: string,
+    options: { recursive: boolean; confirmName: string },
+  ): Promise<boolean> {
+    return files.remove(path, options);
+  }
+
   async function dispose(): Promise<void> {
     worktrees.dispose();
+    files.dispose();
     await session.dispose();
   }
 
@@ -207,6 +270,8 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     hasProjects,
     worktreeView,
     selectedWorktree,
+    fileView,
+    fileRows,
     bootstrap,
     addProject,
     refreshProjects,
@@ -233,6 +298,19 @@ export const useWorkspaceStore = defineStore("workspace", () => {
     confirmWorktreeRemoval,
     cancelWorktreeRemoval,
     pruneWorktrees,
+    openFiles,
+    refreshFiles,
+    toggleFileDirectory,
+    setFileSort,
+    setFileView,
+    setFileShowHidden,
+    selectFile,
+    closeFilePreview,
+    searchFiles,
+    clearFileSearch,
+    createFile,
+    renameFile,
+    removeFile,
     dispose,
   };
 });
