@@ -435,8 +435,11 @@ test("SettingsDialog：initialTab 只是初始页，普通打开仍停留在上�
 test("设置项元数据单一来源：面板只写 setting id，标题与说明由 catalog.ts 决定", async () => {
   const row = await readSource("components/settings/SettingsRow.vue");
   assert.ok(row.includes("settingsEntry"), "SettingsRow 从目录取元数据");
-  assert.match(row, /setting: string/, "按 id 接收设置项");
+  // setting 允许可选：语言包页（Issue #135）的标题必须跟随语言切换，
+  // 用 labelKey 走 t()，那条路径不经过 catalog 查表。
+  assert.match(row, /setting\??: string/, "按 id 接收设置项");
   assert.doesNotMatch(row, /label: string/, "SettingsRow 不再接受 label 字面量");
+  assert.ok(row.includes("labelKey"), "支持 i18n key 形式的标题");
 
   const panels = ["SettingsAppearance", "SettingsSession", "SettingsSystem"];
   const used = new Set<string>();

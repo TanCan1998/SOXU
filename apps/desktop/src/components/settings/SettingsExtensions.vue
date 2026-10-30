@@ -15,6 +15,7 @@ import {
   MCP_SERVICE_ENTRIES,
   SKILL_ENTRIES,
 } from "../../settings/extensions.ts";
+import SettingsLocale from "./SettingsLocale.vue";
 import SettingsSwitch from "./SettingsSwitch.vue";
 
 /** 占位开关状态：初始值来自常量表的 enabled 字段。 */
@@ -31,7 +32,7 @@ function toggle(name: string, value: boolean): void {
   <div class="panel">
     <p class="banner" role="note">
       以下列表是本切片的静态占位：真实扩展、技能与 MCP 服务由后续切片读取，
-      开关状态不会写回本机配置。
+      开关状态不会写回本机配置。页尾的「语言包」除外——它真的读写本机语言包文件。
     </p>
 
     <p class="section-title">扩展 · {{ EXTENSION_ENTRIES.length }} 个</p>
@@ -70,6 +71,10 @@ function toggle(name: string, value: boolean): void {
         {{ entry.connected ? "已连接" : "未连接" }}
       </span>
     </div>
+
+    <!-- 语言包（Issue #135）：与上面的静态占位不同，这一块真的读写磁盘。 -->
+    <div class="divider" role="separator" />
+    <SettingsLocale />
   </div>
 </template>
 
@@ -143,5 +148,11 @@ function toggle(name: string, value: boolean): void {
   border-color: transparent;
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.divider {
+  height: 1px;
+  margin: 16px 0 4px;
+  background: var(--border);
 }
 </style>

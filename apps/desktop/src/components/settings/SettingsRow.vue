@@ -16,24 +16,42 @@ import { computed } from "vue";
 import { useId } from "reka-ui";
 
 import { settingsEntry } from "../../settings/catalog.ts";
+import { useLocale } from "../../locales/index.ts";
 
 const props = defineProps<{
-  /** 设置项 id（settings/catalog.ts），标题与默认说明都由它决定。 */
-  setting: string;
+  /**
+   * 设置项 id（settings/catalog.ts），标题与默认说明都由它决定。
+   *
+   * 与 labelKey 二选一：catalog 只收录「设置页有独立行」的项（20 项），
+   * 扩展页是静态列表没有条目，但语言包页（Issue #135）确实需要同样的行布局。
+   */
+  setting?: string;
+  /**
+   * i18n key：标题直接走 t()，不查 catalog。
+   *
+   * 用于标题本身必须随语言切换的行。catalog 是纯中文常量，
+   * 而语言包页的「内置语言 / 已导入的语言包」要跟着界面语言变。
+   */
+  labelKey?: string;
   /** 覆盖目录里的说明：仅用于含动态值的行（当前版本 / 数据目录 / 平台）。 */
   description?: string;
 }>();
 
-const meta = computed(() => settingsEntry(props.setting));
-const description = computed(() => props.description ?? meta.value.description);
+const { t } = useLocale();
+const meta = computed(() => (props.setting ? settingsEntry(props.setting) : null));
+const resolvedLabel = computed(() => {
+  if (props.labelKey) return t(props.labelKey);
+  return meta.value?.label ?? "";
+});
+const description = computed(() => props.description ?? meta.value?.description);
 
 const labelId = useId();
 </script>
 
 <template>
-  <div class="row" :data-setting="setting">
+  <div class="row" :data-setting="setting ?? ''">
     <div class="row-text">
-      <p :id="labelId" class="row-label">{{ meta.label }}</p>
+      <p :id="labelId" class="row-label">{{ resolvedLabel }}</p>
       <p v-if="description" class="row-desc">{{ description }}</p>
     </div>
     <div class="row-control">
