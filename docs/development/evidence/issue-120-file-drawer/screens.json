@@ -1,0 +1,15 @@
+{
+  "issue": 120,
+  "task": "TASK-028",
+  "capturedAt": "2026-02-10",
+  "platform": "windows",
+  "renderer": "moli headless (Chromium layout)",
+  "viewport": { "width": 1280, "height": 720 },
+  "harness": "apps/desktop/tests/harness/file-drawer.html",
+  "screens": [
+    { "file": "01-light-tree.png", "theme": "light", "view": "tree", "state": "root layer only" },
+    { "file": "02-light-preview.png", "theme": "light", "view": "tree", "state": "src expanded + preview src/main.ts" },
+    { "file": "03-dark-flat.png", "theme": "dark", "view": "flat", "state": "src expanded, flat labels" },
+    { "file": "04-light-delete-confirm.png", "theme": "light", "view": "tree", "state": "delete confirm, empty input disables the button" }
+  ]
+}

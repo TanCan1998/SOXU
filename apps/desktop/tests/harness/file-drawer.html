@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · Issue #120 文件抽屉夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+
+      /* 占位会话区：让截图看得出抽屉挂在真实布局的右侧，而不是孤零零一块。 */
+      .harness-stage {
+        display: flex;
+        height: 100%;
+        background: var(--soxu-bg);
+        color: var(--soxu-fg);
+        font-family: var(--soxu-font-family-sans, system-ui, sans-serif);
+      }
+
+      .harness-main {
+        flex: 1;
+        min-width: 0;
+        padding: 28px 32px;
+      }
+
+      .harness-main h1 {
+        margin: 0 0 6px;
+        font-size: 1rem;
+      }
+
+      .harness-main p {
+        margin: 0;
+        font-size: 0.75rem;
+        color: var(--soxu-subtext);
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #120 · TASK-028）：
+      pnpm dev 后访问 /tests/harness/file-drawer.html ，
+      再用 moli fetch --dump screenshot 截图（见同目录 README）。
+      不参与生产构建（vite build 只构建 index.html），也不连接真实文件系统：
+      目录树、文件正文与搜索结果都是内存假数据，用来验证渲染与交互。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./file-drawer.ts"></script>
+  </body>
+</html>

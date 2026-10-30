@@ -7,6 +7,7 @@
 //! 因此 `crate::dto::<Type>` 的引用路径保持不变；新增结构请落到对应领域文件。
 
 mod extension;
+mod files;
 mod git;
 mod session;
 mod stats;
@@ -14,6 +15,7 @@ mod workspace;
 mod worktree;
 
 pub use extension::*;
+pub use files::*;
 pub use git::*;
 pub use session::*;
 pub use stats::*;
