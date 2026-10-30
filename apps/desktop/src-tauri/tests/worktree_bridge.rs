@@ -100,9 +100,18 @@ async fn worktree_sessions_are_linked_and_protected_from_removal() {
     .expect("创建工作树");
     assert_eq!(created.branch.as_deref(), Some("agent/issue-5"));
     assert!(!created.primary);
+    // 产品返回规范化（canonical）路径；这里给的 target 可能带 Windows 8.3 短名
+    // （GitHub runner 的 RUNNER~1）或 macOS 的 /var → /private/var 符号链接，
+    // 直接比较原始字符串会在这些环境里误报。
+    let canonical_target = fs::canonicalize(&target).expect("解析工作树路径");
+    // Windows 的 canonicalize 会带 `\\?\` verbatim 前缀，产品侧会 strip 掉后再存。
+    let canonical_target = canonical_target.to_string_lossy();
+    let canonical_target = canonical_target
+        .trim_start_matches(r"\\?\")
+        .replace('\\', "/");
     assert_eq!(
         created.path.replace('\\', "/"),
-        target.to_string_lossy().replace('\\', "/"),
+        canonical_target,
         "返回规范化后的工作树路径"
     );
 
