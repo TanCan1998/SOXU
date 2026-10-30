@@ -25,6 +25,17 @@
       "timeoutMinutes": 8
     },
     {
+      "bin": "pnpm",
+      "args": [
+        "--filter",
+        "@soxu/desktop",
+        "exec",
+        "vite",
+        "build"
+      ],
+      "timeoutMinutes": 5
+    },
+    {
       "bin": "cargo",
       "args": [
         "test",
