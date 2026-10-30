@@ -135,6 +135,7 @@ The owner has approved a **ChatGPT-inspired, conversation-first layout** without
 | `Ctrl/⌘+I` | Session status panel |
 
 Internationalization (Issue #135): UI strings live in per-module JSON language packs (`zh-CN` / `en-US`; a slice only edits its own module), with runtime switching and community language-pack import. Imported packs are stored in the app data directory — never in the repository, and never lost on update. Rules and the community translation workflow: [i18n and language packs](docs/development/i18n.md).
+The owner has approved a **ChatGPT-inspired, conversation-first layout** without copying OpenAI branding, code, or assets. The desktop app has moved from a local interaction prototype to a **multi-session workspace**: projects and sessions come from the real Pi session index (read-only, never moving or deleting files), session tabs page through history, load full message text on demand, and stream Pi RPC output with cancel and stop (tabs share one dynamically computed width clamped to 96–220px, fall back to horizontal scrolling when they no longer fit, and can be reordered by dragging with a mouse or touch — reordering never changes the active session); the inspector shows real runtime state plus retry counts (network interruptions and timeouts are retried at most twice, counts are persisted across restarts, while 429/quota, auth failures and user cancellation are never retried, stopping during a retry wait aborts it immediately, and the UI warns that retries may incur model cost), and displays "unknown" when disconnected instead of fabricating data. The file button in the header opens a **file drawer**: the directory tree loads on demand (opening it reads only the root level), supports name/time/size sorting and a tree/flat switch, and clicking a file shows a read-only preview that reuses the session code-block highlighting; creating, renaming and deleting all stay inside the project root, and deleting requires typing the file name to confirm. Real WebView rendering, macOS/Linux runs, and the full set of real Pi events are still unverified. See the [UI baseline](docs/design/gpt-inspired-ui.md), the [multi-session workspace notes](docs/development/multi-session-workspace.md), and the [file drawer contract](docs/development/file-drawer.md).
 
 ## Dependency locks and CI gate
 
@@ -154,6 +155,7 @@ The repository includes `pnpm-lock.yaml` and `Cargo.lock`. Use `pnpm install --f
 | `docs/development/i18n.md` | i18n: module layout, key conventions, community translation import, CI validation |
 | `docs/architecture/worktree-service.md` | Git worktrees: enumeration/creation, diffs, session links, and confirmation-gated deletion |
 | `docs/architecture/git-drawer.md` | Git drawer: change-list badges, per-file diffs, staging/commits, and push/pull safety boundaries |
+| `docs/development/file-drawer.md` | File drawer: command contract, path guard, lazy loading, and how to verify |
 | `docs/design/` | Approved UI/UX baseline and historical proposals |
 
 ## Approval and remaining prerequisites

@@ -8,6 +8,7 @@
 //! 并由 `scripts/check-command-blocks.mjs` 机器校验（`pnpm check` 会跑）。
 
 mod extension;
+mod files;
 mod git;
 mod history;
 mod session;
@@ -16,6 +17,7 @@ mod workspace;
 mod worktree;
 
 pub use extension::*;
+pub use files::*;
 pub use git::*;
 pub use history::*;
 pub use session::*;

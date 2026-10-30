@@ -14,6 +14,10 @@ Issue #40 的最小离线测试集：验证**未授权路径读取**、**写越�
 | 未授权路径读取 | 前端不能按 ID 读未登记会话 | `apps/desktop/src-tauri/tests/security_regression.rs` · `unauthorized_session_reads_are_refused_without_echoing_content` |
 | 写越界 | 相对路径、`..` 穿越、经链接逃出允许根目录 | `crates/git-worktree/tests/path_guard.rs` · `relative_destination_is_rejected_by_path_resolution`、`traversal_outside_allowed_root_is_rejected`、`linked_parent_escaping_allowed_root_is_rejected` |
 | 写越界 | 不建在仓库内部、不覆盖已有目录 | `destination_inside_the_repository_is_rejected`、`existing_destination_is_never_overwritten` |
+| 未授权路径读取 | 文件抽屉：`..`、绝对路径、UNC/盘符写法被拒 | `apps/desktop/src-tauri/tests/files_bridge.rs` · `traversal_and_absolute_paths_are_rejected`、`files/guard.rs` 单测 |
+| 未授权路径读取 | 文件抽屉：经符号链接/目录联接逃出项目根目录被拒 | `apps/desktop/src-tauri/tests/files_bridge.rs` · `symlinks_escaping_the_root_are_rejected` |
+| 写越界 | 文件抽屉：新建/写入/重命名/删除都限制在项目根目录内，删除需名称确认 | `apps/desktop/src-tauri/tests/files_bridge.rs` · `create_write_rename_delete_stay_inside_the_root` |
+| 只读预览 | 文件抽屉：预览按字节截断，二进制只回标记 | `apps/desktop/src-tauri/tests/files_bridge.rs` · `preview_is_bounded_and_binary_content_is_marked` |
 | 路径解析 | 链接登记不产生重复项目身份 | `crates/session-index/tests/path_guard.rs` · `project_registered_through_link_keeps_a_single_identity` |
 | 路径解析 | 会话目录名不残留分隔符/盘符 | `session_directory_name_stays_inside_the_sessions_root` |
 | 路径比较 | 前缀相同不算子目录；verbatim 前缀被剥离 | `crates/session-index/src/identity.rs` 单测、`crates/git-worktree/src/repo.rs` 单测 |
@@ -30,6 +34,7 @@ Issue #40 的最小离线测试集：验证**未授权路径读取**、**写越�
 cargo test -p soxu-git-worktree --test path_guard
 cargo test -p soxu-session-index --test path_guard
 cargo test -p soxu-desktop --test security_regression
+cargo test -p soxu-desktop --test files_bridge
 node --test scripts/tests/secret-gate.test.mjs
 ```
 

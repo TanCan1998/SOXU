@@ -615,6 +615,27 @@ export interface WorkspaceBridge {
     token: string,
   ): Promise<WorktreeRemovalView>;
   pruneWorktrees(projectId: ProjectId, token: string): Promise<number>;
+  /** 文件抽屉：只读一层目录（懒加载）。 */
+  listDir(projectId: ProjectId, path: string): Promise<DirListing>;
+  /** 文件抽屉：只读预览（后端按字节截断，二进制只回标记）。 */
+  readFile(projectId: ProjectId, path: string): Promise<FileContent>;
+  /** 覆盖写入已存在的文件；目标不存在时后端报错，不会顺手创建。 */
+  writeFile(projectId: ProjectId, path: string, content: string): Promise<FileMutation>;
+  /** 新建文件；目标已存在（含悬空符号链接）时后端拒绝。 */
+  createFile(projectId: ProjectId, path: string, content?: string | null): Promise<FileMutation>;
+  /** 重命名/移动；源与目标都必须落在项目根目录内。 */
+  renamePath(projectId: ProjectId, from: string, to: string): Promise<FileMutation>;
+  /**
+   * 删除：§confirmName§ 必须等于目标名称，由**后端**校验（前端只负责让用户看见并输入）。
+   * 目录非空时需要 §recursive§ 显式为真。
+   */
+  deletePath(
+    projectId: ProjectId,
+    path: string,
+    options: { recursive?: boolean; confirmName: string },
+  ): Promise<FileMutation>;
+  /** 项目内文件搜索：深度/文件数/命中数都有后端上限。 */
+  searchFiles(projectId: ProjectId, query: string, limit?: number): Promise<FileSearchResult>;
   /** 返回取消订阅函数；组件卸载时必须调用。 */
   subscribe(handler: (event: RuntimeEvent) => void): () => void;
 }
@@ -728,6 +749,8 @@ export interface WorkspaceState {
   worktrees: WorktreeState;
   /** Git 抽屉；与 Tab 状态相互独立（只观察，不改写会话）。 */
   git: GitState;
+  /** 文件抽屉；只装已展开过的目录层，与 Tab 状态相互独立。 */
+  files: FileBrowserState;
 }
 
 export const HISTORY_PAGE_SIZE = 40;
@@ -813,6 +836,162 @@ export function createWorktreeState(): WorktreeState {
   };
 }
 
+// ── 文件抽屉（Issue #120 / TASK-028）──
+
+/** 目录里的一个条目（Rust §FileEntry§ 的镜像）。路径都是项目内相对路径。 */
+export interface FileEntry {
+  path: string;
+  name: string;
+  kind: "dir" | "file" | "symlink" | "other";
+  size: number;
+  modifiedAtMs: number | null;
+  /** 以 §.§ 开头；隐藏条目默认不显示，由用户显式打开。 */
+  hidden: boolean;
+  /** 条目本身是符号链接：只读预览会跟随（并受后端根目录守卫约束），写操作一律被拒。 */
+  symlink: boolean;
+}
+
+/** 单层目录枚举结果（懒加载：只读一层）。 */
+export interface DirListing {
+  projectId: ProjectId;
+  /** 被枚举的目录（相对路径；根目录为空字符串）。 */
+  path: string;
+  entries: FileEntry[];
+  total: number;
+  /** 条目数超过后端上限，只返回了前一部分。 */
+  truncated: boolean;
+}
+
+/** 只读预览结果。 */
+export interface FileContent {
+  path: string;
+  /** §binary§ 为真时为空字符串：界面显示「二进制文件」而不是乱码。 */
+  text: string;
+  size: number;
+  bytesRead: number;
+  truncated: boolean;
+  binary: boolean;
+  modifiedAtMs: number | null;
+}
+
+/** 写操作（新建/写入/重命名/删除）的结果。 */
+export interface FileMutation {
+  path: string;
+  kind: "file" | "dir";
+  size: number;
+}
+
+/** 文件内搜索的一条命中。 */
+export interface FileSearchHit {
+  path: string;
+  /** 1 起算的行号。 */
+  line: number;
+  preview: string;
+  /** 预览内命中的字符偏移；无法定位时为 0。 */
+  matchStart: number;
+  matchEnd: number;
+}
+
+export interface FileSearchResult {
+  query: string;
+  hits: FileSearchHit[];
+  scannedFiles: number;
+  skippedFiles: number;
+  /** 触到上限：结果不完整，界面必须如实说明。 */
+  truncated: boolean;
+  tookMs: number;
+}
+
+export type FileSortKey = "name" | "time" | "size";
+export type FileSortDirection = "asc" | "desc";
+export type FileViewMode = "tree" | "flat";
+
+/** 已加载的一层目录（懒加载的最小缓存单元）。 */
+export interface FileDirectory {
+  path: string;
+  entries: FileEntry[];
+  total: number;
+  truncated: boolean;
+  loaded: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+/** 只读预览状态；§seq§ 用于丢弃迟到的响应。 */
+export interface FilePreviewState {
+  path: string;
+  loading: boolean;
+  error: string | null;
+  content: FileContent | null;
+  seq: number;
+}
+
+/** 文件内搜索状态；同样用 §seq§ 丢弃迟到响应。 */
+export interface FileSearchState {
+  query: string;
+  loading: boolean;
+  error: string | null;
+  result: FileSearchResult | null;
+  seq: number;
+}
+
+/**
+ * 文件抽屉状态。
+ *
+ * §directories§ 只装**已展开过的层**：根目录在打开面板时读一次，子目录要用户展开才读，
+ * 因此长仓库不会因为「打开抽屉」而遍历全盘。
+ */
+export interface FileBrowserState {
+  projectId: ProjectId | null;
+  directories: Record<string, FileDirectory>;
+  expanded: Record<string, boolean>;
+  selectedPath: string | null;
+  preview: FilePreviewState | null;
+  sort: FileSortKey;
+  direction: FileSortDirection;
+  view: FileViewMode;
+  showHidden: boolean;
+  search: FileSearchState | null;
+  loading: boolean;
+  error: string | null;
+  /** 写操作进行中：期间禁用新建/重命名/删除按钮，避免并发改同一棵树。 */
+  mutating: boolean;
+}
+
+/** 目录树/平铺视图的一行（渲染用的扁平结构）。 */
+export interface FileRow {
+  path: string;
+  name: string;
+  kind: FileEntry["kind"];
+  depth: number;
+  /** 目录是否已展开（决定箭头方向）。 */
+  expanded: boolean;
+  /** 目录是否已加载子层（未加载的目录展开时会发请求）。 */
+  loaded: boolean;
+  size: number;
+  modifiedAtMs: number | null;
+  hidden: boolean;
+  symlink: boolean;
+}
+
+export function createFileState(): FileBrowserState {
+  return {
+    projectId: null,
+    directories: {},
+    expanded: {},
+    selectedPath: null,
+    preview: null,
+    sort: "name",
+    direction: "asc",
+    view: "tree",
+    showHidden: false,
+    search: null,
+    loading: false,
+    error: null,
+    mutating: false,
+  };
+}
+
 export function createGitState(): GitState {
   return {
     projectId: null,
@@ -843,6 +1022,7 @@ export function createWorkspaceState(): WorkspaceState {
     projectsError: null,
     bridgeAvailable: true,
     worktrees: createWorktreeState(),
+    files: createFileState(),
     git: createGitState(),
   };
 }

@@ -1,0 +1,20 @@
+{
+  "harness": "apps/desktop/tests/harness/file-drawer.html",
+  "capturedAt": "2026-02-10",
+  "platform": "windows",
+  "afterExpandingSrcOnly": {
+    "layersLoaded": 2,
+    "rowsTree": 7,
+    "treeItems": 7,
+    "ariaExpanded": 3,
+    "ariaPressed": 6,
+    "ariaLabels": 23,
+    "previewPath": "src/main.ts",
+    "previewChars": 176
+  },
+  "notes": [
+    "layersLoaded 只包含根与 src：docs 与 src/components 从未被读取，证明目录树是懒加载的。",
+    "treeItems 与 rowsTree 相等：树用 role=treeitem 渲染，键盘与读屏语义来自真实结构。",
+    "previewChars 来自 read_file 的返回长度，不是前端伪造的占位文本。"
+  ]
+}
