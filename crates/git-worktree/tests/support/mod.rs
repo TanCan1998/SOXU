@@ -19,7 +19,9 @@ impl Sandbox {
             .unwrap_or_default();
         let root = std::env::temp_dir().join(format!("soxu-git-{name}-{stamp}"));
         std::fs::create_dir_all(&root).expect("创建测试沙箱");
-        Self { root }
+        Self {
+            root: canonical_root(root),
+        }
     }
 
     pub fn root(&self) -> &Path {
@@ -28,6 +30,22 @@ impl Sandbox {
 
     pub fn path(&self, relative: &str) -> PathBuf {
         self.root.join(relative)
+    }
+}
+
+/// 统一成 git 会返回的形式：真实大小写、长文件名、无 Windows verbatim 前缀。
+///
+/// 临时目录在不同平台可能是符号链接（macOS `/var` → `/private/var`）或 8.3 短名
+/// （Windows runner 的 `RUNNER~1`），不规范化就让「测试给的路径」和「git 枚举的路径」
+/// 永远不相等，测试在 CI 上必挂而本机通过。
+fn canonical_root(path: PathBuf) -> PathBuf {
+    let Ok(canonical) = std::fs::canonicalize(&path) else {
+        return path;
+    };
+    let text = canonical.to_string_lossy();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => canonical,
     }
 }
 
