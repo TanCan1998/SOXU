@@ -18,22 +18,31 @@ import { useId } from "reka-ui";
 import { settingsEntry } from "../../settings/catalog.ts";
 
 const props = defineProps<{
-  /** 设置项 id（settings/catalog.ts），标题与默认说明都由它决定。 */
-  setting: string;
+  /** 设置项 id（settings/catalog.ts），标题与默认说明都由它决定。与 label 二选一。 */
+  setting?: string;
+  /**
+   * 直接给标题，跳过目录查表。
+   *
+   * 用于标题本身要跟随语言切换的行（Issue #135 语言包页）：catalog 是纯中文常量，
+   * 而语言包页的「内置语言 / 已导入的语言包」必须随界面语言变化。
+   * 这类行的标题来自 t()，由调用方传进来。
+   */
+  label?: string;
   /** 覆盖目录里的说明：仅用于含动态值的行（当前版本 / 数据目录 / 平台）。 */
   description?: string;
 }>();
 
-const meta = computed(() => settingsEntry(props.setting));
-const description = computed(() => props.description ?? meta.value.description);
+const meta = computed(() => (props.setting ? settingsEntry(props.setting) : null));
+const resolvedLabel = computed(() => props.label ?? meta.value?.label ?? "");
+const description = computed(() => props.description ?? meta.value?.description);
 
 const labelId = useId();
 </script>
 
 <template>
-  <div class="row" :data-setting="setting">
+  <div class="row" :data-setting="setting ?? ''">
     <div class="row-text">
-      <p :id="labelId" class="row-label">{{ meta.label }}</p>
+      <p :id="labelId" class="row-label">{{ resolvedLabel }}</p>
       <p v-if="description" class="row-desc">{{ description }}</p>
     </div>
     <div class="row-control">
