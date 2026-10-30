@@ -57,7 +57,9 @@
     "manualOnNetwork": true,
     "manualOnTimeout": true,
     "automaticApiRetries": 0,
-    "preserveWorktree": true
+    "preserveWorktree": true,
+    "maxConflictFiles": 3,
+    "maxConflictBlocks": 8
   },
   "taskTimeoutMinutes": 35,
   "reviewTimeoutMinutes": 8,
