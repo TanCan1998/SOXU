@@ -111,7 +111,8 @@ fn canonical_directory_stays_the_preferred_candidate() {
             .expect("打开目录");
     let project = catalog.register_project(&project_root).expect("登记项目");
     let worktree = project.primary_worktree().expect("主工作树").clone();
-    assert!(worktree.aliases.is_empty(), "路径一致时不应产生别名");
+    // 不假设 aliases 为空：临时目录在 macOS/Windows 上本来就和 canonical 不同。
+    // 这条用例只验证 canonical 目录里的会话能被正常索引。
     write_session_under(
         &sessions_root,
         Path::new(&worktree.path),
