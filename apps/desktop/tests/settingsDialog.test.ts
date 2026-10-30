@@ -41,6 +41,8 @@ import {
   MCP_SERVICE_ENTRIES,
   SKILL_ENTRIES,
 } from "../src/settings/extensions.ts";
+import { SETTINGS_TABS, settingsEntriesFor } from "../src/settings/catalog.ts";
+import { settingsOpenTransition } from "../src/settings/openRequest.ts";
 import { APP_IDENTIFIER, dataDirectoryHint } from "../src/settings/dataDirectory.ts";
 import { ACCENT_OPTIONS } from "../src/theme/appearance.ts";
 import type { KeyValueStorage } from "../src/settings/storage.ts";
@@ -364,10 +366,23 @@ test("正文宽度：默认引用 V4 的 --content-max，自适应放开到 100%
 test("设置弹窗：四个 tab，顺序与文案照原型，内容各自独立成组件", async () => {
   const dialog = await readSource("components/SettingsDialog.vue");
 
-  const labels = [...dialog.matchAll(/\{ value: "(\w+)", label: "([^"]+)" \}/g)].map(
-    (match) => match[2],
+  // 四页的 id 与文案来自 settings/catalog.ts（Issue #123）：命令面板的设置类命令
+  // 读的是同一份数据，因此这里先断言目录，再断言外壳确实用了它、没有第二份数组。
+  assert.deepEqual(
+    SETTINGS_TABS.map((tab) => tab.label),
+    ["外观", "会话", "扩展", "系统"],
+    "四页顺序与原型一致",
   );
-  assert.deepEqual(labels, ["外观", "会话", "扩展", "系统"], "四页顺序与原型一致");
+  assert.ok(dialog.includes("SETTINGS_TABS"), "标签页数组来自 settings/catalog.ts");
+  assert.ok(
+    dialog.includes('v-for="item in SETTINGS_TABS"'),
+    "外壳 v-for 渲染目录，不再自己维护 TABS",
+  );
+  assert.doesNotMatch(
+    dialog,
+    /\{ value: "\w+", label: "/,
+    "外壳里不应再出现第二份标签页数组",
+  );
 
   // reka-ui Tabs：自带 role=tablist/tab/tabpanel 与方向键
   for (const part of ["TabsRoot", "TabsList", "TabsTrigger", "TabsContent"]) {
@@ -393,11 +408,59 @@ test("设置弹窗：四个 tab，顺序与文案照原型，内容各自独立�
   assert.ok(dialog.includes('aria-labelledby="soxu-settings-title"'));
 });
 
+test("设置已打开时再请求必须切页（Issue #123 复审阻塞点）", () => {
+  // 旧实现只在 props.open 由 false 变 true 时应用 initialTab：设置已经开着时
+  // 从命令面板执行「设置 · 系统」，弹窗停在原页，用户以为命令没生效。
+  assert.equal(
+    settingsOpenTransition({ open: false, request: 1 }, { open: true, request: 2 }),
+    "opened",
+    "从关到开：应用目标页并把焦点移进弹窗",
+  );
+  assert.equal(
+    settingsOpenTransition({ open: true, request: 2 }, { open: true, request: 3 }),
+    "retargeted",
+    "已经开着又来了新请求：必须切页",
+  );
+  assert.equal(
+    settingsOpenTransition({ open: true, request: 3 }, { open: true, request: 3 }),
+    "none",
+    "同一个请求重复渲染：不要抢用户正在操作的控件",
+  );
+  assert.equal(
+    settingsOpenTransition({ open: true, request: 3 }, { open: false, request: 3 }),
+    "none",
+    "关闭时什么都不做",
+  );
+  assert.equal(
+    settingsOpenTransition({ open: false, request: 3 }, { open: false, request: 4 }),
+    "none",
+    "弹窗关着时的请求不单独落地（openSettings 会同时把 open 置真）",
+  );
+});
+
+test("请求序号接到纯函数上，App.vue 每次打开都递增", async () => {
+  const dialog = await readSource("components/SettingsDialog.vue");
+  assert.ok(dialog.includes("settingsOpenTransition"), "判定走纯函数，可脱离 DOM 测试");
+  assert.ok(dialog.includes("request: number"), "弹窗接收请求序号");
+  assert.match(dialog, /props\.open, request: props\.request/, "同时监听 open 与 request");
+  const app = await readSource("App.vue");
+  assert.match(app, /settingsRequest\.value \+= 1/);
+  assert.ok(app.includes(':request="settingsRequest"'));
+});
+
 test("外观页：主题/强调色/字号/字体/代码字体/宽度六项齐全，事件都向上冒泡", async () => {
   const panel = await readSource("components/settings/SettingsAppearance.vue");
-  for (const label of ["主题", "强调色", "界面字号", "界面字体", "代码字体", "正文宽度"]) {
-    assert.ok(panel.includes('label="' + label + '"'), "外观页缺少「" + label + "」");
+  const entries = settingsEntriesFor("appearance");
+  assert.deepEqual(
+    entries.map((entry) => entry.label),
+    ["主题", "强调色", "界面字号", "界面字体", "代码字体", "正文宽度"],
+    "外观页六项的顺序与文案由 catalog.ts 决定",
+  );
+  for (const entry of entries) {
+    assert.ok(panel.includes('setting="' + entry.id + '"'), "外观页缺少设置项：" + entry.id);
   }
+  // 标题不再写死在面板里：改文案只改 catalog.ts，设置页与命令面板同时生效
+  assert.doesNotMatch(panel, /<SettingsRow[^>]*\slabel=/, "SettingsRow 不接受 label 字面量");
   for (const table of [
     "ACCENT_OPTIONS",
     "FONT_SIZE_OPTIONS",
@@ -424,17 +487,24 @@ test("外观页：主题/强调色/字号/字体/代码字体/宽度六项齐全
 
 test("会话页：四个开关 + 思考强度 Select + 忙碌时发送 + 清空，全部只改偏好", async () => {
   const panel = await readSource("components/settings/SettingsSession.vue");
-  for (const label of [
-    "发送后滚动",
-    "Enter 发送",
-    "显示工具调用",
-    "消息时间戳",
-    "默认思考强度",
-    "忙碌时发送",
-    "清空当前会话",
-  ]) {
-    assert.ok(panel.includes('label="' + label + '"'), "会话页缺少「" + label + "」");
+  const entries = settingsEntriesFor("session");
+  assert.deepEqual(
+    entries.map((entry) => entry.label),
+    [
+      "发送后滚动",
+      "Enter 发送",
+      "显示工具调用",
+      "消息时间戳",
+      "默认思考强度",
+      "忙碌时发送",
+      "清空当前会话",
+    ],
+    "会话页七项的顺序与文案由 catalog.ts 决定",
+  );
+  for (const entry of entries) {
+    assert.ok(panel.includes('setting="' + entry.id + '"'), "会话页缺少设置项：" + entry.id);
   }
+  assert.doesNotMatch(panel, /<SettingsRow[^>]*\slabel=/, "SettingsRow 不接受 label 字面量");
   // 思考强度用 reka-ui 的 Select（本切片指定的三种控件之一）
   assert.ok(panel.includes("SelectRoot"), "默认思考强度用 reka Select");
   assert.ok(panel.includes("SelectPortal"), "下拉内容走 portal，不被弹窗裁切");
@@ -449,17 +519,24 @@ test("会话页：四个开关 + 思考强度 Select + 忙碌时发送 + 清空�
 
 test("系统页：7 项齐全，未接入的能力如实说明而不是假装生效", async () => {
   const panel = await readSource("components/settings/SettingsSystem.vue");
-  for (const label of [
-    "自动更新",
-    "任务完成通知",
-    "关闭时最小化到托盘",
-    "检查更新",
-    "恢复默认布局",
-    "数据目录",
-    "关于",
-  ]) {
-    assert.ok(panel.includes('label="' + label + '"'), "系统页缺少「" + label + "」");
+  const entries = settingsEntriesFor("system");
+  assert.deepEqual(
+    entries.map((entry) => entry.label),
+    [
+      "自动更新",
+      "任务完成通知",
+      "关闭时最小化到托盘",
+      "检查更新",
+      "恢复默认布局",
+      "数据目录",
+      "关于",
+    ],
+    "系统页七项的顺序与文案由 catalog.ts 决定",
+  );
+  for (const entry of entries) {
+    assert.ok(panel.includes('setting="' + entry.id + '"'), "系统页缺少设置项：" + entry.id);
   }
+  assert.doesNotMatch(panel, /<SettingsRow[^>]*\slabel=/, "SettingsRow 不接受 label 字面量");
   // 三个开关都绑定到 setFlag，不是摆设
   for (const key of ["autoUpdate", "notifyOnComplete", "minimizeToTray"]) {
     assert.ok(panel.includes("'" + key + "'"), "开关要真的写回：" + key);

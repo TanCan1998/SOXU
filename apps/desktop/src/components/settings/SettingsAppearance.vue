@@ -5,6 +5,9 @@
  * 全部走「选项表 + 守卫」的写法：档位定义在 theme/appearance.ts，组件只渲染数组，
  * 事件里用 is*Name 收窄再冒泡，因此不存在「界面能选到 CSS 没有的档位」这种静默失效。
  * 落地 DOM 与持久化在 useAppearance（App.vue 持有），本组件只负责显示与冒泡。
+ *
+ * 行标题与说明不写在这里（Issue #123）：SettingsRow 按 setting id 从
+ * settings/catalog.ts 取，命令面板读的是同一份元数据。
  */
 
 import {
@@ -72,49 +75,45 @@ function onAccent(value: string): void {
 
 <template>
   <div class="panel">
-    <SettingsRow label="主题" description="深色 / 浅色，切换时从视口中心圆形扩散">
+    <SettingsRow setting="appearance.theme">
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="theme"
           :options="THEME_OPTIONS"
           :labelledby="labelId"
-          label="主题"
           @update:model-value="onTheme"
         />
       </template>
     </SettingsRow>
 
-    <SettingsRow label="强调色" description="选中、链接与主按钮同时跟随">
+    <SettingsRow setting="appearance.accent">
       <template #default="{ labelId }">
         <SettingsSwatches
           :model-value="appearance.accent"
           :options="ACCENT_OPTIONS"
           :labelledby="labelId"
-          label="强调色"
           @update:model-value="onAccent"
         />
       </template>
     </SettingsRow>
 
-    <SettingsRow label="界面字号" description="会话正文跟随此设置">
+    <SettingsRow setting="appearance.fontSize">
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="appearance.fontSize"
           :options="FONT_SIZE_OPTIONS"
           :labelledby="labelId"
-          label="界面字号"
           @update:model-value="onFontSize"
         />
       </template>
     </SettingsRow>
 
-    <SettingsRow label="界面字体" description="Inter / 系统栈 / 衬线">
+    <SettingsRow setting="appearance.fontFamily">
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="appearance.fontFamily"
           :options="FONT_FAMILY_OPTIONS"
           :labelledby="labelId"
-          label="界面字体"
           @update:model-value="onFontFamily"
         />
       </template>
@@ -123,13 +122,12 @@ function onAccent(value: string): void {
       </template>
     </SettingsRow>
 
-    <SettingsRow label="代码字体" description="代码块与工具输出的等宽字体">
+    <SettingsRow setting="appearance.codeFont">
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="appearance.codeFont"
           :options="CODE_FONT_OPTIONS"
           :labelledby="labelId"
-          label="代码字体"
           @update:model-value="onCodeFont"
         />
       </template>
@@ -138,13 +136,12 @@ function onAccent(value: string): void {
       </template>
     </SettingsRow>
 
-    <SettingsRow label="正文宽度" description="会话正文与输入区的最大宽度">
+    <SettingsRow setting="appearance.contentWidth">
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="appearance.contentWidth"
           :options="CONTENT_WIDTH_OPTIONS"
           :labelledby="labelId"
-          label="正文宽度"
           @update:model-value="onContentWidth"
         />
       </template>

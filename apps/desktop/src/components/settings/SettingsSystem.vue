@@ -6,6 +6,9 @@
  * （分别属于发布流程、Issue #117 通知切片与托盘策略切片），所以每一项都在注释位置
  * 写清楚当前的真实状态，不让用户以为开关已经生效。
  *
+ * 行标题与说明不写在这里（Issue #123）：SettingsRow 按 setting id 从
+ * settings/catalog.ts 取，命令面板读的是同一份元数据。
+ *
  * 两个动作按钮同样如实：
  * - 检查更新：只显示当前版本，更新通道未接入（需要后端命令）；
  * - 数据目录：复制真实路径（%APPDATA%\<应用标识符>），打开文件夹需要后端命令。
@@ -44,7 +47,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
 
 <template>
   <div class="panel">
-    <SettingsRow label="自动更新" description="有新版时提示下载">
+    <SettingsRow setting="system.autoUpdate">
       <template #default="{ labelId }">
         <SettingsSwitch
           :model-value="settings.autoUpdate"
@@ -57,7 +60,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
       </template>
     </SettingsRow>
 
-    <SettingsRow label="任务完成通知" description="合并、失败时弹系统通知">
+    <SettingsRow setting="system.notifyOnComplete">
       <template #default="{ labelId }">
         <SettingsSwitch
           :model-value="settings.notifyOnComplete"
@@ -70,7 +73,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
       </template>
     </SettingsRow>
 
-    <SettingsRow label="关闭时最小化到托盘" description="进程保留，托盘可恢复">
+    <SettingsRow setting="system.minimizeToTray">
       <template #default="{ labelId }">
         <SettingsSwitch
           :model-value="settings.minimizeToTray"
@@ -84,7 +87,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
     </SettingsRow>
 
     <SettingsRow
-      label="检查更新"
+      setting="system.updateCheck"
       :description="`当前 ${info?.appVersion ?? '未获取'}`"
     >
       <SettingsButton label="检查更新" disabled />
@@ -93,7 +96,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
       </template>
     </SettingsRow>
 
-    <SettingsRow label="恢复默认布局" description="侧栏 272px · 抽屉 320px">
+    <SettingsRow setting="system.resetLayout">
       <SettingsButton label="重置" @click="emit('reset-layout')" />
       <template #note>
         两个面板的宽度目前是固定 token（无法拖拽改宽）：重置会把面板恢复为展开，
@@ -101,7 +104,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
       </template>
     </SettingsRow>
 
-    <SettingsRow label="数据目录" :description="dataDirectory">
+    <SettingsRow setting="system.dataDirectory" :description="dataDirectory">
       <SettingsButton
         :label="copyLabel[copyState]"
         @click="emit('copy-data-dir')"
@@ -113,7 +116,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
     </SettingsRow>
 
     <SettingsRow
-      label="关于"
+      setting="system.about"
       :description="
         info
           ? `${info.appName} ${info.appVersion} · Tauri ${tauriVersion ?? '未知'} · Pi RPC`

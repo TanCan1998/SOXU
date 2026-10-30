@@ -22,6 +22,7 @@
     "clsx": "2.1.1",
     "markdown-it": "15.0.3",
     "pinia": "4.1.0",
+    "pinyin-pro": "3.29.5",
     "reka-ui": "2.11.0",
     "shiki": "4.5.0",
     "tailwind-merge": "3.7.0",

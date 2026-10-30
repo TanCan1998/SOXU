@@ -14,8 +14,8 @@ import type { AccentOption } from "../../theme/appearance.ts";
 defineProps<{
   modelValue: string;
   options: readonly AccentOption[];
-  labelledby?: string;
-  label: string;
+  /** 行标题的 id；与 SettingsChoice 同理，Issue #123 起必填、不再接受独立 label。 */
+  labelledby: string;
 }>();
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
@@ -29,7 +29,6 @@ function onChange(value: unknown): void {
   <RadioGroupRoot
     :model-value="modelValue"
     :aria-labelledby="labelledby"
-    :aria-label="labelledby ? undefined : label"
     class="swatches"
     orientation="horizontal"
     @update:model-value="onChange"
