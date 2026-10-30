@@ -16,24 +16,33 @@ import { computed } from "vue";
 import { useId } from "reka-ui";
 
 import { settingsEntry } from "../../settings/catalog.ts";
+import { useLocale } from "../../locales/index.ts";
 
 const props = defineProps<{
-  /** 设置项 id（settings/catalog.ts），标题与默认说明都由它决定。与 label 二选一。 */
+  /**
+   * 设置项 id（settings/catalog.ts），标题与默认说明都由它决定。
+   *
+   * 与 labelKey 二选一：catalog 只收录「设置页有独立行」的项（20 项），
+   * 扩展页是静态列表没有条目，但语言包页（Issue #135）确实需要同样的行布局。
+   */
   setting?: string;
   /**
-   * 直接给标题，跳过目录查表。
+   * i18n key：标题直接走 t()，不查 catalog。
    *
-   * 用于标题本身要跟随语言切换的行（Issue #135 语言包页）：catalog 是纯中文常量，
-   * 而语言包页的「内置语言 / 已导入的语言包」必须随界面语言变化。
-   * 这类行的标题来自 t()，由调用方传进来。
+   * 用于标题本身必须随语言切换的行。catalog 是纯中文常量，
+   * 而语言包页的「内置语言 / 已导入的语言包」要跟着界面语言变。
    */
-  label?: string;
+  labelKey?: string;
   /** 覆盖目录里的说明：仅用于含动态值的行（当前版本 / 数据目录 / 平台）。 */
   description?: string;
 }>();
 
+const { t } = useLocale();
 const meta = computed(() => (props.setting ? settingsEntry(props.setting) : null));
-const resolvedLabel = computed(() => props.label ?? meta.value?.label ?? "");
+const resolvedLabel = computed(() => {
+  if (props.labelKey) return t(props.labelKey);
+  return meta.value?.label ?? "";
+});
 const description = computed(() => props.description ?? meta.value?.description);
 
 const labelId = useId();

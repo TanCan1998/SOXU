@@ -101,7 +101,7 @@ function copyHint(): string | null {
     <p class="section-title">{{ t("settings.locale.section", { count: options.length }) }}</p>
     <p class="banner">{{ t("settings.locale.description") }}</p>
 
-    <SettingsRow :label="t('settings.locale.builtin')" :description="t('settings.locale.partial')">
+    <SettingsRow label-key="settings.locale.builtin" :description="t('settings.locale.partial')">
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="locale"
@@ -113,7 +113,7 @@ function copyHint(): string | null {
       </template>
     </SettingsRow>
 
-    <SettingsRow :label="t('settings.locale.imported')" :description="t('settings.locale.storage')">
+    <SettingsRow label-key="settings.locale.imported" :description="t('settings.locale.storage')">
       <template #default>
         <SettingsButton
           :label="importing ? t('settings.locale.importing') : t('settings.locale.import')"
