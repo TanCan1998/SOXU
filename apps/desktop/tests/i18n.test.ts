@@ -24,6 +24,16 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { effect, nextTick } from "vue";
 
+// resolveInitialTag() 的兜底链是「持久化偏好 → 系统语言 → zh-CN」，
+// 而系统语言来自 navigator。CI 的 navigator.language 是 en-US、开发机多为 zh-CN，
+// 于是「默认回退简体中文」这类断言在不同机器上结论不同（CI 上曾因此挂掉）。
+// 这里把运行环境固定成 zh-CN，让断言只测代码逻辑，不测跑在哪台机器上。
+Object.defineProperty(globalThis, "navigator", {
+  value: { languages: ["zh-CN"], language: "zh-CN" },
+  configurable: true,
+  writable: true,
+});
+
 import {
   BASE_MESSAGES,
   BUILTIN_LOCALES,
