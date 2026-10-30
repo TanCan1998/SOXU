@@ -1,8 +1,8 @@
 //! SOXU 桌面端入口：把 Tauri 窗口接到 Rust Supervisor 与会话目录。
 //!
 //! 分层：commands（IPC 边界，按领域拆分为 `commands/` 子模块）→
-//! workspace / session_runtime（业务）→ driver / watch / entry_text（运行时与索引适配）→
-//! agent-runtime / session-index。
+//! workspace / session_runtime / git（业务）→ driver / watch / entry_text（运行时与索引适配）→
+//! agent-runtime / session-index / git-worktree。
 
 mod commands;
 mod driver;
@@ -11,6 +11,7 @@ mod events;
 mod watch;
 // 适配层对集成测试开放：测试直接调用真实 catalog/runtime 封装，而不是复制实现。
 pub mod dto;
+pub mod git;
 pub mod retry_store;
 pub mod session_runtime;
 pub mod state;
@@ -80,6 +81,14 @@ pub fn run() {
             commands::search_session,
             // ── files（V4：新 command 只加在本行下方）──
             // ── git（V4：新 command 只加在本行下方）──
+            commands::git_branches,
+            commands::git_commit,
+            commands::git_diff,
+            commands::git_log,
+            commands::git_pull,
+            commands::git_push,
+            commands::git_stage,
+            commands::git_status,
             // ── pty（V4：新 command 只加在本行下方）──
             // ── model（V4：新 command 只加在本行下方）──
             // ── stats（V4：新 command 只加在本行下方）──

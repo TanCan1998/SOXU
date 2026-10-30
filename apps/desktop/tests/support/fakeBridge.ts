@@ -9,6 +9,13 @@ import type {
   CreateWorktreeInput,
   EntryRef,
   EntryText,
+  GitBranchesView,
+  GitChangeFile,
+  GitCommitView,
+  GitFileDiffView,
+  GitLogView,
+  GitRemoteView,
+  GitStatusView,
   HistoryPage,
   ProjectId,
   ProjectSummary,
@@ -76,6 +83,38 @@ export function sampleWorktree(overrides: Partial<WorktreeSummary> = {}): Worktr
     blockers: overrides.blockers ?? [],
     removable: overrides.removable ?? (overrides.blockers?.length ?? 0) === 0,
     token: overrides.token ?? `tok-${id}`,
+  };
+}
+
+/** 一份可改写的更改列表视图；用例按需覆盖字段。 */
+export function sampleGitStatus(overrides: Partial<GitStatusView> = {}): GitStatusView {
+  return {
+    projectId: overrides.projectId ?? "prj_1",
+    worktreeId: overrides.worktreeId ?? null,
+    root: overrides.root ?? "F:/work/project",
+    branch: overrides.branch ?? "main",
+    upstream: overrides.upstream ?? "origin/main",
+    ahead: overrides.ahead ?? 0,
+    behind: overrides.behind ?? 0,
+    files: overrides.files ?? [],
+    totalFiles: overrides.totalFiles ?? (overrides.files?.length ?? 0),
+    truncated: overrides.truncated ?? false,
+    indexLocked: overrides.indexLocked ?? false,
+    operation: overrides.operation ?? null,
+  };
+}
+
+export function sampleGitChange(overrides: Partial<GitChangeFile> = {}): GitChangeFile {
+  return {
+    path: overrides.path ?? "src/a.ts",
+    status: overrides.status ?? "M",
+    staged: overrides.staged ?? false,
+    unstaged: overrides.unstaged ?? true,
+    untracked: overrides.untracked ?? false,
+    conflict: overrides.conflict ?? false,
+    added: overrides.added === undefined ? 2 : overrides.added,
+    removed: overrides.removed === undefined ? 1 : overrides.removed,
+    binary: overrides.binary ?? false,
   };
 }
 
@@ -179,6 +218,22 @@ export class FakeBridge implements WorkspaceBridge {
   pruneError: string | null = null;
   /** 每次删除成功后从 worktreeList 里移除的工作树 id。 */
   readonly removed: WorktreeId[] = [];
+  /** Git 抽屉：当前下发的更改列表与各类错误开关。 */
+  gitStatusView: GitStatusView | null = null;
+  gitStatusError: string | null = null;
+  gitStatusGate: Promise<void> | null = null;
+  gitDiffError: string | null = null;
+  gitDiffGate: Promise<void> | null = null;
+  readonly gitDiffs = new Map<string, GitFileDiffView>();
+  gitLogView: GitLogView | null = null;
+  gitBranchesView: GitBranchesView | null = null;
+  gitStageError: string | null = null;
+  gitCommitError: string | null = null;
+  gitPushError: string | null = null;
+  gitPullError: string | null = null;
+  gitRemoteOutput = "";
+  /** 已提交的说明（按顺序记录）。 */
+  readonly committed: string[] = [];
 
   count(method: string): number {
     return this.calls.filter((call) => call.method === method).length;
@@ -368,6 +423,119 @@ export class FakeBridge implements WorkspaceBridge {
 
   async releaseSession(sessionId: SessionId): Promise<void> {
     this.calls.push({ method: "releaseSession", args: [sessionId] });
+  }
+
+  async gitStatus(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+  ): Promise<GitStatusView> {
+    this.calls.push({ method: "gitStatus", args: [projectId, worktreeId] });
+    if (this.gitStatusGate) await this.gitStatusGate;
+    if (this.gitStatusError) throw new Error(this.gitStatusError);
+    return this.gitStatusView ?? sampleGitStatus({ projectId, worktreeId });
+  }
+
+  async gitDiff(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+    path: string,
+    staged: boolean,
+  ): Promise<GitFileDiffView> {
+    this.calls.push({ method: "gitDiff", args: [projectId, worktreeId, path, staged] });
+    if (this.gitDiffGate) await this.gitDiffGate;
+    if (this.gitDiffError) throw new Error(this.gitDiffError);
+    return (
+      this.gitDiffs.get(path) ?? {
+        path,
+        staged,
+        patch: "",
+        truncated: false,
+        bytesRead: 0,
+        added: null,
+        removed: null,
+        binary: false,
+      }
+    );
+  }
+
+  async gitLog(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+    limit?: number,
+  ): Promise<GitLogView> {
+    this.calls.push({ method: "gitLog", args: [projectId, worktreeId, limit] });
+    return this.gitLogView ?? { projectId, worktreeId, entries: [], truncated: false };
+  }
+
+  async gitBranches(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+  ): Promise<GitBranchesView> {
+    this.calls.push({ method: "gitBranches", args: [projectId, worktreeId] });
+    return (
+      this.gitBranchesView ?? {
+        projectId,
+        worktreeId,
+        current: "main",
+        branches: [],
+        truncated: false,
+      }
+    );
+  }
+
+  async gitStage(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+    paths: string[],
+  ): Promise<GitStatusView> {
+    this.calls.push({ method: "gitStage", args: [projectId, worktreeId, paths] });
+    if (this.gitStageError) throw new Error(this.gitStageError);
+    const current = this.gitStatusView ?? sampleGitStatus({ projectId, worktreeId });
+    this.gitStatusView = {
+      ...current,
+      files: current.files.map((file) => ({ ...file, staged: true, unstaged: false })),
+    };
+    return this.gitStatusView;
+  }
+
+  async gitCommit(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+    message: string,
+  ): Promise<GitCommitView> {
+    this.calls.push({ method: "gitCommit", args: [projectId, worktreeId, message] });
+    if (this.gitCommitError) throw new Error(this.gitCommitError);
+    this.committed.push(message);
+    const current = this.gitStatusView ?? sampleGitStatus({ projectId, worktreeId });
+    this.gitStatusView = { ...current, files: [], totalFiles: 0 };
+    return {
+      hash: "0".repeat(40),
+      shortHash: "0000000",
+      subject: message,
+      status: this.gitStatusView,
+    };
+  }
+
+  async gitPush(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+  ): Promise<GitRemoteView> {
+    this.calls.push({ method: "gitPush", args: [projectId, worktreeId] });
+    if (this.gitPushError) throw new Error(this.gitPushError);
+    const current = this.gitStatusView ?? sampleGitStatus({ projectId, worktreeId });
+    this.gitStatusView = { ...current, ahead: 0 };
+    return { operation: "push", output: this.gitRemoteOutput, status: this.gitStatusView };
+  }
+
+  async gitPull(
+    projectId: ProjectId,
+    worktreeId: WorktreeId | null,
+  ): Promise<GitRemoteView> {
+    this.calls.push({ method: "gitPull", args: [projectId, worktreeId] });
+    if (this.gitPullError) throw new Error(this.gitPullError);
+    const current = this.gitStatusView ?? sampleGitStatus({ projectId, worktreeId });
+    this.gitStatusView = { ...current, behind: 0 };
+    return { operation: "pull", output: this.gitRemoteOutput, status: this.gitStatusView };
   }
 
   async listWorktrees(projectId: ProjectId): Promise<WorktreeWorkspace> {
