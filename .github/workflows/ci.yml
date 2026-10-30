@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, dev]
   workflow_dispatch:
+  schedule:
+    # 每周一次全量：paths filter 会让「没改 Rust 的提交」跳过 Rust job，而发布 workflow
+    # 无条件跑 cargo test --workspace，两者不等价（2026-10-30 发布验证因此才发现遗漏）。
+    - cron: '0 3 * * 1'
 
 permissions:
   contents: read
@@ -28,10 +32,11 @@ jobs:
       js: ${{ steps.filter.outputs.js }}
       rust: ${{ steps.filter.outputs.rust }}
     steps:
+      # 定时与手动触发时不需要差异检测：两者都按全量处理。
       - uses: actions/checkout@v7
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
       - uses: dorny/paths-filter@v4
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         id: filter
         with:
           filters: |
@@ -73,7 +78,7 @@ jobs:
   quality:
     name: quality (${{ matrix.node }})
     needs: changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.js == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || needs.changes.outputs.js == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
@@ -98,7 +103,7 @@ jobs:
   rust:
     name: Rust / Tauri
     needs: changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.rust == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || needs.changes.outputs.rust == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -208,7 +213,7 @@ jobs:
           if [[ "$CHANGES_RESULT" != success ]]; then
             echo "Change detection did not succeed"; exit 1
           fi
-          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+          if [[ "$EVENT_NAME" == workflow_dispatch || "$EVENT_NAME" == schedule ]]; then
             js_required=true
             rust_required=true
           else
