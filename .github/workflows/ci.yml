@@ -192,6 +192,44 @@ jobs:
       - name: Test Rust workspace
         run: cargo test --workspace --locked
 
+  # 定期/手动全量：把三平台都编译测试一次。平时 PR/push 仍只跑 ubuntu——
+  # 矩阵化 required job 会改变 check 名，导致分支保护的必需检查匹配不上。
+  rust-platforms:
+    name: Rust / Tauri (multi-platform)
+    needs: changes
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/setup@v3
+        with:
+          version: '12.15.0'
+          install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci-${{ matrix.platform }}
+      - name: Generate approved SOXU desktop icons
+        run: pnpm icons:generate
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Test Rust workspace
+        run: cargo test --workspace --locked
+
   gate:
     name: SOXU CI Gate
     needs: [changes, quality, rust]
