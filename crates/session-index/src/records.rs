@@ -81,6 +81,11 @@ pub struct WorktreeRecord {
     /// 只是引用状态：会话记录与索引快照继续保留，供人工核对与恢复。
     #[serde(default)]
     pub missing: bool,
+    /// 注册时用户给出的路径原文。与 `path`（canonical）不同时保留一份：
+    /// Pi 按它自己的 cwd 计算会话目录名，符号链接、Windows 大小写或 8.3 短名
+    /// 都会让两侧算出的目录名不同，扫描时必须按别名再找一遍。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
     pub created_at_ms: u64,
 }
 
@@ -93,8 +98,26 @@ impl WorktreeRecord {
             branch: None,
             primary: true,
             missing: false,
+            aliases: Vec::new(),
             created_at_ms: now_ms(),
         }
+    }
+
+    /// 记住用户给出的原始路径；与 canonical 路径字符串相同则不重复保存。
+    pub fn remember_alias(&mut self, requested: &Path) {
+        let alias = requested.to_string_lossy().to_string();
+        if alias.is_empty()
+            || alias == self.path
+            || self.aliases.iter().any(|existing| existing == &alias)
+        {
+            return;
+        }
+        self.aliases.push(alias);
+    }
+
+    /// 推导会话目录时可能用到的路径：canonical 在前，别名随后。
+    pub fn candidate_paths(&self) -> impl Iterator<Item = &str> {
+        std::iter::once(self.path.as_str()).chain(self.aliases.iter().map(String::as_str))
     }
 }
 

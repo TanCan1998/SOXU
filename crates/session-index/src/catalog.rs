@@ -186,7 +186,12 @@ impl ProjectCatalog {
         if let Some(existing) = self.project(&id) {
             return Ok(existing.clone());
         }
-        let record = ProjectRecord::new(id, &canonical);
+        let mut record = ProjectRecord::new(id, &canonical);
+        // 用户输入与 canonical 路径可能不同（符号链接、Windows 大小写/短名）：
+        // Pi 按自己的 cwd 写会话目录，因此要把原文也记下来供扫描兜底。
+        for worktree in &mut record.worktrees {
+            worktree.remember_alias(root);
+        }
         self.snapshot.projects.push(record.clone());
         self.touch();
         Ok(record)
@@ -219,6 +224,8 @@ impl ProjectCatalog {
                 format!("工作树目录不存在：{}", path.display()),
             ));
         }
+        // 用户输入路径另存一份：会话目录名由路径字符串推导，canonical 与原文可能不同。
+        let requested = path.to_path_buf();
         // 与项目根同样去掉 verbatim 前缀，保证主工作树与附加工作树的 ID 派生口径一致。
         let canonical = std::fs::canonicalize(path)
             .map_err(|error| {
@@ -237,15 +244,17 @@ impl ProjectCatalog {
         if let Some(existing) = parent.worktree(&id) {
             return Ok(existing.clone());
         }
-        let record = WorktreeRecord {
+        let mut record = WorktreeRecord {
             id,
             project: project.clone(),
             path: path.to_string_lossy().to_string(),
             branch: branch.map(str::to_string),
             primary: false,
             missing: false,
+            aliases: Vec::new(),
             created_at_ms: now_ms(),
         };
+        record.remember_alias(&requested);
         let parent = self.project_mut(project).ok_or_else(|| {
             CatalogError::new(ErrorCode::ProjectUnknown, format!("项目未注册：{project}"))
         })?;
@@ -334,24 +343,43 @@ impl ProjectCatalog {
             .clone();
         let mut report = SyncReport::default();
         for worktree in worktrees {
-            let directory =
-                sessions_root.join(project_sessions_dir_name(Path::new(&worktree.path)));
-            let entries = match fs::read_dir(&directory) {
-                Ok(entries) => entries,
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            // 会话目录名按 Pi 的规则从路径字符串推导，canonical 与注册时原文可能不同
+            // （符号链接、Windows 大小写或 8.3 短名）。逐个候选探测，命中即用。
+            let mut candidates: Vec<PathBuf> = Vec::new();
+            for candidate in worktree.candidate_paths() {
+                let directory = sessions_root.join(project_sessions_dir_name(Path::new(candidate)));
+                if !candidates.contains(&directory) {
+                    candidates.push(directory);
+                }
+            }
+            let mut found: Option<fs::ReadDir> = None;
+            let mut chosen = PathBuf::new();
+            for candidate in &candidates {
+                match fs::read_dir(candidate) {
+                    Ok(entries) => {
+                        found = Some(entries);
+                        chosen = candidate.clone();
+                        break;
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                    Err(error) => {
+                        return Err(CatalogError::io(
+                            ErrorCode::IoFailure,
+                            format!("无法读取会话目录：{}", candidate.display()),
+                            &error,
+                        ));
+                    }
+                }
+            }
+            let Some(entries) = found else {
+                if let Some(primary) = candidates.first() {
                     report
                         .missing_dirs
-                        .push(directory.to_string_lossy().to_string());
-                    continue;
+                        .push(primary.to_string_lossy().to_string());
                 }
-                Err(error) => {
-                    return Err(CatalogError::io(
-                        ErrorCode::IoFailure,
-                        format!("无法读取会话目录：{}", directory.display()),
-                        &error,
-                    ));
-                }
+                continue;
             };
+            let directory = chosen;
             let mut paths: Vec<PathBuf> = Vec::new();
             for entry in entries {
                 let entry = entry.map_err(|error| {
@@ -416,9 +444,13 @@ impl ProjectCatalog {
                         report.warnings += upsert.report.new_warnings
                             + usize::try_from(upsert.report.corrupt_lines).unwrap_or(0);
                         if let Some(cwd) = upsert.record.cwd.as_deref() {
-                            let cwd_path = Path::new(cwd);
-                            if normalize_path(cwd_path) != normalize_path(Path::new(&worktree.path))
-                            {
+                            // 会话头部的 cwd 可能是注册时的原文形式（符号链接/大小写），
+                            // 因此 canonical 与别名都算匹配。
+                            let normalized_cwd = normalize_path(Path::new(cwd));
+                            let matches_worktree = worktree.candidate_paths().any(|candidate| {
+                                normalize_path(Path::new(candidate)) == normalized_cwd
+                            });
+                            if !matches_worktree {
                                 report.cwd_mismatch.push(format!(
                                     "{}: cwd {cwd} 与工作树 {} 不一致",
                                     upsert.record.id, worktree.path
