@@ -38,6 +38,12 @@ jobs:
             js:
               - '.github/workflows/**'
               - 'apps/desktop/src/**'
+              # 纯 Rust 改动也要跑 quality：pnpm check 里的 check-command-blocks.mjs
+              # 校验 apps/desktop/src-tauri/src/lib.rs 的领域占位块。
+              # 不加这条的话，只改 Rust 的 PR 会 skip quality，而 GitHub 把 skipped
+              # job 报成 Success，required check 形同虚设（三轨 2026-10-30 发现）。
+              - 'apps/desktop/src-tauri/src/**'
+              - 'apps/desktop/src-tauri/Cargo.toml'
               - 'apps/desktop/assets/**'
               - 'apps/desktop/index.html'
               - 'apps/desktop/package.json'

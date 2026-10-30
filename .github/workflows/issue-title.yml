@@ -1,0 +1,25 @@
+name: Issue title format
+
+# 关联 Issue 的标题必须是 [M<数字>] [TASK-NNN] 描述，
+# 否则 dashboard 的任务列表与里程碑统计识别不到（taskIdFromIssueTitle）。
+on:
+  pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  issue-title:
+    name: Issue title gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check linked issue titles
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/check-issue-title.mjs
