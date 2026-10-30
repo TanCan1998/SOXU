@@ -72,6 +72,7 @@ jobs:
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: 'SOXU ${{ github.ref_name }}'
-          releaseBody: 'SOXU prerelease. Unsigned/not-notarized builds may require OS trust prompts.'
+          releaseBody: "SOXU ${{ contains(github.ref_name, '-rc.') && 'prerelease' || 'release' }}. Unsigned/not-notarized builds may require OS trust prompts."
           releaseDraft: false
-          prerelease: true
+          # rc tag 才是预发布；正式 tag（v0.x.y）必须产出正式 Release。
+          prerelease: "${{ contains(github.ref_name, '-rc.') }}"
