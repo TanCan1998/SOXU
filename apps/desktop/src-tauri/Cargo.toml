@@ -24,4 +24,6 @@ soxu-pi-protocol = { path = "../../../crates/pi-protocol" }
 soxu-agent-runtime = { path = "../../../crates/agent-runtime" }
 soxu-session-index = { path = "../../../crates/session-index" }
 soxu-git-worktree = { path = "../../../crates/git-worktree" }
+# 终端：PTY 生命周期与 16ms 输出合并都在这个 crate 里（Windows 走 ConPTY）。
+soxu-pty-service = { path = "../../../crates/pty-service" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }

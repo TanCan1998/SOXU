@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · Issue #122 终端抽屉夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #122 · TASK-030）：
+      pnpm dev 后访问 /tests/harness/terminal.html，
+      再用 tests/harness/shoot-issue-122-terminal.mjs 截图并测量渲染与节流表现。
+      不参与生产构建（vite build 只构建 index.html），也不连接真实 PTY：
+      「后端」是页面内的 FakePty，按后端的 16ms 合并口径投递输出。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./terminal.ts"></script>
+  </body>
+</html>

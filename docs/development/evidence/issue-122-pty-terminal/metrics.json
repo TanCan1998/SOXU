@@ -1,0 +1,128 @@
+{
+  "generatedAt": "2026-10-30T00:01:45.776Z",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browser": "Edg/156.0.4314.50",
+  "burstLines": 2000,
+  "shots": [
+    "01-light-terminal.png",
+    "02-light-burst.png",
+    "03-dark-terminal.png"
+  ],
+  "checks": [
+    {
+      "name": "banner-rendered",
+      "ok": true,
+      "actual": "SOXU 索序终端夹具PowerShell 7.6.0 · 工作目录 F:\\workplace\\pi\\soxu序号  模块        状态1     pty"
+    },
+    {
+      "name": "cjk-no-mojibake",
+      "ok": true,
+      "actual": "CJK 完整"
+    },
+    {
+      "name": "shell-reported",
+      "ok": true,
+      "actual": "harness-shell"
+    },
+    {
+      "name": "typed-input-echoed",
+      "ok": true,
+      "actual": {
+        "mode": "insertText",
+        "writes": 1
+      }
+    },
+    {
+      "name": "burst-completes",
+      "ok": true,
+      "actual": {
+        "elapsedMs": 707,
+        "frames": 43
+      }
+    },
+    {
+      "name": "burst-keeps-ui-responsive",
+      "ok": true,
+      "actual": {
+        "maxGapMs": 16.8
+      }
+    },
+    {
+      "name": "resize-on-container-change",
+      "ok": true,
+      "actual": {
+        "before": {
+          "cols": 41,
+          "rows": 42
+        },
+        "after": {
+          "cols": 69,
+          "rows": 42
+        }
+      }
+    },
+    {
+      "name": "dark-theme-applied",
+      "ok": true,
+      "actual": "rgb(33, 33, 33)"
+    },
+    {
+      "name": "close-reclaims-pty",
+      "ok": true,
+      "actual": {
+        "closes": 1,
+        "closeClicks": 1
+      }
+    },
+    {
+      "name": "close-bubbles-up",
+      "ok": true,
+      "actual": {
+        "closes": 1,
+        "closeClicks": 1
+      }
+    },
+    {
+      "name": "no-console-errors",
+      "ok": true,
+      "actual": []
+    }
+  ],
+  "banner": {
+    "rows": 42,
+    "shell": "harness-shell",
+    "status": "已连接",
+    "firstLine": "SOXU 索序终端夹具PowerShell 7.6.0 · 工作目录 F:\\wo"
+  },
+  "input": {
+    "mode": "insertText",
+    "writes": 1
+  },
+  "burst": {
+    "elapsedMs": 706.5,
+    "maxGapMs": 16.799999999999955,
+    "frames": 43,
+    "finished": true,
+    "lastLine": true
+  },
+  "resize": {
+    "before": {
+      "cols": 41,
+      "rows": 42
+    },
+    "after": {
+      "cols": 69,
+      "rows": 42
+    }
+  },
+  "close": {
+    "closes": 1,
+    "closeClicks": 1
+  },
+  "consoleErrors": [],
+  "passed": 11,
+  "failed": 0
+}

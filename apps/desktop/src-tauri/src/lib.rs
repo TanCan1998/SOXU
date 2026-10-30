@@ -11,6 +11,7 @@ mod events;
 mod watch;
 // 适配层对集成测试开放：测试直接调用真实 catalog/runtime 封装，而不是复制实现。
 pub mod dto;
+pub mod pty;
 pub mod retry_store;
 pub mod session_runtime;
 pub mod state;
@@ -35,6 +36,11 @@ pub fn run() {
             let state = AppState::new(state_dir)
                 .map_err(|error| format!("初始化工作区状态失败：{error}"))?;
             app.manage(state);
+            // 终端的 PTY 服务：输出经 sink 变成 `soxu://pty-output` 事件（16ms 合并一次）。
+            // 它是独立资源（不挂在 AppState 上）：终端与 Pi 运行时的生命周期互不相干。
+            app.manage(soxu_pty_service::PtyService::new(pty::event_sink(
+                app.handle().clone(),
+            )));
             // 托盘创建失败（例如 Linux 缺少 libayatana-appindicator 运行时）不阻断启动：
             // 此时窗口关闭按系统默认行为退出，避免隐藏后无法再恢复。
             if let Err(error) = tray::create_tray(app.handle()) {
@@ -80,6 +86,10 @@ pub fn run() {
             // ── files（V4：新 command 只加在本行下方）──
             // ── git（V4：新 command 只加在本行下方）──
             // ── pty（V4：新 command 只加在本行下方）──
+            commands::close_pty,
+            commands::create_pty,
+            commands::resize_pty,
+            commands::write_pty,
             // ── model（V4：新 command 只加在本行下方）──
             // ── stats（V4：新 command 只加在本行下方）──
             // ── outline（V4：新 command 只加在本行下方）──
@@ -91,10 +101,17 @@ pub fn run() {
         .expect("Failed to build SOXU")
         .run(|app, event| {
             // 退出前显式回收受管 Pi 进程；supervisor 的 kill_on_drop 只是最后防线。
-            if let tauri::RunEvent::Exit = event
-                && let Some(state) = app.try_state::<AppState>()
-            {
-                tauri::async_runtime::block_on(session_runtime::shutdown_all(&state));
+            if let tauri::RunEvent::Exit = event {
+                // 终端先关：shell 是普通子进程，不关就会变成孤儿（验收要求零残留）。
+                if let Some(pty) = app.try_state::<soxu_pty_service::PtyService>() {
+                    let closed = pty.close_all();
+                    if closed > 0 {
+                        eprintln!("SOXU: 退出时回收了 {closed} 个终端进程");
+                    }
+                }
+                if let Some(state) = app.try_state::<AppState>() {
+                    tauri::async_runtime::block_on(session_runtime::shutdown_all(&state));
+                }
             }
         });
 }

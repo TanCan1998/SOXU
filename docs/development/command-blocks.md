@@ -26,11 +26,13 @@ apps/desktop/src-tauri/src/
         workspace.rs        应用信息、项目枚举/登记/刷新
         worktree.rs         工作树枚举/创建/差异/删除/清理
         history.rs          历史分页、正文按需读取、会话内搜索、临时会话生命周期
+        pty.rs              终端（PTY）的创建/写入/resize/关闭（业务在 crates/pty-service）
     dto/
         mod.rs              只做 pub use 再导出，保持 crate::dto::<Type> 路径
         session.rs          会话/历史/运行时 DTO
         workspace.rs        项目/工作区 DTO
         worktree.rs         工作树 DTO
+        pty.rs              终端（PTY）DTO
 ```
 
 `mod.rs` 只允许 `mod x;` + `pub use x::*;`。不要在这里写业务代码或结构体：

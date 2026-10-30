@@ -8,11 +8,13 @@
 //! 并由 `scripts/check-command-blocks.mjs` 机器校验（`pnpm check` 会跑）。
 
 mod history;
+mod pty;
 mod session;
 mod workspace;
 mod worktree;
 
 pub use history::*;
+pub use pty::*;
 pub use session::*;
 pub use workspace::*;
 pub use worktree::*;
