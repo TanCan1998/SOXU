@@ -1,9 +1,14 @@
 # 首版能力和已知限制（请勿误认已实现）
 
 - 已实现：Tauri + Vue UI 骨架，Rust command 示例，Rust 边界类型原型；Agent Loop 读取 Issues、管理 Worktree、调用 Pi RPC、审查、发 PR；GitHub CI/Release 配置，AtomGit 同步脚本。
-- 未实现：SOXU 应用内部的 Git 工具、真实终端与 Pi Extensions UI；内存诊断也还没有 UI 入口
+- 未实现：SOXU 应用内部的 Git 工具与 Pi Extensions UI；内存诊断也还没有 UI 入口
   （`crates/resource-monitor` 的采样/预算/释放指令与 Supervisor 的受管 PID 已实现并有自动化测试，
   口径与限制见 [内存预算文档](memory-budget.md)）。
+- 终端（PTY）已实现（Issue #122）：右侧抽屉里运行真实 shell（Windows 走 ConPTY、Unix 走 forkpty），
+  输出在后端按 16ms 合并、按 UTF-8 字符边界切分，关闭抽屉/切换会话/退出应用都会回收子进程，
+  工作目录由会话目录推导且限制在已登记项目内。**只在 Windows 本机验证**：浏览器实测用同一份组件与
+  真实 xterm.js，但 Tauri WebView2 实机交互、macOS/Linux 桌面与输入法组合均未验证；
+  切换会话会重建终端（有意不留后台 shell）。契约见[终端服务与桌面集成](../architecture/pty-terminal.md)。
 - 已实现（产品运行时侧）：启动/握手的**有界重试**——网络中断与超时最多自动重试 2 次，
   次数持久化在应用数据目录（重启不重置），429/额度、鉴权失败与用户中止不重试，
   已耗尽的预算优先于剩余次数（失败关闭），退避等待可被「停止」立即打断，

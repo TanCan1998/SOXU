@@ -156,6 +156,7 @@ The repository includes `pnpm-lock.yaml` and `Cargo.lock`. Use `pnpm install --f
 | `docs/architecture/worktree-service.md` | Git worktrees: enumeration/creation, diffs, session links, and confirmation-gated deletion |
 | `docs/architecture/git-drawer.md` | Git drawer: change-list badges, per-file diffs, staging/commits, and push/pull safety boundaries |
 | `docs/development/file-drawer.md` | File drawer: command contract, path guard, lazy loading, and how to verify |
+| `docs/architecture/pty-terminal.md` | Terminal (PTY): 16 ms output coalescing, UTF-8 boundaries, child-process reclamation, and safety boundaries |
 | `docs/design/` | Approved UI/UX baseline and historical proposals |
 
 ## Approval and remaining prerequisites

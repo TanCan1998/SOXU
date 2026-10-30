@@ -29,6 +29,7 @@ import {
   PanelRight,
   Plus,
   Search,
+  SquareTerminal,
 } from "@lucide/vue";
 import { COMMANDS, commandContext, type CommandActions, type CommandEntry } from "./commands/registry.ts";
 import AppTooltip from "./components/AppTooltip.vue";
@@ -44,6 +45,7 @@ import SearchDrawer from "./components/SearchDrawer.vue";
 import { resolveJumpTarget } from "./components/searchPanel.ts";
 import SessionTabs from "./components/SessionTabs.vue";
 import SettingsDialog from "./components/SettingsDialog.vue";
+import TerminalDrawer from "./components/TerminalDrawer.vue";
 import WorktreeDialog from "./components/WorktreeDialog.vue";
 import { useLocale } from "./locales/index.ts";
 import { useAppearance } from "./composables/useAppearance.ts";
@@ -110,12 +112,19 @@ const settingsRequest = ref(0);
 /** 命令面板是否打开（Ctrl/⌘+K）。 */
 const paletteOpen = ref(false);
 /** 右侧搜索抽屉（Issue #118）；与「会话状态」「Git」面板互斥，一次只开一个。 */
+/** 右侧搜索抽屉（Issue #118）；与「会话状态」「终端」互斥，一次只开一个。 */
 const searchOpen = ref(false);
 /** 右侧 Git 抽屉（Issue #121）：观察当前会话所属项目/工作树的仓库事实。 */
 const gitOpen = ref(false);
 /** 右侧文件抽屉（Issue #120）；同样与其它抽屉互斥。 */
 const filesOpen = ref(false);
 const searchDrawer = ref<InstanceType<typeof SearchDrawer> | null>(null);
+/**
+ * 右侧终端抽屉（Issue #122）。同一个位置不能同时塞三个 320px 面板，
+ * 所以它与搜索、会话状态三者互斥（见 openSearch / openTerminal / watch(inspectorOpen)）。
+ */
+const terminalOpen = ref(false);
+const terminalDrawer = ref<InstanceType<typeof TerminalDrawer> | null>(null);
 /** 搜索跳转的目标消息 + 递增序号：同一条命中连点两次也要重新定位。 */
 const focusMessageId = ref<string | null>(null);
 const focusNonce = ref(0);
@@ -159,6 +168,12 @@ const worktreeProject = computed(
 );
 const worktreeProjectName = computed(() => worktreeProject.value?.name ?? "项目");
 const worktreeProjectSessions = computed(() => worktreeProject.value?.sessions ?? []);
+/** 终端标题里的项目名：来自已登记项目，不猜也不编。 */
+const activeProjectName = computed(() => {
+  const tab = activeTab.value;
+  if (!tab) return "";
+  return store.state.projects.find((project) => project.id === tab.projectId)?.name ?? "";
+});
 const lastSession = computed(() =>
   [...store.sessionList].sort((left, right) => right.updatedAtMs - left.updatedAtMs)[0] ?? null,
 );
@@ -186,6 +201,7 @@ const forwardTarget = computed(() => findTarget(history.value, "forward", isOpen
  */
 watch(inspectorOpen, (open) => {
   if (open) searchOpen.value = false;
+  if (open) terminalOpen.value = false;
 });
 
 /** 搜索与 Git 同样互斥：右侧只留一个面板，正文才不会被挤到不可读。 */
@@ -472,6 +488,7 @@ function openSearch() {
   searchOpen.value = true;
   inspectorOpen.value = false;
   filesOpen.value = false;
+  terminalOpen.value = false;
   searchNotice.value = null;
   void nextTick(() => searchDrawer.value?.focus());
 }
@@ -552,6 +569,29 @@ const paletteContext = computed(() =>
 function runCommand(command: CommandEntry) {
   paletteOpen.value = false;
   command.run(commandActions);
+}
+
+/**
+ * 打开终端抽屉（顶栏按钮与 Ctrl+` 共用）。
+ *
+ * 焦点必须在打开后进到 xterm：快捷键之后用户的第一动作就是敲命令，
+ * 让他先点一下终端等于快捷键只完成了一半。
+ */
+function openTerminal() {
+  terminalOpen.value = true;
+  inspectorOpen.value = false;
+  searchOpen.value = false;
+  searchNotice.value = null;
+  void nextTick(() => terminalDrawer.value?.focus());
+}
+
+function closeTerminal() {
+  terminalOpen.value = false;
+}
+
+function toggleTerminal() {
+  if (terminalOpen.value) closeTerminal();
+  else openTerminal();
 }
 
 /** 输入变化：防抖在 store 侧按会话登记，这里只决定「发请求」还是「取消待触发」。 */
@@ -726,6 +766,10 @@ function onKeydown(event: KeyboardEvent) {
     // Ctrl+G：Git 抽屉（与搜索、会话状态共用右侧面板位）。
     event.preventDefault();
     gitOpen.value = !gitOpen.value;
+  } else if (event.code === "Backquote") {
+    // Ctrl+`：终端开关。按 code 而不是 key，避免非美式键盘上反引号键位不同。
+    event.preventDefault();
+    toggleTerminal();
   }
 }
 
@@ -865,7 +909,19 @@ onUnmounted(() => {
               </span>
             </button>
           </AppTooltip>
-          <AppTooltip :text="t('common.nav.files')">
+          <AppTooltip :text="t('common.nav.terminal')">
+            <button
+              class="icon-button"
+              type="button"
+              :aria-label="terminalOpen ? t('common.nav.terminal.close') : t('common.nav.terminal.open')"
+              :aria-expanded="terminalOpen"
+              aria-keyshortcuts="Control+`"
+              @click="toggleTerminal"
+            >
+              <SquareTerminal :size="18" :stroke-width="1.75" aria-hidden="true" />
+            </button>
+          </AppTooltip>
+          <AppTooltip :text="t('common.nav.inspector')">
             <button
               class="icon-button"
               type="button"
@@ -1028,6 +1084,20 @@ onUnmounted(() => {
       @create="(path: string) => void store.createFile(path)"
       @rename="(from: string, to: string) => void store.renameFile(from, to)"
       @remove="(path: string, options: { recursive: boolean; confirmName: string }) => void store.removeFile(path, options)"
+    />
+    <!--
+      终端抽屉：key 绑定会话 id，切换会话就重建（旧的 unmount 会 close_pty，
+      因此不会留下后台 shell）。见 components/TerminalDrawer.vue 的说明。
+    -->
+    <TerminalDrawer
+      v-if="terminalOpen"
+      ref="terminalDrawer"
+      :key="activeTab?.sessionId ?? 'none'"
+      :session-id="activeTab?.sessionId ?? null"
+      :project-name="activeProjectName"
+      :bridge-available="store.bridgeAvailable"
+      :theme="theme"
+      @close="closeTerminal"
     />
 
     <WorktreeDialog

@@ -21,6 +21,7 @@ Pi native settings/auth/session files remain Pi-owned.
 ## 约束
 - 有界缓存、后端分页、前端虚拟列表；长工具输出和图片走按需资源接口。
 - Agent Manager、会话索引、Git/PTY 分 crate，禁止超级管理器。
+  PTY 见 [终端服务与桌面集成](pty-terminal.md)，Git 见 [Git 工作树服务](worktree-service.md)。
 - Rust 不自行管理 Pi Auth 的明文密钥；尽量使用官方 CLI/SDK 的适当通道。
 - Tauri 权限最小化；不向 WebView 暴露任意 shell。
 - 实现新平台前先做签名、权限、窗口与 WebView 行为兼容测试。
