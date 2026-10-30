@@ -99,6 +99,61 @@ pub struct ProjectCatalog {
     recovered_stale_runtimes: usize,
 }
 
+/// 工作树对应的 Pi 会话目录探测结果。
+///
+/// 用枚举而不是「空 `PathBuf` 当哨兵」：命中与未命中是两种确定状态，
+/// 让「未命中却带着路径」这种非法组合无法构造。
+enum SessionDirectory {
+    Found {
+        directory: PathBuf,
+        // `fs::ReadDir` 比另一个变体大得多，装箱避免整个枚举被撑大。
+        entries: Box<fs::ReadDir>,
+    },
+    /// 所有候选目录都不存在；`primary` 是 canonical 路径下的候选，用于报告。
+    Missing { primary: PathBuf },
+}
+
+/// 探测工作树对应的会话目录：canonical 路径优先，注册时原文兜底。
+///
+/// 目录名由 Pi 的 cwd 推导，而工作树记录里存的是 canonical 路径：符号链接、
+/// Windows 大小写或 8.3 短名都会让两者不同，因此逐个候选探测。只有主候选
+/// （canonical）的读取失败才上报——别名可能算出平台不接受的名字（例如带 `?`），
+/// 跳过即可，不能因为一个坏别名让整个项目的扫描失败。
+fn open_session_directory(
+    sessions_root: &Path,
+    worktree: &WorktreeRecord,
+) -> Result<SessionDirectory> {
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    for candidate in worktree.candidate_paths() {
+        let directory = sessions_root.join(project_sessions_dir_name(Path::new(candidate)));
+        if !candidates.contains(&directory) {
+            candidates.push(directory);
+        }
+    }
+    for (index, candidate) in candidates.iter().enumerate() {
+        match fs::read_dir(candidate) {
+            Ok(entries) => {
+                return Ok(SessionDirectory::Found {
+                    directory: candidate.clone(),
+                    entries: Box::new(entries),
+                });
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) if index == 0 => {
+                return Err(CatalogError::io(
+                    ErrorCode::IoFailure,
+                    format!("无法读取会话目录：{}", candidate.display()),
+                    &error,
+                ));
+            }
+            Err(_) => continue,
+        }
+    }
+    Ok(SessionDirectory::Missing {
+        primary: candidates.first().cloned().unwrap_or_default(),
+    })
+}
+
 impl ProjectCatalog {
     /// 打开（或新建）状态目录下的目录元数据。
     pub fn open(state_dir: impl AsRef<Path>) -> Result<Self> {
@@ -371,46 +426,15 @@ impl ProjectCatalog {
             .clone();
         let mut report = SyncReport::default();
         for worktree in worktrees {
-            // 会话目录名按 Pi 的规则从路径字符串推导，canonical 与注册时原文可能不同
-            // （符号链接、Windows 大小写或 8.3 短名）。逐个候选探测，命中即用。
-            let mut candidates: Vec<PathBuf> = Vec::new();
-            for candidate in worktree.candidate_paths() {
-                let directory = sessions_root.join(project_sessions_dir_name(Path::new(candidate)));
-                if !candidates.contains(&directory) {
-                    candidates.push(directory);
-                }
-            }
-            let mut found: Option<fs::ReadDir> = None;
-            let mut chosen = PathBuf::new();
-            for (index, candidate) in candidates.iter().enumerate() {
-                match fs::read_dir(candidate) {
-                    Ok(entries) => {
-                        found = Some(entries);
-                        chosen = candidate.clone();
-                        break;
-                    }
-                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-                    // 只有主候选（canonical 路径）的读取失败才值得上报；
-                    // 别名可能算出平台不接受的名字（例如带 `?` 的 Windows 路径），跳过即可。
-                    Err(error) if index == 0 => {
-                        return Err(CatalogError::io(
-                            ErrorCode::IoFailure,
-                            format!("无法读取会话目录：{}", candidate.display()),
-                            &error,
-                        ));
-                    }
-                    Err(_) => continue,
-                }
-            }
-            let Some(entries) = found else {
-                if let Some(primary) = candidates.first() {
+            let (directory, entries) = match open_session_directory(&sessions_root, &worktree)? {
+                SessionDirectory::Found { directory, entries } => (directory, *entries),
+                SessionDirectory::Missing { primary } => {
                     report
                         .missing_dirs
                         .push(primary.to_string_lossy().to_string());
+                    continue;
                 }
-                continue;
             };
-            let directory = chosen;
             let mut paths: Vec<PathBuf> = Vec::new();
             for entry in entries {
                 let entry = entry.map_err(|error| {
