@@ -1,6 +1,6 @@
 # 质量门禁
 
-- 本地必须通过 `pnpm check`、`cargo test --workspace` 和 `git diff --check`。
+- 本地必须通过 `pnpm check`、`cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`、`cargo test --workspace` 和 `git diff --check`。
 - 独立 Reviewer 最终输出 `SOXU_REVIEW_RESULT:{"approved":true,"summary":"..."}`；缺失或不可解析则拒绝。
 - Runner 拒绝治理文件、超大变更及密钥文件，严格限制补救重试次数。
 - GitHub PR 必过 CI；自动合并在 branch protection / ruleset 有效时才开启。

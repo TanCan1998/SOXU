@@ -11,7 +11,7 @@
 
 - 每个 PR 关联一个 Issue，列明非目标、验收点和风险；范围外修改另开任务。
 - 跟随改动补对应测试；修复 Bug 先构造失败回归用例，再提交修复。
-- 执行 `pnpm check`、`cargo fmt --all -- --check`、`cargo test --workspace`、`git diff --check`（可运行环境下）；平台缺失须列明 **未验证**，不得伪造通过。
+- 执行 `pnpm check`、`cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets --locked -- -D warnings`、`cargo test --workspace`、`git diff --check`（可运行环境下）；平台缺失须列明 **未验证**，不得伪造通过。
 - Reviewer 独立检查边界、安全、生命周期、跨平台；测试与审查针对**同一 Git tree**，在提交/推送前再次确认。
 - UI 修改需要截图或演示、无障碍验证、与已审批的 UI 设计对应；设计本身未批准时只允许隔离的原型。
 - 新依赖记录必要性、License、包体与运行时资源影响；涉及根目录锁定版本需所有者先批准。

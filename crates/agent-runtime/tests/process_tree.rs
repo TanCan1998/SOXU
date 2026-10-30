@@ -206,10 +206,10 @@ async fn wait_until(window: Duration, mut predicate: impl FnMut() -> bool) -> bo
 async fn wait_for_tree(log: &Path) -> Option<(u32, Vec<Leaf>)> {
     let deadline = Instant::now() + TREE_DEADLINE;
     loop {
-        if let Some((root, leaves)) = parse_tree(log) {
-            if leaves.len() >= 2 {
-                return Some((root, leaves));
-            }
+        if let Some((root, leaves)) = parse_tree(log)
+            && leaves.len() >= 2
+        {
+            return Some((root, leaves));
         }
         if Instant::now() >= deadline {
             return None;

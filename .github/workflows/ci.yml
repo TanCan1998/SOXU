@@ -122,7 +122,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.99.1
-          components: rustfmt
+          # clippy 是 agents/policies/coding-standards.md 的硬要求，之前从未在 CI 执行。
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         id: cargo-cache
         with:
@@ -188,6 +189,9 @@ jobs:
         run: pnpm icons:generate
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
+      # clippy 只在 ubuntu 跑：规则跨平台一致，没必要在三个平台各付一次时间。
+      - name: Lint Rust with Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
       # cargo test compiles workspace targets; avoid duplicating that work with cargo check.
       - name: Test Rust workspace
         run: cargo test --workspace --locked
