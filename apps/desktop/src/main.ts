@@ -10,6 +10,7 @@ import { TOOLTIP_DELAY_MS, TOOLTIP_SKIP_DELAY_MS } from "./components/tooltipCon
 import { applyDocumentAppearance, resolveInitialAppearance } from "./theme/appearance.ts";
 import { applyDocumentTheme, resolveInitialTheme, syncWindowTheme } from "./theme/theme.ts";
 import { currentWindowTarget } from "./theme/windowTheme.ts";
+import { startLocale } from "./locales/bootstrap.ts";
 
 // 挂载前先落地主题：<html data-theme> 决定 :root token 与 color-scheme，
 // 原生窗口标题栏也在这一刻同步，避免深色主题启动时先出现一帧浅色顶部。
@@ -21,6 +22,13 @@ void syncWindowTheme(initialTheme, currentWindowTarget());
 // <html data-font-size data-font-family data-code-font data-content-width data-accent>
 // 决定 rem 基准、字体栈与强调色 token，晚一帧就等于先按基准值排一遍再重排，能看见跳动。
 applyDocumentAppearance(resolveInitialAppearance());
+
+/**
+ * 界面语言（Issue #135）：内置语言在 locales/index.ts 加载时就已生效，
+ * 这里只异步补读「上次选的社区语言包」。放在挂载前调用但不 await：
+ * 首帧用内置语言渲染，社区包读回来后再替换文案，不阻塞启动。
+ */
+void startLocale();
 
 /**
  * TooltipProvider 必须包住整棵树：所有 AppTooltip 都要求它是祖先，
