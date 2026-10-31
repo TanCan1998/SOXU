@@ -11,6 +11,8 @@ mod events;
 mod watch;
 // 语言包存储（Issue #135）：只读写应用数据目录下的 locales/，不碰 Pi 会话文件。
 pub mod locale_store;
+// 扩展页只读扫描（Issue #147）：读 Pi 的配置目录，不写回任何 Pi 配置。
+pub mod extension_catalog;
 // 适配层对集成测试开放：测试直接调用真实 catalog/runtime 封装，而不是复制实现。
 pub mod dto;
 pub mod files;
@@ -124,7 +126,9 @@ pub fn run() {
             // ── outline（V4：新 command 只加在本行下方）──
             // ── extension（V4：新 command 只加在本行下方）──
             commands::delete_locale_pack,
+            commands::list_extensions,
             commands::list_locale_packs,
+            commands::read_extension_detail,
             commands::read_locale_pack,
             commands::read_locale_source,
             commands::save_locale_pack,
@@ -173,5 +177,8 @@ mod tests {
         let _ = commands::session_stats;
         // V4 新领域：extension 块里的语言包命令同样必须能从 commands 顶层取到（Issue #135）。
         let _ = commands::list_locale_packs;
+        // Issue #147：扩展页的只读入口同样必须能从 commands 顶层取到。
+        let _ = commands::list_extensions;
+        let _ = commands::read_extension_detail;
     }
 }

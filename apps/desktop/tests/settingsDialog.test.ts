@@ -38,11 +38,6 @@ import {
   readSystemSettings,
 } from "../src/settings/systemSettings.ts";
 import {
-  EXTENSION_ENTRIES,
-  MCP_SERVICE_ENTRIES,
-  SKILL_ENTRIES,
-} from "../src/settings/extensions.ts";
-import {
   SETTINGS_TABS,
   settingsEntriesFor,
   settingsEntry,
@@ -223,63 +218,60 @@ test("系统页默认值三项都开，读写往返且脏值回退", () => {
 });
 
 // ──────────────────────────────────────────────────────────────
-// 3. 扩展页：只读展示
+// 3. 扩展页：本机真数据、只读展示（Issue #147）
 // ──────────────────────────────────────────────────────────────
-test("扩展列表：12 个扩展、名字唯一、每条只有名字与用途", () => {
-  assert.equal(EXTENSION_ENTRIES.length, 12, "扩展页固定列出这 12 个扩展");
-  assert.equal(
-    new Set(EXTENSION_ENTRIES.map((entry) => entry.name)).size,
-    EXTENSION_ENTRIES.length,
-    "扩展名必须唯一",
-  );
-  for (const entry of EXTENSION_ENTRIES) {
-    assert.ok(entry.name.length > 0);
-    assert.ok(entry.description.length > 0, entry.name + " 需要一句用途说明");
-    // 没有 enabled：真实开关状态还读不到，凭常量编一个就是假开关。
-    // id 是 Issue #145 加的：语言包 key 的片段，不是界面状态。
-    assert.deepEqual(Object.keys(entry).sort(), ["description", "id", "name"]);
-  }
-  assert.ok(SKILL_ENTRIES.length >= 3, "技能列表至少要有几项");
-  assert.ok(MCP_SERVICE_ENTRIES.length >= 2, "MCP 服务列表至少要有几项");
-  for (const entry of [...SKILL_ENTRIES, ...MCP_SERVICE_ENTRIES]) {
-    // 文件数、工具数、连接状态都是本机实况，没有数据来源就不许渲染。
-    assert.deepEqual(Object.keys(entry).sort(), ["description", "id", "name"]);
-  }
-  // id 必须唯一且能直接拼成语言包 key（小写点分段）。
-  const ids = [...EXTENSION_ENTRIES, ...SKILL_ENTRIES, ...MCP_SERVICE_ENTRIES].map(
-    (entry) => entry.id,
-  );
-  for (const id of ids) assert.match(id, /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*$/u, id);
-});
-
-test("扩展页没有任何可点击的开关，也不写存储", async () => {
-  const module = await readSource("settings/extensions.ts");
-  assert.doesNotMatch(
-    module,
-    /enabled|fileCount|toolCount|connected/,
-    "真实状态接入前，常量表里不许出现开关或计数",
-  );
-  assert.doesNotMatch(module, /localStorage|invoke\(/, "只读数据不读存储、不发 IPC");
-
+test("扩展页：清单来自后端、没有任何开关、不写存储", async () => {
   const panel = await readSource("components/settings/SettingsExtensions.vue");
   assert.doesNotMatch(panel, /SettingsSwitch/, "扩展页不得渲染开关");
-  assert.doesNotMatch(panel, /item-tag/, "不得渲染「已启用 / 未连接」这类状态徽章");
   assert.doesNotMatch(
     panel,
     /localStorage|persist[A-Z]|invoke\(/,
-    "只读页不许写存储：否则会留下一个「看起来已保存」的假开关",
+    "只读页不许写存储，也不自己发 IPC（走 services/extensions.ts）",
   );
+  assert.ok(panel.includes("useExtensionCatalog"), "清单通过 composable 读取");
   assert.ok(panel.includes("SettingsLocale"), "语言包区保留：它真的读写磁盘");
-  // 页面上如实说明这是查阅用清单，用户不会以为改了真实配置。
-  // Issue #145 起这句话在语言包里，源码里只剩 key。
-  assert.ok(
-    panel.includes('t("settings.extensions.intro")'),
-    "扩展页的说明走语言包",
+
+  // 三态与空态都必须在模板里，而不是靠「列表为空」蒙混过去。
+  for (const key of [
+    "state.loading",
+    "state.failed",
+    "state.retry",
+    "empty.extensions",
+    "empty.skills",
+    "empty.mcp",
+  ]) {
+    assert.ok(
+      panel.includes("settings.extensions." + key),
+      "扩展页缺少 " + key + " 的界面文案",
+    );
+  }
+  // 失败要用 alert 播报，读取中用 status 播报。
+  assert.ok(panel.includes('role="alert"'), "读取失败要让读屏播报");
+  assert.ok(panel.includes('role="status"'), "读取中要有状态播报");
+  // 技能详情按需展开：用 aria-expanded 暴露状态，不用原生 title。
+  assert.ok(panel.includes(":aria-expanded="), "展开按钮要暴露 aria-expanded");
+  assert.doesNotMatch(panel, /\stitle="/u, "提示走 AppTooltip，不用原生 title");
+
+  // 静态假数据表已删除：真实状态接入后不该再留一份会过期的常量。
+  await assert.rejects(
+    readSource("settings/extensions.ts"),
+    "settings/extensions.ts 应当已删除",
   );
+
   const zhSettings = JSON.parse(
     await readFile(join(SRC_ROOT, "locales", "zh-CN", "settings.json"), "utf8"),
   ) as Record<string, string>;
-  assert.match(zhSettings["extensions.intro"] ?? "", /仅供查阅/u, "基准包必须说明这是查阅用清单");
+  assert.match(zhSettings["extensions.intro"] ?? "", /只读/u, "基准包必须说明这是只读清单");
+  assert.match(
+    zhSettings["extensions.note.readonly"] ?? "",
+    /只读/u,
+    "基准包必须说明启停要去 Pi 里改",
+  );
+  assert.match(
+    zhSettings["extensions.mcp.status.unknown"] ?? "",
+    /未知/u,
+    "MCP 连接状态如实写「未知」",
+  );
 });
 
 // ──────────────────────────────────────────────────────────────
