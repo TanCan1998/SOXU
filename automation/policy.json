@@ -54,7 +54,7 @@
   "maxIssuesPerWatch": 12,
   "timeouts": {
     "piStartupSeconds": 90,
-    "piIdleSeconds": 240,
+    "piIdleSeconds": 600,
     "idleExtensionSeconds": 600,
     "piHardMinutes": 35,
     "reviewHardMinutes": 12,
