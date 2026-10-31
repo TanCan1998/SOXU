@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use soxu_pi_protocol::{PiCommand, RpcResponse};
+use soxu_pi_protocol::{PiCommand, RpcResponse, StreamingBehavior};
 use tokio::sync::{mpsc, watch};
 use tokio::time::timeout;
 
@@ -110,22 +110,42 @@ impl RuntimeHandle {
     }
 
     /// 接受 prompt 后进入 Running，直到 agent_settled。
+    ///
+    /// 只用于「agent 空闲时开一轮」；忙碌时再发必须走 prompt_with 并带上
+    /// streamingBehavior，否则 Pi 会直接拒绝这条命令（见 docs/development/send-modes.md）。
     pub async fn prompt(&self, message: impl Into<String>) -> SupervisorResult<RpcResponse> {
+        self.prompt_with(message, None).await
+    }
+
+    /// 发一条 prompt；behavior 为 None 表示空闲投递（不带 streamingBehavior）。
+    pub async fn prompt_with(
+        &self,
+        message: impl Into<String>,
+        behavior: Option<StreamingBehavior>,
+    ) -> SupervisorResult<RpcResponse> {
         let id = self.runtime.next_request_id("prompt");
         let wait = self.supervisor.config.response_timeout;
-        let response = self
-            .request(
-                PiCommand::Prompt {
-                    id,
-                    message: message.into(),
-                },
-                wait,
-            )
-            .await?;
+        let message = message.into();
+        let command = match behavior {
+            Some(behavior) => PiCommand::prompt_while_busy(id, message, behavior),
+            None => PiCommand::prompt(id, message),
+        };
+        let response = self.request(command, wait).await?;
         if response.success {
             self.runtime.transition(RuntimeState::Running);
         }
         Ok(response)
+    }
+
+    /// 清空 Pi 侧的 steering / follow-up 队列。
+    ///
+    /// 「停止」必须先清队列再 abort：Pi 的 abort 会继续执行仍留在会话里的排队消息
+    /// （docs/rpc-commands.md 的 clear_queue 一节），用户按了停止却看到消息又跑起来
+    /// 是明确的错误行为。
+    pub async fn clear_queue(&self) -> SupervisorResult<RpcResponse> {
+        let id = self.runtime.next_request_id("clear_queue");
+        let wait = self.supervisor.config.response_timeout;
+        self.request(PiCommand::ClearQueue { id }, wait).await
     }
 
     /// 取消当前轮次；可重复调用（每次都有独立 request id）。

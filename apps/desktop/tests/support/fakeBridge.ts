@@ -185,6 +185,10 @@ export class FakeBridge implements WorkspaceBridge {
   texts = new Map<number, EntryText>();
   startError: string | null = null;
   cancelError: string | null = null;
+  /** 清空排队消息失败（Issue #146）：用于验证「撤回失败时保留排队登记」。 */
+  clearQueueError: string | null = null;
+  /** 投递被 Pi 拒绝（Issue #146）：用于验证回显与草稿的回滚。 */
+  sendPromptError: string | null = null;
   /** 临时会话：分配/绑定/转正的行为开关，用例按需覆盖。 */
   temporarySequence = 0;
   temporaryError: string | null = null;
@@ -409,13 +413,19 @@ export class FakeBridge implements WorkspaceBridge {
     text: string,
     options?: SendPromptOptions,
   ): Promise<void> {
-    // options 原样记录：V4-S1 的断言要确认 mode/thinking 确实走到了 bridge 这一层。
+    // options 原样记录：断言要确认 mode/thinking 确实走到了 bridge 这一层。
     this.calls.push({ method: "sendPrompt", args: [sessionId, text, options] });
+    if (this.sendPromptError) throw new Error(this.sendPromptError);
   }
 
   async cancelRuntime(sessionId: SessionId): Promise<void> {
     this.calls.push({ method: "cancelRuntime", args: [sessionId] });
     if (this.cancelError) throw new Error(this.cancelError);
+  }
+
+  async clearQueuedPrompts(sessionId: SessionId): Promise<void> {
+    this.calls.push({ method: "clearQueuedPrompts", args: [sessionId] });
+    if (this.clearQueueError) throw new Error(this.clearQueueError);
   }
 
   async stopRuntime(sessionId: SessionId): Promise<void> {

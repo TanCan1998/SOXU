@@ -13,7 +13,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use soxu_agent_runtime::{RuntimeHandle, SupervisorEvent};
+use soxu_agent_runtime::{RuntimeHandle, StreamingBehavior, SupervisorEvent};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::dto::RuntimeExit;
@@ -26,11 +26,18 @@ type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// 上层发给驱动任务的命令；每个命令都有独立的应答通道，失败不会静默挂起。
 pub enum RunCommand {
+    /// behavior 为 None 表示 agent 空闲时的普通投递；忙碌时必须带上排队方式，
+    /// 否则 Pi 会拒绝这条 prompt（见 docs/development/send-modes.md）。
     Prompt {
         text: String,
+        behavior: Option<StreamingBehavior>,
         reply: oneshot::Sender<Result<(), String>>,
     },
     Cancel {
+        reply: oneshot::Sender<Result<(), String>>,
+    },
+    /// 清空 Pi 侧的排队消息；「停止」在 abort 之前先发这一条。
+    ClearQueue {
         reply: oneshot::Sender<Result<(), String>>,
     },
     Shutdown {
@@ -41,8 +48,13 @@ pub enum RunCommand {
 /// 驱动任务需要的最小运行时能力；`RuntimeHandle` 与测试替身都实现它。
 pub trait RuntimePort: Send {
     fn recv(&mut self) -> BoxFuture<'_, Result<Option<SupervisorEvent>, String>>;
-    fn prompt(&mut self, text: String) -> BoxFuture<'_, Result<(), String>>;
+    fn prompt(
+        &mut self,
+        text: String,
+        behavior: Option<StreamingBehavior>,
+    ) -> BoxFuture<'_, Result<(), String>>;
     fn cancel(&mut self) -> BoxFuture<'_, Result<(), String>>;
+    fn clear_queue(&mut self) -> BoxFuture<'_, Result<(), String>>;
     fn stop(&mut self) -> BoxFuture<'_, ()>;
     fn runtime_id(&self) -> &str;
 }
@@ -71,10 +83,14 @@ impl RuntimePort for HandlePort {
         })
     }
 
-    fn prompt(&mut self, text: String) -> BoxFuture<'_, Result<(), String>> {
+    fn prompt(
+        &mut self,
+        text: String,
+        behavior: Option<StreamingBehavior>,
+    ) -> BoxFuture<'_, Result<(), String>> {
         Box::pin(async move {
             self.handle
-                .prompt(text)
+                .prompt_with(text, behavior)
                 .await
                 .map(|response| {
                     if let Some(reason) = response.failure_message() {
@@ -91,6 +107,22 @@ impl RuntimePort for HandlePort {
         Box::pin(async move {
             self.handle
                 .cancel()
+                .await
+                .map(|response| {
+                    if let Some(reason) = response.failure_message() {
+                        Err(reason)
+                    } else {
+                        Ok(())
+                    }
+                })
+                .unwrap_or_else(|error| Err(error.to_string()))
+        })
+    }
+
+    fn clear_queue(&mut self) -> BoxFuture<'_, Result<(), String>> {
+        Box::pin(async move {
+            self.handle
+                .clear_queue()
                 .await
                 .map(|response| {
                     if let Some(reason) = response.failure_message() {
@@ -196,8 +228,12 @@ pub async fn drive(
                 ));
                 break;
             }
-            Step::Command(Some(RunCommand::Prompt { text, reply })) => {
-                let result = port.prompt(text).await;
+            Step::Command(Some(RunCommand::Prompt {
+                text,
+                behavior,
+                reply,
+            })) => {
+                let result = port.prompt(text, behavior).await;
                 if result.is_ok() {
                     context.update_status(&session_id, |status| {
                         status.state = "running".to_owned();
@@ -210,6 +246,10 @@ pub async fn drive(
             }
             Step::Command(Some(RunCommand::Cancel { reply })) => {
                 let result = port.cancel().await;
+                let _ = reply.send(result);
+            }
+            Step::Command(Some(RunCommand::ClearQueue { reply })) => {
+                let result = port.clear_queue().await;
                 let _ = reply.send(result);
             }
             Step::Command(Some(RunCommand::Shutdown { reply })) => {
@@ -290,9 +330,21 @@ mod tests {
             Box::pin(async move { Ok(self.events.recv().await) })
         }
 
-        fn prompt(&mut self, text: String) -> BoxFuture<'_, Result<(), String>> {
+        fn prompt(
+            &mut self,
+            text: String,
+            behavior: Option<StreamingBehavior>,
+        ) -> BoxFuture<'_, Result<(), String>> {
             Box::pin(async move {
-                self.calls.lock().unwrap().push(format!("prompt:{text}"));
+                let suffix = match behavior {
+                    Some(StreamingBehavior::Steer) => ":steer",
+                    Some(StreamingBehavior::FollowUp) => ":followUp",
+                    None => "",
+                };
+                self.calls
+                    .lock()
+                    .unwrap()
+                    .push(format!("prompt:{text}{suffix}"));
                 Ok(())
             })
         }
@@ -300,6 +352,13 @@ mod tests {
         fn cancel(&mut self) -> BoxFuture<'_, Result<(), String>> {
             Box::pin(async move {
                 self.calls.lock().unwrap().push("cancel".to_owned());
+                Ok(())
+            })
+        }
+
+        fn clear_queue(&mut self) -> BoxFuture<'_, Result<(), String>> {
+            Box::pin(async move {
+                self.calls.lock().unwrap().push("clear_queue".to_owned());
                 Ok(())
             })
         }
@@ -472,6 +531,7 @@ mod tests {
         control_tx
             .send(RunCommand::Prompt {
                 text: "你好".to_owned(),
+                behavior: None,
                 reply: reply_tx,
             })
             .await
@@ -500,6 +560,104 @@ mod tests {
             "命令必须按提交顺序串行执行，且停止只发生一次"
         );
         assert_eq!(statuses.lock().unwrap()["ses_a"].state, "exited");
+    }
+    /// Issue #146：忙碌时投递必须把 streamingBehavior 传到协议层，
+    /// 且「停止」要按 clear_queue → abort 的顺序走（Pi 的 abort 会继续执行排队消息）。
+    #[tokio::test]
+    async fn busy_prompt_carries_behavior_and_cancel_clears_the_queue_first() {
+        // `_tx` 必须存活：否则 recv 立即返回 None，驱动会当成进程退出。
+        let (_tx, rx) = mpsc::channel(8);
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let port = ScriptedPort {
+            events: rx,
+            calls: Arc::clone(&calls),
+            runtime_id: "ses_a#1".to_owned(),
+        };
+        let gate = Arc::new(GenerationGate::new());
+        gate.begin("ses_a", 1);
+        let fanout = Arc::new(EventFanout::new());
+        fanout.attach("ses_a");
+        let statuses = Arc::new(Mutex::new(HashMap::from([(
+            "ses_a".to_owned(),
+            status("ses_a", 1),
+        )])));
+        let emitted = Arc::new(Mutex::new(Vec::new()));
+        let (control_tx, control_rx) = mpsc::channel(4);
+        let driver = tokio::spawn(drive(
+            Box::new(port),
+            "ses_a".to_owned(),
+            1,
+            control_rx,
+            context(
+                Arc::clone(&fanout),
+                Arc::clone(&gate),
+                Arc::clone(&statuses),
+                Arc::clone(&emitted),
+            ),
+        ));
+
+        for (text, behavior) in [
+            ("插进当前", StreamingBehavior::Steer),
+            ("排到下轮", StreamingBehavior::FollowUp),
+        ] {
+            let (reply_tx, reply_rx) = oneshot::channel();
+            control_tx
+                .send(RunCommand::Prompt {
+                    text: text.to_owned(),
+                    behavior: Some(behavior),
+                    reply: reply_tx,
+                })
+                .await
+                .unwrap();
+            assert!(reply_rx.await.unwrap().is_ok());
+        }
+
+        // 空闲投递（behavior=None）不带排队方式。
+        let (reply_tx, reply_rx) = oneshot::channel();
+        control_tx
+            .send(RunCommand::Prompt {
+                text: "普通发送".to_owned(),
+                behavior: None,
+                reply: reply_tx,
+            })
+            .await
+            .unwrap();
+        assert!(reply_rx.await.unwrap().is_ok());
+
+        let (reply_tx, reply_rx) = oneshot::channel();
+        control_tx
+            .send(RunCommand::ClearQueue { reply: reply_tx })
+            .await
+            .unwrap();
+        assert!(reply_rx.await.unwrap().is_ok());
+
+        let (reply_tx, reply_rx) = oneshot::channel();
+        control_tx
+            .send(RunCommand::Cancel { reply: reply_tx })
+            .await
+            .unwrap();
+        assert!(reply_rx.await.unwrap().is_ok());
+
+        let (reply_tx, reply_rx) = oneshot::channel();
+        control_tx
+            .send(RunCommand::Shutdown { reply: reply_tx })
+            .await
+            .unwrap();
+        reply_rx.await.unwrap();
+        driver.await.unwrap();
+
+        assert_eq!(
+            calls.lock().unwrap().as_slice(),
+            [
+                "prompt:插进当前:steer",
+                "prompt:排到下轮:followUp",
+                "prompt:普通发送",
+                "clear_queue",
+                "cancel",
+                "stop",
+            ],
+            "排队方式必须逐条透传，清队列必须发生在 abort 之前"
+        );
     }
 
     /// Issue #119 验收「浮窗数值与事件流一致」：统计只由驱动消费的同一批事件累加，
@@ -544,6 +702,7 @@ mod tests {
         control_tx
             .send(RunCommand::Prompt {
                 text: "统计一下".to_owned(),
+                behavior: None,
                 reply: reply_tx,
             })
             .await

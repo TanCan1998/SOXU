@@ -88,6 +88,9 @@ export function createTauriBridge(): WorkspaceBridge {
         thinking: options?.thinking,
       }),
     cancelRuntime: (sessionId: SessionId) => invoke<void>("cancel_session", { sessionId }),
+    // 停止前先清 Pi 的排队消息：abort 会继续执行仍留在队列里的消息。
+    clearQueuedPrompts: (sessionId: SessionId) =>
+      invoke<void>("clear_queued_prompts", { sessionId }),
     stopRuntime: (sessionId: SessionId) => invoke<void>("stop_session", { sessionId }),
     runtimeStatus: (sessionId: SessionId) =>
       invoke<RuntimeStatus | null>("runtime_status", { sessionId }),
@@ -200,6 +203,7 @@ export function createUnavailableBridge(reason: string): WorkspaceBridge {
     discardTemporarySession: fail,
     sendPrompt: fail,
     cancelRuntime: fail,
+    clearQueuedPrompts: fail,
     stopRuntime: fail,
     runtimeStatus: async () => null,
     sessionStats: fail,

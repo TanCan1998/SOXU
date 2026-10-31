@@ -471,8 +471,10 @@ function closeTab(sessionId: SessionId) {
 }
 
 /**
- * 发送消息：`mode` 是 composer 三选菜单的选择（null = 按默认投递）。
- * 本切片把 mode 作为参数传给后端管道，运行时语义（注入/排队/并行会话）由后续切片实现。
+ * 发送消息：`mode` 是 composer 三选菜单的选择（null = 空闲时的普通投递）。
+ * 忙碌时 composer 会把「待发投递方式」或设置里的默认值一起带出来，因此这里
+ * 只做透传：steer / followUp 进 Pi 的队列，parallel 由 WorkspaceSession 另开
+ * 临时会话（见 docs/development/send-modes.md）。
  */
 function send(payload: { text: string; mode: SendMode | null }) {
   const tab = activeTab.value;

@@ -10,8 +10,8 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use soxu_agent_runtime::PiProgram;
 use soxu_agent_runtime::retry::{RetryPolicy, start_with_retry_cancellable};
+use soxu_agent_runtime::{PiProgram, StreamingBehavior};
 use soxu_session_index::SessionId;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::{mpsc, oneshot};
@@ -147,7 +147,16 @@ pub async fn start(
     })
 }
 
-pub async fn prompt(state: &AppState, session_id: &str, text: &str) -> Result<(), String> {
+/// 发送一条消息。
+///
+/// behavior 为 None 表示 agent 空闲时的普通投递；agent 忙碌时必须给出排队方式，
+/// 否则 Pi 会拒绝这条 prompt（实测见 docs/development/send-modes.md）。
+pub async fn prompt(
+    state: &AppState,
+    session_id: &str,
+    text: &str,
+    behavior: Option<StreamingBehavior>,
+) -> Result<(), String> {
     if text.trim().is_empty() {
         return Err("消息不能为空".to_owned());
     }
@@ -156,11 +165,26 @@ pub async fn prompt(state: &AppState, session_id: &str, text: &str) -> Result<()
     control
         .send(RunCommand::Prompt {
             text: text.to_owned(),
+            behavior,
             reply: reply_tx,
         })
         .await
         .map_err(|_| "运行时已结束，请重新启动会话".to_owned())?;
     await_reply(reply_rx, COMMAND_TIMEOUT, "发送消息").await
+}
+
+/// 清空 Pi 侧的排队消息（steering + follow-up）。
+///
+/// 停止流程会先调用它：Pi 的 abort 会继续执行仍留在队列里的消息，
+/// 用户按了停止却看到排队的消息又跑起来是明确的错误行为。
+pub async fn clear_queue(state: &AppState, session_id: &str) -> Result<(), String> {
+    let control = sender(state, session_id).await?;
+    let (reply_tx, reply_rx) = oneshot::channel();
+    control
+        .send(RunCommand::ClearQueue { reply: reply_tx })
+        .await
+        .map_err(|_| "运行时已结束，无法清空排队消息".to_owned())?;
+    await_reply(reply_rx, COMMAND_TIMEOUT, "清空排队消息").await
 }
 
 pub async fn cancel(state: &AppState, session_id: &str) -> Result<(), String> {

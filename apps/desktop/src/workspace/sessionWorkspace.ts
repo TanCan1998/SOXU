@@ -9,10 +9,13 @@
  * 2. 关闭 Tab 只释放订阅，不停止 Agent（Pane 销毁 ≠ 停止任务）。
  * 3. dispose 之后任何 await 回来的结果都不得再写状态。
  *
- * 文件超过 400 行的理由：Tab 生命周期、分页、实时流与搜索的状态机共享**同一份**
- * dispose / 关闭边界——把它们拆到别的类会立刻出现「定时器归谁清、迟到响应归谁丢」
- * 的双 owner 问题。纯函数部分已经拆出：映射规则在 `mapping.ts`，
- * 搜索展示（片段切片、码点长度）在 `search.ts`。
+ * 文件超过 400 行的理由：Tab 生命周期、分页、实时流、搜索与投递（Issue #146）的
+ * 状态机共享**同一份** dispose / 关闭边界——把它们拆到别的类会立刻出现
+ * 「定时器归谁清、迟到响应归谁丢、排队登记归谁撤」的双 owner 问题。
+ * 投递尤其如此：它要在 await 之后写回 Tab（回显、pending 登记、草稿回滚），
+ * 只有和 `disposed` 判定放在同一个类里才能保证「dispose 之后不再写状态」。
+ * 纯函数部分已经拆出：映射规则在 `mapping.ts`，搜索展示（片段切片、码点长度）在
+ * `search.ts`，投递方式的判定与文案在 `components/sendMode.ts`。
  */
 
 import {
@@ -108,6 +111,7 @@ export function createTab(meta: SessionMeta): SessionTab {
     diagnostics: [],
     promoting: false,
     search: createSearchState(),
+    pending: [],
   };
 }
 
@@ -249,23 +253,21 @@ export class WorkspaceSession {
     // 必须取回响应式代理：直接改 `created` 原始对象不会触发 Vue 重新渲染。
     const tab = this.tab(meta.sessionId) ?? created;
     this.ensureSubscribed();
-    // 临时会话还没有落盘，后端索引里不存在这个 id：不要订阅事件、也不要拉历史，
-    // 否则 open_session_history 会返回 E_SESSION_UNKNOWN，界面直接进错误态。
-    // 它的内容由 startRuntime 之后的实时事件填充。
-    if (meta.mode === "temporary") {
-      tab.status = "ready";
-      tab.history = { ...tab.history, loading: false, loaded: 0, total: 0, next: null };
-      void this.refreshStats(meta.sessionId);
-      return;
-    }
+    // 事件订阅对所有会话都要挂上：后端只在订阅计数 > 0 时 emit。
+    // 临时会话以前在这里提前 return，于是它一条运行时事件都收不到——「并行发送」
+    // 新建的会话会一直停在 running，流式输出与 settled 都看不见（Issue #146 实测复现）。
     try {
       await this.bridge.retainSession(meta.sessionId);
     } catch (error) {
       if (!this.disposed) tab.diagnostics = pushDiagnostic(tab, describeError(error));
     }
-    // 临时会话默认没有持久化历史：不请求分页（否则会把「会话未登记」显示成错误）。
+    // 临时会话还没有落盘，后端索引里不存在这个 id：不要拉历史，
+    // 否则 open_session_history 会返回 E_SESSION_UNKNOWN，界面直接进错误态。
+    // 它的内容由 startRuntime 之后的实时事件填充。
     if (tab.mode === "temporary") {
       tab.status = "ready";
+      tab.history = { ...tab.history, loading: false, loaded: 0, total: 0, next: null };
+      void this.refreshStats(meta.sessionId);
       return;
     }
     await this.loadPage(tab, 0);
@@ -279,30 +281,33 @@ export class WorkspaceSession {
    * 后端不可用（浏览器预览）时退回本地 `ses_tmp_*` 身份，并在诊断里写清
    * 「不会持久化」，而不是假装已经和后端登记成功。
    */
-  async openTemporary(projectId: ProjectId | null): Promise<void> {
-    if (this.disposed) return;
+  async openTemporary(projectId: ProjectId | null): Promise<SessionId | null> {
+    if (this.disposed) return null;
     let sessionId: SessionId | null = null;
     let worktreeId: WorktreeId | null = null;
     let project: ProjectId | null = projectId;
     if (this.state.bridgeAvailable && project) {
       try {
         const temporary = await this.bridge.openTemporarySession(project);
-        if (this.disposed) return;
+        if (this.disposed) return null;
         sessionId = temporary.sessionId;
         worktreeId = temporary.worktreeId;
         project = temporary.projectId;
       } catch (error) {
-        if (this.disposed) return;
+        if (this.disposed) return null;
         this.state.projectsError = `临时会话分配失败：${describeError(error)}`;
       }
     }
+    const created = sessionId ?? `ses_tmp_${Date.now().toString(36)}`;
     await this.openSession({
-      sessionId: sessionId ?? `ses_tmp_${Date.now().toString(36)}`,
+      sessionId: created,
       projectId: project ?? "prj_memory",
       title: "临时会话",
       mode: "temporary",
       worktreeId,
     });
+    // 并行发送要立刻在这个新会话里投递：把身份交回调用方，而不是让它去猜 active。
+    return this.tab(created) ? created : null;
   }
 
   /**
@@ -526,10 +531,15 @@ export class WorkspaceSession {
   /**
    * 发送一条消息。
    *
-   * `options.mode` / `options.thinking` 只作为参数管道透传给后端（V4-S1）：
-   * 后端目前接受并校验这两个字段，但不改变投递行为——注入/排队/并行会话
-   * 属于后续切片，这里不能提前把「忙碌时发送」当成已生效。
-   * 因此忙碌（running/cancelling/loading）时仍然直接返回，草稿保留在 Tab 上。
+   * 投递方式自 Issue #146 起真的生效（协议事实与实测记录见
+   * docs/development/send-modes.md）：
+   * - 空闲：普通 prompt，不带 streamingBehavior；
+   * - 忙碌 + steer / followUp：prompt 带 Pi 的 streamingBehavior，并登记进 `pending`，
+   *   停止时用 clear_queue 撤回并把文本还给输入框；
+   * - 忙碌 + parallel：在同一个项目下另开临时会话再发送，不打断当前轮次；
+   * - 忙碌但没给 mode：按 followUp 排队。宁可在下一轮发出，也不静默丢掉用户的消息。
+   *
+   * 历史仍在加载（loading）时不投递：运行时状态未知，先让历史读完。
    */
   async sendPrompt(
     sessionId: SessionId,
@@ -539,30 +549,30 @@ export class WorkspaceSession {
     const tab = this.tab(sessionId);
     const content = text.trim();
     if (!tab || this.disposed || !content) return;
-    if (tab.status === "running" || tab.status === "cancelling" || tab.status === "loading") return;
+    if (tab.status === "loading") return;
+    if (options?.mode === "parallel") {
+      await this.sendInParallel(tab, content, options);
+      return;
+    }
+    if (tab.status === "running" || tab.status === "cancelling") {
+      const mode = options?.mode === "steer" ? "steer" : "followUp";
+      await this.sendWhileBusy(tab, content, mode, options);
+      return;
+    }
     if (!tab.runtime.runtimeId) {
       await this.startRuntime(sessionId);
       if (!tab.runtime.runtimeId) return; // 启动失败：保留草稿，由 UI 展示错误
     }
     tab.draft = "";
-    const prompt = capText(content);
-    tab.messages.push({
-      id: `live:${tab.runtime.generation}:${++liveSeq}`,
-      ordinal: null,
-      role: "user",
-      text: prompt.text,
-      partial: false,
-      streaming: false,
-      source: "live",
-      createdAt: new Date().toISOString(),
-      ...(prompt.truncated ? { truncated: true } : {}),
-    });
-    // 实时追加同样受窗口约束：连续多轮对话不能绕开 MAX_TAB_LIVE_MESSAGES 无限增长。
-    enforceMessageWindow(tab);
+    this.pushUserEcho(tab, content);
     tab.status = "running";
     tab.error = null;
     try {
-      await this.bridge.sendPrompt(tab.sessionId, content, options);
+      // 空闲投递不带 mode：Pi 只在流式期间接受 streamingBehavior，空闲时带上它没有意义。
+      const idleOptions: SendPromptOptions | undefined = options?.thinking
+        ? { thinking: options.thinking }
+        : undefined;
+      await this.bridge.sendPrompt(tab.sessionId, content, idleOptions);
       // prompt 已被接受：这一刻才开始计时，统计里能看到「进行中」。
       void this.refreshStats(sessionId);
     } catch (error) {
@@ -572,12 +582,132 @@ export class WorkspaceSession {
     }
   }
 
-  /** 取消是幂等的：只有 running 状态才发命令，重复点击不会重复 abort。 */
+  /**
+   * 忙碌时投递：消息进 Pi 的队列，本地登记一条 pending 以便撤回。
+   *
+   * 失败时必须把回显与登记一起撤掉、草稿还回去——界面上不能留下一条
+   * 「看起来发出去了、其实被 Pi 拒绝」的消息。
+   */
+  private async sendWhileBusy(
+    tab: SessionTab,
+    content: string,
+    mode: "steer" | "followUp",
+    options?: SendPromptOptions,
+  ): Promise<void> {
+    const previousDraft = tab.draft;
+    tab.draft = "";
+    tab.error = null;
+    const echo = this.pushUserEcho(tab, content);
+    tab.pending = [...tab.pending, { messageId: echo.id, text: content, mode }];
+    try {
+      await this.bridge.sendPrompt(tab.sessionId, content, {
+        mode,
+        ...(options?.thinking ? { thinking: options.thinking } : {}),
+      });
+      void this.refreshStats(tab.sessionId);
+    } catch (error) {
+      if (this.disposed) return;
+      tab.pending = tab.pending.filter((item) => item.messageId !== echo.id);
+      tab.messages = tab.messages.filter((message) => message.id !== echo.id);
+      tab.draft = previousDraft || content;
+      tab.error = describeError(error);
+    }
+  }
+
+  /**
+   * 并行发送：草稿克隆到同一个项目下的新临时会话再发出去。
+   *
+   * 新会话有独立的运行时与 generation，因此当前会话的输出完全不受影响；
+   * `openTemporary` 会把 active 切到新 Tab，用户立刻能看到「新会话已创建」。
+   */
+  private async sendInParallel(
+    tab: SessionTab,
+    content: string,
+    options?: SendPromptOptions,
+  ): Promise<void> {
+    const previousDraft = tab.draft;
+    if (!tab.projectId) {
+      tab.error = "并行发送需要一个已登记的项目";
+      return;
+    }
+    tab.draft = "";
+    tab.error = null;
+    const created = await this.openTemporary(tab.projectId);
+    if (this.disposed) return;
+    if (!created) {
+      tab.draft = previousDraft || content;
+      tab.error = "并行发送失败：临时会话未分配成功";
+      return;
+    }
+    await this.sendPrompt(
+      created,
+      content,
+      options?.thinking ? { thinking: options.thinking } : undefined,
+    );
+    if (this.tab(created)?.status === "error") {
+      tab.diagnostics = pushDiagnostic(tab, "并行发送的临时会话启动失败，消息未发出");
+      // 失败时把用户送回原来的会话：不要留在一个什么都没有的新 Tab 上。
+      this.state.activeSessionId = tab.sessionId;
+    }
+  }
+
+  /** 把一条用户消息推进实时窗口（本地回显）；返回推入的那条消息。 */
+  private pushUserEcho(tab: SessionTab, content: string): ChatMessage {
+    const prompt = capText(content);
+    const message: ChatMessage = {
+      id: `live:${tab.runtime.generation}:${++liveSeq}`,
+      ordinal: null,
+      role: "user",
+      text: prompt.text,
+      partial: false,
+      streaming: false,
+      source: "live",
+      createdAt: new Date().toISOString(),
+      ...(prompt.truncated ? { truncated: true } : {}),
+    };
+    tab.messages.push(message);
+    // 实时追加同样受窗口约束：连续多轮对话不能绕开 MAX_TAB_LIVE_MESSAGES 无限增长。
+    enforceMessageWindow(tab);
+    return message;
+  }
+
+  /**
+   * 撤回已交给 Pi 排队的消息。
+   *
+   * 顺序不能反：clear_queue 失败时**保留**本地登记与回显（Pi 可能仍会执行它们），
+   * 只有真的清空了才移除回显、把文本还回输入框。
+   */
+  private async retractQueued(tab: SessionTab): Promise<void> {
+    const pending = [...tab.pending];
+    if (pending.length === 0) return;
+    try {
+      await this.bridge.clearQueuedPrompts(tab.sessionId);
+    } catch (error) {
+      if (this.disposed) return;
+      tab.diagnostics = pushDiagnostic(tab, `撤回排队消息失败：${describeError(error)}`);
+      return;
+    }
+    if (this.disposed) return;
+    const ids = new Set(pending.map((item) => item.messageId));
+    tab.pending = tab.pending.filter((item) => !ids.has(item.messageId));
+    tab.messages = tab.messages.filter((message) => !ids.has(message.id));
+    const restored = pending.map((item) => item.text).join("\n\n");
+    tab.draft = tab.draft ? `${restored}\n\n${tab.draft}` : restored;
+  }
+
+  /**
+   * 取消是幂等的：只有 running 状态才发命令，重复点击不会重复 abort。
+   *
+   * 顺序是「先清队列再 abort」：Pi 的 abort 会继续执行仍留在会话里的排队消息
+   * （docs/rpc-commands.md 的 clear_queue 一节），否则用户按了停止还会看到
+   * 自己刚排的那条消息跑起来。
+   */
   async cancel(sessionId: SessionId): Promise<void> {
     const tab = this.tab(sessionId);
     if (!tab || this.disposed || tab.status !== "running") return;
     tab.status = "cancelling";
     try {
+      await this.retractQueued(tab);
       await this.bridge.cancelRuntime(tab.sessionId);
     } catch (error) {
       if (this.disposed) return;
@@ -640,6 +770,7 @@ export class WorkspaceSession {
       retry: tab.runtime.retry,
     };
     tab.status = "idle";
+    tab.pending = [];
     finalizeStreaming(tab);
     void this.refreshStats(sessionId);
   }
@@ -719,6 +850,8 @@ export class WorkspaceSession {
         finalizeStreaming(tab);
         tab.runtime.state = "idle";
         tab.status = "ready";
+        // Pi 已在本轮结束时投递/丢弃了排队消息：本地登记到此结束，不再当作可撤回。
+        tab.pending = [];
         break;
       case "warning":
         tab.diagnostics = pushDiagnostic(tab, event.detail);
@@ -728,6 +861,8 @@ export class WorkspaceSession {
         break;
       case "exit":
         finalizeStreaming(tab);
+        // 队列随进程消失：本地登记必须一起清掉，否则停止按钮会去清一个不存在的队列。
+        tab.pending = [];
         tab.runtime = {
           runtimeId: null,
           generation: tab.runtime.generation,
@@ -846,7 +981,26 @@ export class WorkspaceSession {
   }
 }
 
+/**
+ * 这条流事件能不能代表「助手正文」。
+ *
+ * Pi 1.4.0 的会话事件是扁平帧（docs/json.md）：`message_start` / `message_end`
+ * 会同时携带 user 与 assistant 的消息，`turn_end` 又把 `message_end` 的助手正文
+ * 重复一遍。只认助手消息与增量事件，否则用户自己那条消息会被再渲染成一条
+ * 「助手回复」（Issue #146 实机走查发现：修好事件解码后立刻出现重复渲染）。
+ */
+function streamCarriesAssistantText(event: Extract<RuntimeEvent, { type: "stream" }>): boolean {
+  if (event.event === "message_update") return true;
+  if (event.event !== "message_start" && event.event !== "message_end") return false;
+  const data = event.data;
+  if (!data || typeof data !== "object") return false;
+  const message = (data as Record<string, unknown>)["message"];
+  if (!message || typeof message !== "object") return false;
+  return (message as Record<string, unknown>)["role"] === "assistant";
+}
+
 function applyStream(tab: SessionTab, event: Extract<RuntimeEvent, { type: "stream" }>): void {
+  if (!streamCarriesAssistantText(event)) return;
   const delta = deltaText(event.data);
   if (!delta) return;
   const last = tab.messages.at(-1);

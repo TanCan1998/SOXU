@@ -110,13 +110,7 @@ async fn concurrent_requests_are_correlated_by_id_not_arrival_order() {
     };
     let prompt_future = async {
         let response = handle
-            .request(
-                PiCommand::Prompt {
-                    id: "fixed-prompt".into(),
-                    message: "hi".into(),
-                },
-                brief_wait(),
-            )
+            .request(PiCommand::prompt("fixed-prompt", "hi"), brief_wait())
             .await;
         prompt_order.lock().unwrap().push("prompt");
         response
@@ -148,10 +142,7 @@ async fn duplicate_request_id_is_rejected_without_dropping_the_in_flight_request
     let in_flight = async {
         handle
             .request(
-                PiCommand::Prompt {
-                    id: "same-id".into(),
-                    message: "first".into(),
-                },
+                PiCommand::prompt("same-id", "first"),
                 Duration::from_millis(400),
             )
             .await
@@ -160,10 +151,7 @@ async fn duplicate_request_id_is_rejected_without_dropping_the_in_flight_request
         tokio::time::sleep(Duration::from_millis(50)).await;
         handle
             .request(
-                PiCommand::Prompt {
-                    id: "same-id".into(),
-                    message: "second".into(),
-                },
+                PiCommand::prompt("same-id", "second"),
                 Duration::from_millis(400),
             )
             .await

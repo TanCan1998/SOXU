@@ -1,0 +1,327 @@
+{
+  "kind": "soxu-send-modes-probe",
+  "startedAt": "2026-10-31T10:37:54.007Z",
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v26.10.0",
+    "piVersion": "1.4.0",
+    "model": "auto/deepseek-v4.1-flash",
+    "thinkingLevel": "off"
+  },
+  "phases": {
+    "handshake": {
+      "success": true,
+      "isStreaming": false,
+      "steeringMode": "one-at-a-time",
+      "followUpMode": "one-at-a-time",
+      "pendingMessageCount": 0
+    },
+    "busyPromptWithoutBehavior": {
+      "longPrompt": {
+        "id": "long-2",
+        "type": "response",
+        "command": "prompt",
+        "success": true,
+        "error": null,
+        "disposition": "started"
+      },
+      "isStreaming": true,
+      "busyPrompt": {
+        "id": "busy-4",
+        "type": "response",
+        "command": "prompt",
+        "success": false,
+        "error": "Agent is already processing. Specify streamingBehavior ('steer' or 'followUp') to queue the message.",
+        "disposition": null
+      },
+      "busyPromptAccepted": false
+    },
+    "steerWhileBusy": {
+      "isStreaming": true,
+      "promptWithSteer": {
+        "id": "steer-prompt-8",
+        "type": "response",
+        "command": "prompt",
+        "success": true,
+        "error": null,
+        "disposition": "queued"
+      },
+      "steerCommand": {
+        "id": "steer-cmd-9",
+        "type": "response",
+        "command": "steer",
+        "success": true,
+        "error": null,
+        "disposition": "queued"
+      },
+      "queueFrames": [
+        {
+          "type": "queue_update",
+          "steering": 1,
+          "followUp": 0
+        },
+        {
+          "type": "queue_update",
+          "steering": 2,
+          "followUp": 0
+        }
+      ],
+      "pendingMessageCount": 2,
+      "deliveredA": true,
+      "deliveredB": true
+    },
+    "followUpWhileBusy": {
+      "wire": "follow_up",
+      "isStreaming": true,
+      "response": {
+        "id": "followup-15",
+        "type": "response",
+        "command": "follow_up",
+        "success": true,
+        "error": null,
+        "disposition": "queued"
+      },
+      "queueFrames": [
+        {
+          "type": "queue_update",
+          "steering": 0,
+          "followUp": 1
+        }
+      ],
+      "isStreamingAfterQueue": true,
+      "pendingMessageCount": 1,
+      "settled": {
+        "first": {
+          "type": "agent_settled",
+          "aborted": false
+        },
+        "second": null,
+        "indices": [
+          2071
+        ],
+        "beforeDelivery": 0
+      },
+      "delivery": {
+        "delivered": true,
+        "deliveredAsUserMessageFrame": true,
+        "deliveredAfterSettled": false,
+        "userMessageIndex": 1931,
+        "firstSettledIndex": 2071
+      },
+      "trace": [
+        {
+          "index": 1083,
+          "type": "queue_update",
+          "role": null
+        },
+        {
+          "index": 1931,
+          "type": "message_start",
+          "role": "user"
+        },
+        {
+          "index": 1932,
+          "type": "message_end",
+          "role": "user"
+        },
+        {
+          "index": 2066,
+          "type": "message_update",
+          "role": null
+        },
+        {
+          "index": 2067,
+          "type": "message_update",
+          "role": null
+        },
+        {
+          "index": 2068,
+          "type": "message_end",
+          "role": "assistant"
+        }
+      ],
+      "settledCount": 3
+    },
+    "followUpPromptWhileBusy": {
+      "wire": "prompt+streamingBehavior=followUp",
+      "isStreaming": true,
+      "response": {
+        "id": "followup-prompt-21",
+        "type": "response",
+        "command": "prompt",
+        "success": true,
+        "error": null,
+        "disposition": "queued"
+      },
+      "queueFrames": [
+        {
+          "type": "queue_update",
+          "steering": 0,
+          "followUp": 1
+        }
+      ],
+      "isStreamingAfterQueue": true,
+      "pendingMessageCount": 1,
+      "settled": {
+        "first": {
+          "type": "agent_settled",
+          "aborted": false
+        },
+        "second": null,
+        "indices": [
+          3007
+        ],
+        "beforeDelivery": 0
+      },
+      "delivery": {
+        "delivered": true,
+        "deliveredAsUserMessageFrame": true,
+        "deliveredAfterSettled": false,
+        "userMessageIndex": 2925,
+        "firstSettledIndex": 3007
+      },
+      "trace": [
+        {
+          "index": 2080,
+          "type": "queue_update",
+          "role": null
+        },
+        {
+          "index": 2925,
+          "type": "message_start",
+          "role": "user"
+        },
+        {
+          "index": 2926,
+          "type": "message_end",
+          "role": "user"
+        },
+        {
+          "index": 3003,
+          "type": "message_update",
+          "role": null
+        },
+        {
+          "index": 3004,
+          "type": "message_end",
+          "role": "assistant"
+        },
+        {
+          "index": 3005,
+          "type": "turn_end",
+          "role": "assistant"
+        }
+      ],
+      "settledCount": 4
+    },
+    "idleWithStreamingBehavior": {
+      "response": {
+        "id": "idle-behavior-25",
+        "type": "response",
+        "command": "prompt",
+        "success": true,
+        "error": null,
+        "disposition": "started"
+      },
+      "settled": {
+        "type": "agent_settled",
+        "aborted": false
+      },
+      "delivered": true
+    },
+    "abortWithQueuedFollowUp": {
+      "isStreaming": true,
+      "queued": {
+        "id": "abort-queue-30",
+        "type": "response",
+        "command": "follow_up",
+        "success": true,
+        "error": null,
+        "disposition": "queued"
+      },
+      "abort": {
+        "id": "abort-31",
+        "type": "response",
+        "command": "abort",
+        "success": true,
+        "error": null,
+        "disposition": null
+      },
+      "settled": {
+        "type": "agent_settled",
+        "aborted": true
+      },
+      "isStreamingAfterAbort": false,
+      "pendingMessageCount": 1,
+      "delivered": false
+    },
+    "clearQueue": {
+      "isStreaming": true,
+      "clearQueue": {
+        "id": "clear-39",
+        "type": "response",
+        "command": "clear_queue",
+        "success": true,
+        "error": null,
+        "disposition": null,
+        "steering": 1,
+        "followUp": 2
+      },
+      "deliveredS": false,
+      "deliveredF": false
+    },
+    "sessionHealth": {
+      "parseErrors": [],
+      "records": 4038
+    },
+    "parallelTwoRuntimes": {
+      "responseA": {
+        "id": "pa-42",
+        "type": "response",
+        "command": "prompt",
+        "success": true,
+        "error": null,
+        "disposition": "started"
+      },
+      "responseB": {
+        "id": "pb-43",
+        "type": "response",
+        "command": "prompt",
+        "success": true,
+        "error": null,
+        "disposition": "started"
+      },
+      "settledA": {
+        "type": "agent_settled",
+        "aborted": false
+      },
+      "settledB": {
+        "type": "agent_settled",
+        "aborted": false
+      },
+      "crossTalk": false,
+      "ownTextPresent": true
+    }
+  },
+  "limits": [
+    "只覆盖 Pi RPC 层：不验证 Tauri 命令层、WebView 交互与 SOXU 客户端队列。",
+    "会调用真实模型（约 8 次提示，含 3 次长输出），可能产生少量费用；失败不自动重试。",
+    "延迟/时长与模型和网络相关，这里只记录行为，不把时间当作稳定指标。"
+  ],
+  "requestedPhases": [
+    "handshake",
+    "busyPromptWithoutBehavior",
+    "steerWhileBusy",
+    "followUpWhileBusy",
+    "followUpPromptWhileBusy",
+    "idleWithStreamingBehavior",
+    "abortWithQueuedFollowUp",
+    "clearQueue",
+    "parallelTwoRuntimes"
+  ],
+  "skippedPhases": [],
+  "finishedAt": "2026-10-31T10:46:24.356Z",
+  "durationMs": 510349,
+  "tempRoot": "(removed)"
+}

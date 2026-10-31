@@ -153,11 +153,12 @@ pub struct RuntimeStatus {
     pub retry: Option<RetryStatus>,
 }
 
-/// 发送投递方式（V4-S1，Issue #111）。
+/// 发送投递方式（V4-S1，Issue #111；运行时语义自 Issue #146 起生效）。
 ///
 /// 三个内部名沿用 PiDeck（`docs/design/UIUX/V4/interaction-decisions.md` 第一节），
-/// 与前端 `SendMode` 一一对应。本切片只做参数管道：命令层接收并校验，
-/// 运行时语义（steer 注入 / followUp 排队 / parallel 并行会话）由后续切片实现。
+/// 与前端 `SendMode` 一一对应。映射见 `commands/session.rs`：
+/// steer / followUp → Pi 的 `streamingBehavior`；parallel 由前端另开临时会话，
+/// 到这里只作为兜底（不带排队方式），不会被静默丢弃。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PromptMode {

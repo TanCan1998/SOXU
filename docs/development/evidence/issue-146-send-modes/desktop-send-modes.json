@@ -1,0 +1,263 @@
+{
+  "generatedAt": "2026-10-31T11:03:59.332Z",
+  "environment": {
+    "exe": "F:\\workplace\\pi\\soxu-worktrees\\github-issue-146-m1-task-036\\target\\debug\\soxu-desktop.exe",
+    "piVersion": "1.4.0",
+    "piLaunch": "rustc 转发 shim（本机只有 pi.cmd 包装）",
+    "piLauncher": "C:\\Users\\tanca\\.pi\\agent\\bin\\pi-launcher.js",
+    "vitePort": 1420,
+    "cdpPort": 9452,
+    "viewport": {
+      "width": 1280,
+      "height": 820
+    },
+    "platform": "win32",
+    "node": "v26.10.0",
+    "piSessionDir": "临时目录（PI_CODING_AGENT_SESSION_DIR）"
+  },
+  "cases": {
+    "project": {
+      "id": "prj_cd1a033281f5c6d7",
+      "name": "project",
+      "root": "C:\\Users\\tanca\\AppData\\Local\\Temp\\soxu-146-desktop-ydm9LM\\project",
+      "worktreeCount": 1,
+      "sessions": []
+    },
+    "sessionId": "ses_tmp_cf24eafe65e5e0ee",
+    "followUp": {
+      "attempts": 1,
+      "mark": "SOXU-FOLLOWUP-mvwamvkk",
+      "queuedNote": "已排队 1 条：本轮结束后自动处理，停止会撤回并放回输入框",
+      "shot": "desktop-followup-queued.png",
+      "delivered": {
+        "file": "pi-sessions\\2026-10-31T11-04-04-247Z_01a191a1-8595-745b-ad9b-12773267d1c6.jsonl",
+        "index": 2,
+        "assistantTurnBefore": true,
+        "messagesBefore": [
+          "user",
+          "assistant"
+        ]
+      },
+      "noteGone": true,
+      "shotDelivered": "desktop-followup-delivered.png"
+    },
+    "steer": {
+      "busy": true,
+      "chosen": true,
+      "queuedNote": "已排队 1 条：本轮结束后自动处理，停止会撤回并放回输入框",
+      "shot": "desktop-steer-queued.png",
+      "delivered": {
+        "file": "pi-sessions\\2026-10-31T11-04-04-247Z_01a191a1-8595-745b-ad9b-12773267d1c6.jsonl",
+        "index": 6
+      }
+    },
+    "parallel": {
+      "originalSessionId": "ses_tmp_cf24eafe65e5e0ee",
+      "busy": true,
+      "filesBefore": 1,
+      "chosen": true,
+      "menuClosed": true,
+      "tabsBefore": [
+        "ses_01a18c52-863d-72e0-a92d-0b2cf8376823",
+        "ses_tmp_cf24eafe65e5e0ee"
+      ],
+      "tabsAfter": [
+        "ses_01a18c52-863d-72e0-a92d-0b2cf8376823",
+        "ses_tmp_cf24eafe65e5e0ee",
+        "ses_tmp_cf1aaafe65dd1fa9"
+      ],
+      "createdSessionId": "ses_tmp_cf1aaafe65dd1fa9",
+      "activeTab": "临时会话临时",
+      "activeSessionId": "ses_tmp_cf1aaafe65dd1fa9",
+      "shot": "desktop-parallel-new-session.png",
+      "stillRunning": true,
+      "shotOriginal": "desktop-parallel-original-running.png",
+      "delivered": {
+        "file": "pi-sessions\\2026-10-31T11-04-27-570Z_01a191a1-e0b0-75d5-b9b1-03259e58df1b.jsonl",
+        "index": 0
+      },
+      "newPiFile": true,
+      "piFile": "pi-sessions\\2026-10-31T11-04-27-570Z_01a191a1-e0b0-75d5-b9b1-03259e58df1b.jsonl",
+      "separateFiles": true
+    },
+    "stop": {
+      "busy": true,
+      "queuedNote": "已排队 1 条：本轮结束后自动处理，停止会撤回并放回输入框",
+      "shotBefore": "desktop-stop-before.png",
+      "stopped": true,
+      "queuedNoteAfter": null,
+      "draft": "SOXU-STOP-mvwankrs",
+      "shotAfter": "desktop-stop-after.png",
+      "deliveredAfterStop": false
+    },
+    "defaultDelivery": {
+      "busy": true,
+      "hint": "本轮运行中 · 直接发送会按「加入当前」投递 · Esc 取消本轮",
+      "queuedNote": "已排队 1 条：本轮结束后自动处理，停止会撤回并放回输入框",
+      "shot": "desktop-default-delivery.png"
+    }
+  },
+  "checks": [
+    {
+      "name": "临时会话由真实 open_temporary_session 分配（ses_tmp_* 身份）",
+      "ok": true,
+      "sessionId": "ses_tmp_cf24eafe65e5e0ee"
+    },
+    {
+      "name": "排到下轮：忙碌时发送后输入区显示「已排队 1 条」",
+      "ok": true,
+      "queuedNote": "已排队 1 条：本轮结束后自动处理，停止会撤回并放回输入框"
+    },
+    {
+      "name": "排到下轮：本轮结束后这条消息由 Pi 真的投递（会话 JSONL 里是用户消息）",
+      "ok": true,
+      "delivered": {
+        "file": "pi-sessions\\2026-10-31T11-04-04-247Z_01a191a1-8595-745b-ad9b-12773267d1c6.jsonl",
+        "index": 2,
+        "assistantTurnBefore": true,
+        "messagesBefore": [
+          "user",
+          "assistant"
+        ]
+      }
+    },
+    {
+      "name": "排到下轮：投递发生在至少一轮助手回复之后（是下一轮，不是插进当前回合）",
+      "ok": true,
+      "delivered": {
+        "file": "pi-sessions\\2026-10-31T11-04-04-247Z_01a191a1-8595-745b-ad9b-12773267d1c6.jsonl",
+        "index": 2,
+        "assistantTurnBefore": true,
+        "messagesBefore": [
+          "user",
+          "assistant"
+        ]
+      }
+    },
+    {
+      "name": "排到下轮：Pi 消费队列后「已排队」回执消失",
+      "ok": true
+    },
+    {
+      "name": "加入当前：忙碌时可点（菜单项未置灰）",
+      "ok": true
+    },
+    {
+      "name": "加入当前：发送后同样显示排队回执",
+      "ok": true,
+      "queuedNote": "已排队 1 条：本轮结束后自动处理，停止会撤回并放回输入框"
+    },
+    {
+      "name": "加入当前：这条消息真的被 Pi 投递（会话 JSONL 里是用户消息）",
+      "ok": true,
+      "delivered": {
+        "file": "pi-sessions\\2026-10-31T11-04-04-247Z_01a191a1-8595-745b-ad9b-12773267d1c6.jsonl",
+        "index": 6
+      }
+    },
+    {
+      "name": "并行发送：忙碌时可点（草稿非空 + 纯文本 + 有项目）",
+      "ok": true
+    },
+    {
+      "name": "并行发送：同一窗口里新建了一个会话 Tab",
+      "ok": true,
+      "before": [
+        "ses_01a18c52-863d-72e0-a92d-0b2cf8376823",
+        "ses_tmp_cf24eafe65e5e0ee"
+      ],
+      "after": [
+        "ses_01a18c52-863d-72e0-a92d-0b2cf8376823",
+        "ses_tmp_cf24eafe65e5e0ee",
+        "ses_tmp_cf1aaafe65dd1fa9"
+      ],
+      "created": "ses_tmp_cf1aaafe65dd1fa9"
+    },
+    {
+      "name": "并行发送：active 切到新建的临时会话（不是原会话改名）",
+      "ok": true,
+      "activeSessionId": "ses_tmp_cf1aaafe65dd1fa9",
+      "created": "ses_tmp_cf1aaafe65dd1fa9",
+      "original": "ses_tmp_cf24eafe65e5e0ee",
+      "activeTab": "临时会话临时"
+    },
+    {
+      "name": "并行发送：新会话标签标明是临时会话",
+      "ok": true,
+      "activeTab": "临时会话临时"
+    },
+    {
+      "name": "并行发送：原会话仍在 running（当前输出不被打断）",
+      "ok": true
+    },
+    {
+      "name": "并行发送：消息在新的 Pi 会话里真的发出（另一个会话文件）",
+      "ok": true,
+      "delivered": {
+        "file": "pi-sessions\\2026-10-31T11-04-27-570Z_01a191a1-e0b0-75d5-b9b1-03259e58df1b.jsonl",
+        "index": 0
+      }
+    },
+    {
+      "name": "并行发送：并行消息是那个 Pi 会话的第一条用户消息（确实是全新会话）",
+      "ok": true,
+      "index": 0
+    },
+    {
+      "name": "并行发送：消息写进一个新的 Pi 会话文件（不是同一个运行时里的排队）",
+      "ok": true,
+      "piFile": "pi-sessions\\2026-10-31T11-04-27-570Z_01a191a1-e0b0-75d5-b9b1-03259e58df1b.jsonl",
+      "filesBefore": 1
+    },
+    {
+      "name": "并行发送：并行消息不在其它用例的会话文件里",
+      "ok": true,
+      "parallel": "pi-sessions\\2026-10-31T11-04-27-570Z_01a191a1-e0b0-75d5-b9b1-03259e58df1b.jsonl",
+      "otherFiles": 1
+    },
+    {
+      "name": "停止前：排队回执已出现",
+      "ok": true,
+      "queuedNote": "已排队 1 条：本轮结束后自动处理，停止会撤回并放回输入框"
+    },
+    {
+      "name": "停止后：界面回到空闲",
+      "ok": true
+    },
+    {
+      "name": "停止后：排队回执消失（队列已清空）",
+      "ok": true,
+      "queuedNote": null
+    },
+    {
+      "name": "停止后：被撤回的消息回到输入框",
+      "ok": true,
+      "draft": "SOXU-STOP-mvwankrs"
+    },
+    {
+      "name": "停止后：被撤回的消息没有被 Pi 执行（abort 前先 clear_queue）",
+      "ok": true,
+      "hits": []
+    },
+    {
+      "name": "忙碌时提示语写明默认投递方式",
+      "ok": true,
+      "hint": "本轮运行中 · 直接发送会按「加入当前」投递 · Esc 取消本轮"
+    },
+    {
+      "name": "不选菜单时按设置里的默认值投递（消息进了队列而不是被丢弃）",
+      "ok": true,
+      "queuedNote": "已排队 1 条：本轮结束后自动处理，停止会撤回并放回输入框"
+    }
+  ],
+  "consoleIssues": [],
+  "stderr": "",
+  "piProcesses": {
+    "found": 0,
+    "killed": 0
+  },
+  "appData": {
+    "catalogRestored": true,
+    "retryRemoved": 1
+  }
+}

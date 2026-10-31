@@ -24,7 +24,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  /** mode 为 null 表示按默认投递；运行时语义由后续切片实现。 */
+  /** mode 为 null 表示按默认投递；steer / followUp / parallel 的语义见 docs/development/send-modes.md。 */
   (event: "send", payload: { text: string; mode: SendMode | null }): void;
   (event: "cancel"): void;
   (event: "stop"): void;
@@ -182,6 +182,7 @@ const runtimeHint = computed(() => {
       :busy="busy"
       :default-delivery="defaultDelivery"
       :enter-to-send="settings.enterToSend"
+      :pending-count="tab.pending.length"
       :has-project="Boolean(tab.projectId)"
       :stats-view="statsView"
       :stats-loading="tab.stats.loading"

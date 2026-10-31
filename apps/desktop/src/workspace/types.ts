@@ -524,8 +524,9 @@ export interface GitState {
  * - followUp：本轮结束后自动发送（总是可用）；
  * - parallel：独立会话后台处理，不打断当前输出。
  *
- * 本切片只做 UI 与参数管道：运行时语义（注入/排队/并行会话）由后续切片实现，
- * 后端目前接受参数但不改变行为。
+ * 运行时语义自 Issue #146 起真的生效，协议事实见 docs/development/send-modes.md：
+ * - steer / followUp → prompt 带 Pi 的 streamingBehavior（steer / followUp）；
+ * - parallel → 前端在同一个项目下另开临时会话再发送，不打断当前轮次。
  */
 export type SendMode = "steer" | "followUp" | "parallel";
 
@@ -536,6 +537,20 @@ export type ThinkingLevel = "low" | "medium" | "high";
 export interface SendPromptOptions {
   mode?: SendMode;
   thinking?: ThinkingLevel;
+}
+
+/**
+ * 已经交给 Pi 排队、但还没被消费的一次投递（Issue #146）。
+ *
+ * 只登记 steer / followUp 两种：它们是「插进正在跑的这一轮」或「等这一轮结束再跑」，
+ * 消息在 Pi 的队列里，SOXU 必须能撤回（停止 → clear_queue）并把它还给输入框。
+ * parallel 不是排队，它另开一个会话，因此不在这里登记。
+ */
+export interface QueuedPrompt {
+  /** 本地回显消息的 id：撤回时按它把回显一起移除，避免界面留着一条没发出去的消息。 */
+  messageId: string;
+  text: string;
+  mode: Extract<SendMode, "steer" | "followUp">;
 }
 
 /** 视图使用的最小白名单：Tauri 实现之外，测试与浏览器预览都可以替换它。 */
@@ -560,8 +575,20 @@ export interface WorkspaceBridge {
   promoteSession(sessionId: SessionId): Promise<PromotedSession>;
   /** 结束临时会话：幂等，不删除 Pi 的会话文件。返回是否命中。 */
   discardTemporarySession(sessionId: SessionId): Promise<boolean>;
-  /** 发送一条消息；`options.mode` / `options.thinking` 由后端接收但暂不改变行为。 */
+  /**
+   * 发送一条消息。
+   *
+   * `options.mode` 自 Issue #146 起真的改变投递语义（steer / followUp 走 Pi 的
+   * streamingBehavior；parallel 由前端另开临时会话）。省略 mode 表示空闲投递。
+   */
   sendPrompt(sessionId: SessionId, text: string, options?: SendPromptOptions): Promise<void>;
+  /**
+   * 清空 Pi 侧的排队消息（steering + follow-up）。
+   *
+   * 「停止」必须先清队列再 abort：Pi 的 abort 会继续执行仍留在队列里的消息，
+   * 用户按了停止却看到排队的消息又跑起来是明确的错误行为。
+   */
+  clearQueuedPrompts(sessionId: SessionId): Promise<void>;
   cancelRuntime(sessionId: SessionId): Promise<void>;
   stopRuntime(sessionId: SessionId): Promise<void>;
   runtimeStatus(sessionId: SessionId): Promise<RuntimeStatus | null>;
@@ -736,6 +763,13 @@ export interface SessionTab {
   promoting: boolean;
   /** 会话内搜索状态；与消息窗口相互独立，只保留有界的一页命中。 */
   search: SearchState;
+  /**
+   * 已交给 Pi 排队、还没被消费的投递（Issue #146）。
+   *
+   * 只记录 steer / followUp。它是「撤回」的唯一依据：停止时按它把回显撤掉、
+   * 把文本还给输入框；agent_settled 或运行时退出时清空（Pi 已经消费或队列已消失）。
+   */
+  pending: QueuedPrompt[];
 }
 
 export interface WorkspaceState {
