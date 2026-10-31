@@ -25,10 +25,12 @@ import {
 
 import {
   SEND_MODE_ORDER,
-  SEND_MODE_TEXT,
   sendModeAvailability,
+  sendModeDescription,
+  sendModeLabel,
   type SendModeContext,
 } from "./sendMode.ts";
+import { useLocale } from "../locales/index.ts";
 import type { SendMode } from "../workspace/types.ts";
 
 /*
@@ -52,6 +54,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (event: "select", mode: SendMode): void }>();
 
+const { t } = useLocale();
+
 /** 菜单项与可用条件：一次算好，模板只做渲染。 */
 const items = computed(() => {
   const context: SendModeContext = {
@@ -63,8 +67,8 @@ const items = computed(() => {
   const availability = sendModeAvailability(context);
   return SEND_MODE_ORDER.map((mode) => ({
     mode,
-    label: SEND_MODE_TEXT[mode].label,
-    description: SEND_MODE_TEXT[mode].description,
+    label: sendModeLabel(mode),
+    description: sendModeDescription(mode),
     enabled: availability[mode].enabled,
     reason: availability[mode].reason,
   }));
@@ -80,7 +84,12 @@ function choose(mode: SendMode) {
 <template>
   <DropdownMenuRoot>
     <DropdownMenuTrigger as-child>
-      <button class="send-caret send-mode-trigger" type="button" aria-label="发送选项" :disabled="disabled">
+      <button
+        class="send-caret send-mode-trigger"
+        type="button"
+        :aria-label="t('composer.menu.trigger')"
+        :disabled="disabled"
+      >
         <ChevronUp :size="13" :stroke-width="2.2" aria-hidden="true" />
       </button>
     </DropdownMenuTrigger>
@@ -91,7 +100,7 @@ function choose(mode: SendMode) {
         align="end"
         :side-offset="6"
         :collision-padding="8"
-        aria-label="发送方式"
+        :aria-label="t('composer.menu.label')"
       >
         <DropdownMenuItem
           v-for="item in items"

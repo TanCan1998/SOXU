@@ -1,0 +1,17 @@
+{
+  "bar.lead": "下一条消息将",
+  "bar.cancel": "取消发送方式",
+  "input.label": "消息内容",
+  "input.placeholder": "向 Pi Agent 发送消息…",
+  "hint.running": "本轮运行中 · 忙碌时发送即将支持（当前偏好「{delivery}」）",
+  "hint.enter": "Enter 发送 · Shift+Enter 换行 · Esc 取消当前轮次",
+  "hint.modifier": "Ctrl/⌘+Enter 发送 · Enter 换行 · Esc 取消当前轮次",
+  "cancel.action": "取消",
+  "cancel.pending": "取消中…",
+  "cancel.label": "取消当前轮次",
+  "cancel.label.pending": "正在取消",
+  "send.label": "发送消息",
+  "send.hint": "发送消息 ({shortcut})",
+  "menu.trigger": "发送选项",
+  "menu.label": "发送方式"
+}

@@ -20,8 +20,12 @@
 import { shallowRef, type Ref, type ShallowRef } from "vue";
 
 import enUSCommon from "./en-US/common.json" with { type: "json" };
+import enUSComposer from "./en-US/composer.json" with { type: "json" };
+import enUSSession from "./en-US/session.json" with { type: "json" };
 import enUSSettings from "./en-US/settings.json" with { type: "json" };
 import zhCNCommon from "./zh-CN/common.json" with { type: "json" };
+import zhCNComposer from "./zh-CN/composer.json" with { type: "json" };
+import zhCNSession from "./zh-CN/session.json" with { type: "json" };
 import zhCNSettings from "./zh-CN/settings.json" with { type: "json" };
 import {
   BUILTIN_LOCALES,
@@ -143,8 +147,20 @@ export function buildLocaleMessages(modules: LocaleModuleSet): Record<string, st
 
 /** 内置语言的全部模块。新增模块时在这里登记一次，两个语言必须同时提供。 */
 const BUILTIN_MODULES: Record<BuiltinLocaleTag, LocaleModuleSet> = {
-  "zh-CN": { common: zhCNCommon, settings: zhCNSettings },
-  "en-US": { common: enUSCommon, settings: enUSSettings },
+  // session / composer 是 Issue #144（TASK-034）的存量迁移产物：
+  // 会话区与输入区的文案按界面切片归属，与 settings（设置页）互不重叠。
+  "zh-CN": {
+    common: zhCNCommon,
+    composer: zhCNComposer,
+    session: zhCNSession,
+    settings: zhCNSettings,
+  },
+  "en-US": {
+    common: enUSCommon,
+    composer: enUSComposer,
+    session: enUSSession,
+    settings: enUSSettings,
+  },
 };
 
 /**

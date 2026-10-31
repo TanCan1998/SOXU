@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { copyText } from "../src/services/clipboard.ts";
+import { BASE_MESSAGES } from "../src/locales/index.ts";
 
 const SRC_ROOT = fileURLToPath(new URL("../src", import.meta.url));
 
@@ -78,9 +79,17 @@ test("消息操作：复制是真按钮，重试/回退置灰并提示即将支�
   const source = await readSource("components/MessageActions.vue");
 
   assert.ok(source.includes("copyText"), "复制必须调用统一的剪贴板实现");
-  assert.ok(source.includes('aria-label="重试（即将支持）"'), "重试按钮必须说明尚未支持");
-  assert.ok(source.includes('aria-label="回退到这里（即将支持）"'), "回退按钮同样说明尚未支持");
-  assert.ok(source.includes("即将支持"), "tooltip 文案包含「即将支持」");
+  // Issue #144：无障碍名称走语言包，文案本体在 session.json 的基准包里。
+  assert.ok(
+    /:aria-label="t\('session\.actions\.retry\.label'\)"/u.test(source),
+    "重试按钮必须说明尚未支持",
+  );
+  assert.ok(
+    /:aria-label="t\('session\.actions\.rewind\.label'\)"/u.test(source),
+    "回退按钮同样说明尚未支持",
+  );
+  assert.match(BASE_MESSAGES["session.actions.retry.label"] ?? "", /即将支持/u);
+  assert.match(BASE_MESSAGES["session.actions.rewind.hint"] ?? "", /即将支持/u);
 
   // 两个后端未实现的按钮必须 disabled：不能出现「点了没反应」的假交互。
   const disabledCount = source.match(/disabled/g)?.length ?? 0;
@@ -99,7 +108,10 @@ test("会话列表：用户与 agent 消息走 markdown，工具输出折叠保�
   assert.ok(source.includes("MarkdownContent"), "消息正文必须走 markdown 渲染");
   assert.ok(source.includes('message?.role === "user" || message?.role === "assistant"'));
   assert.ok(source.includes("TOOL_FOLD_CHARS = 360"), "工具输出折叠阈值保持 360 字符");
-  assert.ok(source.includes("展开工具输出"), "工具调用折叠块保留现有实现");
+  assert.ok(
+    source.includes('t("session.list.tool.expand")'),
+    "工具调用折叠块保留现有实现（文案走语言包）",
+  );
   assert.ok(source.includes("MessageActions"), "agent 消息要有 hover 操作");
   assert.ok(source.includes('message?.role === "assistant"'), "只有 agent 消息显示操作");
   assert.ok(

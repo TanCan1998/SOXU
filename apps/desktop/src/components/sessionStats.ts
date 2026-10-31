@@ -11,6 +11,7 @@
  * 3. **刷新只由事件驱动**。`shouldRefreshStats` 是唯一判据，任何 `setInterval` 都属于违规。
  */
 
+import { useLocale } from "../locales/index.ts";
 import type { RuntimeEvent, SessionStats, SessionTab } from "../workspace/types.ts";
 
 /** 圆环直径（px）。规格来自 Issue #119：14px SVG。 */
@@ -190,17 +191,27 @@ export function formatTokenCount(value: number | null | undefined): string {
   return `${(value / 1_000_000).toFixed(2)}M`;
 }
 
-/** 圆环的读屏标签：把「看到什么」和「读屏听到什么」对齐。 */
+/**
+ * 圆环的读屏标签：把「看到什么」和「读屏听到什么」对齐。
+ *
+ * 文案走 session.json（Issue #144）：数字部分仍由本模块格式化，
+ * 语言只决定句子结构与单位位置，避免把格式化逻辑搬进语言包。
+ */
 export function ringLabel(view: SessionStatsView): string {
+  const { t } = useLocale();
   const percent = view.context.percent;
   if (percent === null) {
     return view.context.used === null
-      ? "上下文占用未知"
-      : `上下文已用 ${formatTokenCount(view.context.used)} token，窗口未知`;
+      ? t("session.stats.ring.unknown")
+      : t("session.stats.ring.used.only", { used: formatTokenCount(view.context.used) });
   }
   const used = formatTokenCount(view.context.used);
   const total = formatTokenCount(view.context.total);
-  return `上下文占用 ${formatPercent(percent)}（${used} / ${total} token）`;
+  return t("session.stats.ring.known", {
+    percent: formatPercent(percent),
+    used,
+    total,
+  });
 }
 
 export interface StatsItem {
@@ -217,17 +228,22 @@ export interface StatsItem {
  * 每一项都来自事件流，因此与浮窗里的同名项永远一致（同一个快照对象）。
  */
 export function statsRowItems(view: SessionStatsView): StatsItem[] {
+  const { t } = useLocale();
   const { turn, session } = view;
   return [
-    { key: "turns", label: "轮次", value: formatCount(turn.turns) },
-    { key: "firstToken", label: "首 token", value: formatMs(turn.firstTokenMs) },
-    { key: "duration", label: "回复耗时", value: formatMs(turn.durationMs) },
-    { key: "stream", label: "流式", value: formatRate(turn.streamTokensPerSec) },
-    { key: "avg", label: "均速", value: formatRate(turn.avgTokensPerSec) },
-    { key: "cache", label: "缓存命中", value: formatPercent(turn.cacheHitPct) },
+    { key: "turns", label: t("session.stats.row.turns"), value: formatCount(turn.turns) },
+    {
+      key: "firstToken",
+      label: t("session.stats.row.first.token"),
+      value: formatMs(turn.firstTokenMs),
+    },
+    { key: "duration", label: t("session.stats.row.duration"), value: formatMs(turn.durationMs) },
+    { key: "stream", label: t("session.stats.row.stream"), value: formatRate(turn.streamTokensPerSec) },
+    { key: "avg", label: t("session.stats.row.avg"), value: formatRate(turn.avgTokensPerSec) },
+    { key: "cache", label: t("session.stats.row.cache"), value: formatPercent(turn.cacheHitPct) },
     {
       key: "tokens",
-      label: "输入/输出",
+      label: t("session.stats.row.tokens"),
       value: `${formatTokenCount(session.inputTokens)} / ${formatTokenCount(session.outputTokens)}`,
     },
   ];
@@ -240,64 +256,91 @@ export interface StatsSection {
 
 /** 浮窗的四组指标，顺序与契约（context / turn / process / session）一致。 */
 export function statsPopoverSections(view: SessionStatsView): StatsSection[] {
+  const { t } = useLocale();
   const { context, turn, process: proc, session } = view;
   return [
     {
-      title: "上下文",
+      title: t("session.stats.section.context"),
       items: [
         {
           key: "context",
-          label: "已用",
+          label: t("session.stats.item.used"),
           value:
             context.percent === null
               ? PLACEHOLDER
               : formatPercent(context.percent),
           hint:
             context.percent === null
-              ? "模型未上报上下文窗口，无法计算占用率"
+              ? t("session.stats.item.context.unknown")
               : `${formatTokenCount(context.used)} / ${formatTokenCount(context.total)} token`,
         },
       ],
     },
     {
-      title: turn.inFlight ? "本轮（进行中）" : "上一轮",
+      title: turn.inFlight
+        ? t("session.stats.section.turn")
+        : t("session.stats.section.turn.previous"),
       items: [
-        { key: "turns", label: "轮次", value: formatCount(turn.turns) },
-        { key: "firstToken", label: "首 token", value: formatMs(turn.firstTokenMs) },
-        { key: "duration", label: "回复耗时", value: formatMs(turn.durationMs) },
-        { key: "stream", label: "流式速度", value: formatRate(turn.streamTokensPerSec) },
-        { key: "avg", label: "均速", value: formatRate(turn.avgTokensPerSec) },
-        { key: "cache", label: "缓存命中", value: formatPercent(turn.cacheHitPct) },
+        { key: "turns", label: t("session.stats.item.turns"), value: formatCount(turn.turns) },
+        {
+          key: "firstToken",
+          label: t("session.stats.item.first.token"),
+          value: formatMs(turn.firstTokenMs),
+        },
+        { key: "duration", label: t("session.stats.item.duration"), value: formatMs(turn.durationMs) },
+        {
+          key: "stream",
+          label: t("session.stats.item.stream.rate"),
+          value: formatRate(turn.streamTokensPerSec),
+        },
+        { key: "avg", label: t("session.stats.item.avg"), value: formatRate(turn.avgTokensPerSec) },
+        {
+          key: "cache",
+          label: t("session.stats.item.cache"),
+          value: formatPercent(turn.cacheHitPct),
+        },
       ],
     },
     {
-      title: "进程",
+      title: t("session.stats.section.process"),
       items: [
-        { key: "rss", label: "内存", value: formatMb(proc.rssMb) },
+        { key: "rss", label: t("session.stats.item.memory"), value: formatMb(proc.rssMb) },
         {
           key: "cpu",
-          label: "CPU",
+          label: t("session.stats.item.cpu"),
           value: formatPercent(proc.cpuPct),
-          hint: proc.cpuPct === null ? "当前平台采样器不提供 CPU 占用" : undefined,
+          hint: proc.cpuPct === null ? t("session.stats.item.cpu.unsupported") : undefined,
         },
-        { key: "children", label: "子进程", value: formatCount(proc.childCount) },
+        {
+          key: "children",
+          label: t("session.stats.item.children"),
+          value: formatCount(proc.childCount),
+        },
       ],
     },
     {
-      title: "会话",
+      title: t("session.stats.section.session"),
       items: [
         {
           key: "entries",
-          label: "载入 / 条目",
+          label: t("session.stats.item.entries"),
           value: `${formatCount(session.loaded)} / ${formatCount(session.total)}`,
         },
-        { key: "input", label: "输入 token", value: formatTokenCount(session.inputTokens) },
-        { key: "output", label: "输出 token", value: formatTokenCount(session.outputTokens) },
+        {
+          key: "input",
+          label: t("session.stats.item.input"),
+          value: formatTokenCount(session.inputTokens),
+        },
+        {
+          key: "output",
+          label: t("session.stats.item.output"),
+          value: formatTokenCount(session.outputTokens),
+        },
         {
           key: "retry",
-          label: "重试预算",
+          label: t("session.stats.item.retry"),
           value: session.retry ? `${session.retry.attempts} / ${session.retry.maxAttempts}` : PLACEHOLDER,
-          hint: session.retry ? undefined : "未发生重试",
+          hint: session.retry ? undefined : t("session.stats.item.retry.none"),
         },
       ],
     },
@@ -306,17 +349,19 @@ export function statsPopoverSections(view: SessionStatsView): StatsSection[] {
 
 /** 进程采样的降级说明：把后端标识翻译成一句人话，未知标识原样保留。 */
 export function processDegradedNotes(degraded: string[]): string[] {
+  const { t } = useLocale();
   return degraded.map((code) => {
     switch (code) {
       case "runtime_not_running":
-        return "Pi 运行时未启动，无法采样进程";
+        return t("session.stats.degraded.runtime.not.running");
       case "process_sample_failed":
-        return "进程采样失败，内存数据不可用";
+        return t("session.stats.degraded.sample.failed");
       case "process_tree_partial":
-        return "部分子进程已退出，内存为下限";
+        return t("session.stats.degraded.tree.partial");
       case "cpu_unsupported":
-        return "当前平台不提供 CPU 占用";
+        return t("session.stats.degraded.cpu.unsupported");
       default:
+        // 未知标识原样保留：它是后端给出的排障线索，不该被翻译成猜测。
         return code;
     }
   });

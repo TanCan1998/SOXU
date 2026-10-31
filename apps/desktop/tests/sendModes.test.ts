@@ -17,13 +17,16 @@ import { fileURLToPath } from "node:url";
 
 import {
   SEND_MODE_ORDER,
-  SEND_MODES_PENDING_REASON,
+  SEND_MODES_PENDING_KEY,
   SEND_MODES_READY,
   SEND_MODE_TEXT,
   isPlainTextDraft,
   sendModeAvailability,
+  sendModeDescription,
   sendModeLabel,
+  sendModePendingReason,
 } from "../src/components/sendMode.ts";
+import { BASE_MESSAGES } from "../src/locales/index.ts";
 import {
   BUSY_DELIVERY_OPTIONS,
   DEFAULT_BUSY_DELIVERY,
@@ -40,21 +43,27 @@ async function readSource(relative: string): Promise<string> {
 
 test("三项顺序与文案照决策文档：加入当前 / 排到下轮 / 并行发送", () => {
   assert.deepEqual(SEND_MODE_ORDER, ["steer", "followUp", "parallel"]);
-  assert.equal(SEND_MODE_TEXT.steer.label, "加入当前");
-  assert.equal(SEND_MODE_TEXT.followUp.label, "排到下轮");
-  assert.equal(SEND_MODE_TEXT.parallel.label, "并行发送");
+  // Issue #144：文案搬进 session.json，这里断言「key 指向基准包」+「基准包文案未变」。
+  assert.equal(SEND_MODE_TEXT.steer.labelKey, "session.mode.steer.label");
+  assert.equal(SEND_MODE_TEXT.followUp.labelKey, "session.mode.follow.up.label");
+  assert.equal(SEND_MODE_TEXT.parallel.labelKey, "session.mode.parallel.label");
+  assert.equal(BASE_MESSAGES["session.mode.steer.label"], "加入当前");
+  assert.equal(BASE_MESSAGES["session.mode.follow.up.label"], "排到下轮");
+  assert.equal(BASE_MESSAGES["session.mode.parallel.label"], "并行发送");
   assert.equal(
-    SEND_MODE_TEXT.parallel.description,
+    BASE_MESSAGES["session.mode.parallel.description"],
     "独立会话后台处理，不打断当前输出",
     "并行发送的描述必须与决策文档逐字一致",
   );
   assert.equal(sendModeLabel("steer"), "加入当前");
   assert.equal(sendModeLabel("followUp"), "排到下轮");
+  assert.equal(sendModeDescription("parallel"), "独立会话后台处理，不打断当前输出");
 });
 
 test("投递语义接入前：三项一律置灰，原因如实写「即将支持」", () => {
   assert.equal(SEND_MODES_READY, false, "协议结论落地前保持关闭");
-  assert.match(SEND_MODES_PENDING_REASON, /即将支持/, "置灰原因必须是「即将支持」类文案");
+  assert.equal(SEND_MODES_PENDING_KEY, "session.mode.pending", "置灰原因走语言包的 key");
+  assert.match(sendModePendingReason(), /即将支持/, "置灰原因必须是「即将支持」类文案");
 
   // 任何状态组合下都不许出现「看起来能点、点了没反应」的入口。
   for (const busy of [true, false]) {
@@ -67,7 +76,7 @@ test("投递语义接入前：三项一律置灰，原因如实写「即将支�
             false,
             `busy=${busy} draft="${draft}" 时 ${mode} 不得可点`,
           );
-          assert.equal(availability[mode].reason, SEND_MODES_PENDING_REASON);
+          assert.equal(availability[mode].reason, sendModePendingReason());
         }
       }
     }
@@ -76,9 +85,10 @@ test("投递语义接入前：三项一律置灰，原因如实写「即将支�
 
 test("三项文案与顺序不变：可见但不可点，不是藏起来", () => {
   assert.deepEqual(SEND_MODE_ORDER, ["steer", "followUp", "parallel"]);
-  assert.ok(SEND_MODE_TEXT.steer.label.length > 0);
-  assert.ok(SEND_MODE_TEXT.followUp.label.length > 0);
-  assert.ok(SEND_MODE_TEXT.parallel.label.length > 0);
+  for (const mode of SEND_MODE_ORDER) {
+    assert.ok(sendModeLabel(mode).length > 0, mode + " 必须有名称");
+    assert.ok(sendModeDescription(mode).length > 0, mode + " 必须有说明");
+  }
 });
 
 test("加入当前（协议接入后）：仅 agent 忙碌时可用，空闲置灰并给出原因", () => {
@@ -155,9 +165,10 @@ test("菜单结构：reka DropdownMenu 向上右对齐，三项都绑定可用�
 test("composer：模式横条 + 取消按钮，待发模式按会话隔离且用完即清", async () => {
   const source = await readSource("components/ChatComposer.vue");
 
-  assert.ok(source.includes("下一条消息将"), "横条文案与原型一致");
+  // Issue #144：横条文案走 composer.json，源码里只留 key。
+  assert.ok(source.includes('t("composer.bar.lead")'), "横条文案与原型一致");
   assert.ok(source.includes("send-mode-bar"), "横条使用原型的 class 名");
-  assert.ok(source.includes("取消发送方式"), "横条必须有取消按钮");
+  assert.ok(source.includes("composer.bar.cancel"), "横条必须有取消按钮");
   assert.ok(source.includes("sessionId"), "待发模式要按会话记录");
   assert.ok(source.includes("pendingBySession"), "会话切换不能串味");
   assert.ok(source.includes('emit("send", mode)'), "发送时把模式带出去");

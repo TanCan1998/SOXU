@@ -20,6 +20,7 @@ import {
   PopoverTrigger,
 } from "reka-ui";
 
+import { useLocale } from "../locales/index.ts";
 import {
   PLACEHOLDER,
   RING_SIZE,
@@ -47,6 +48,9 @@ const emit = defineEmits<{
   (event: "refresh"): void;
 }>();
 
+/** 圆环读屏标签、浮窗标题与降级说明都走 session.json（Issue #144）。 */
+const { t } = useLocale();
+
 const open = ref(false);
 const tone = computed(() => ringTone(props.view.context.percent));
 const geometry = computed(() => ringGeometry(props.view.context.percent));
@@ -66,7 +70,7 @@ watch(open, (isOpen) => {
       <button
         class="stats-ring"
         type="button"
-        :aria-label="`${label}（打开统计浮窗）`"
+        :aria-label="t('session.stats.ring.aria', { label })"
         :data-tone="tone"
         :data-loading="loading"
       >
@@ -111,13 +115,15 @@ watch(open, (isOpen) => {
         :collision-padding="8"
       >
         <header class="soxu-stats-popover__head">
-          <strong>上下文与统计</strong>
-          <span v-if="view.turn.inFlight" class="badge" data-tone="accent">进行中</span>
+          <strong>{{ t("session.stats.popover.title") }}</strong>
+          <span v-if="view.turn.inFlight" class="badge" data-tone="accent">
+            {{ t("session.stats.popover.in.flight") }}
+          </span>
         </header>
 
         <p v-if="error" class="soxu-stats-popover__error" role="alert">{{ error }}</p>
         <p v-if="!view.hasData" class="soxu-stats-popover__note" role="note">
-          还没有观测到运行时事件。发一条消息后，这里的数字会跟着事件流一起更新。
+          {{ t("session.stats.popover.empty") }}
         </p>
 
         <section
@@ -143,7 +149,7 @@ watch(open, (isOpen) => {
 
         <p v-for="note in notes" :key="note" class="soxu-stats-popover__note">{{ note }}</p>
         <p v-if="view.session.worktree" class="soxu-stats-popover__foot">
-          工作树：{{ view.session.worktree }}
+          {{ t("session.stats.popover.worktree", { path: view.session.worktree }) }}
         </p>
       </PopoverContent>
     </PopoverPortal>

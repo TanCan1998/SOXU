@@ -1,0 +1,17 @@
+{
+  "bar.lead": "Next message will",
+  "bar.cancel": "Cancel send mode",
+  "input.label": "Message content",
+  "input.placeholder": "Send a message to Pi Agent…",
+  "hint.running": "Turn in progress · sending while busy is coming soon (current preference \"{delivery}\")",
+  "hint.enter": "Enter to send · Shift+Enter for a new line · Esc to cancel this turn",
+  "hint.modifier": "Ctrl/⌘+Enter to send · Enter for a new line · Esc to cancel this turn",
+  "cancel.action": "Cancel",
+  "cancel.pending": "Cancelling…",
+  "cancel.label": "Cancel this turn",
+  "cancel.label.pending": "Cancelling",
+  "send.label": "Send message",
+  "send.hint": "Send message ({shortcut})",
+  "menu.trigger": "Send options",
+  "menu.label": "Send mode"
+}

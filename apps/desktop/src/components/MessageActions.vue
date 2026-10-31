@@ -14,6 +14,7 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import { Check, Copy, RotateCcw, Undo2 } from "@lucide/vue";
 
 import AppTooltip from "./AppTooltip.vue";
+import { useLocale } from "../locales/index.ts";
 import { copyText } from "../services/clipboard.ts";
 
 const props = defineProps<{
@@ -24,10 +25,15 @@ const props = defineProps<{
 /** 复制成功的反馈时长。 */
 const COPIED_FEEDBACK_MS = 1_600;
 
+const { t } = useLocale();
+
 const copied = ref(false);
 let timer: ReturnType<typeof setTimeout> | null = null;
 
-const copyLabel = computed(() => (copied.value ? "已复制" : "复制消息"));
+/** 复制成功的回执：文案跟着语言走，按钮的无障碍名称与可见提示同源。 */
+const copyLabel = computed(() =>
+  copied.value ? t("session.actions.copy.done") : t("session.actions.copy.label"),
+);
 
 function clearTimer() {
   if (timer !== null) {
@@ -58,13 +64,23 @@ onBeforeUnmount(clearTimer);
         <Copy v-else :size="14" :stroke-width="1.85" aria-hidden="true" />
       </button>
     </AppTooltip>
-    <AppTooltip text="即将支持：从这条消息重新生成" auto>
-      <button class="action" type="button" aria-label="重试（即将支持）" disabled>
+    <AppTooltip :text="t('session.actions.retry.hint')" auto>
+      <button
+        class="action"
+        type="button"
+        :aria-label="t('session.actions.retry.label')"
+        disabled
+      >
         <RotateCcw :size="14" :stroke-width="1.85" aria-hidden="true" />
       </button>
     </AppTooltip>
-    <AppTooltip text="即将支持：把会话回退到这条消息之前" auto>
-      <button class="action" type="button" aria-label="回退到这里（即将支持）" disabled>
+    <AppTooltip :text="t('session.actions.rewind.hint')" auto>
+      <button
+        class="action"
+        type="button"
+        :aria-label="t('session.actions.rewind.label')"
+        disabled
+      >
         <Undo2 :size="14" :stroke-width="1.85" aria-hidden="true" />
       </button>
     </AppTooltip>

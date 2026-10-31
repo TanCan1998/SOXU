@@ -15,6 +15,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { Plus, X } from "@lucide/vue";
 import AppTooltip from "./AppTooltip.vue";
+import { useLocale } from "../locales/index.ts";
 import { overflows, tabWidth } from "../composables/tabStripLayout.ts";
 import { useTabDrag } from "../composables/useTabDrag.ts";
 import type { SessionId, SessionTab } from "../workspace/types.ts";
@@ -31,6 +32,8 @@ const emit = defineEmits<{
   /** 只表达「第 fromIndex 个换到第 toIndex 个」；activeSessionId 由上层保持不动。 */
   (event: "move", fromIndex: number, toIndex: number): void;
 }>();
+
+const { t } = useLocale();
 
 const tabButtons = ref<(HTMLButtonElement | null)[]>([]);
 const scrollEl = ref<HTMLDivElement | null>(null);
@@ -67,7 +70,9 @@ const showTemporaryBadge = computed(() => width.value >= TEMPORARY_BADGE_MIN_WID
 
 /** 徽标被挤掉时把会话类型写进提示，信息不因为窄而丢失。 */
 function tabTooltip(tab: SessionTab): string {
-  if (tab.mode === "temporary" && !showTemporaryBadge.value) return `${tab.title}（临时会话）`;
+  if (tab.mode === "temporary" && !showTemporaryBadge.value) {
+    return t("session.tabs.temporary.tooltip", { title: tab.title });
+  }
   return tab.title;
 }
 
@@ -123,7 +128,7 @@ async function onKeydown(event: KeyboardEvent, index: number) {
 </script>
 
 <template>
-  <div class="tab-strip" role="tablist" aria-label="已打开的会话">
+  <div class="tab-strip" role="tablist" :aria-label="t('session.tabs.list.label')">
     <div
       ref="scrollEl"
       class="tabs-scroll"
@@ -154,14 +159,16 @@ async function onKeydown(event: KeyboardEvent, index: number) {
           >
             <span class="state-dot" :data-state="tab.status" aria-hidden="true"></span>
             <span class="tab-title">{{ tab.title }}</span>
-            <span v-if="tab.mode === 'temporary' && showTemporaryBadge" class="tab-tag">临时</span>
+            <span v-if="tab.mode === 'temporary' && showTemporaryBadge" class="tab-tag">
+              {{ t("session.tabs.temporary.badge") }}
+            </span>
           </button>
         </AppTooltip>
-        <AppTooltip text="关闭 Tab（不停止 Agent）" :disabled="dragActive">
+        <AppTooltip :text="t('session.tabs.close.hint')" :disabled="dragActive">
           <button
             class="tab-close"
             type="button"
-            :aria-label="`关闭会话 ${tab.title}`"
+            :aria-label="t('session.tabs.close.label', { title: tab.title })"
             @click="emit('close', tab.sessionId)"
           >
             <X :size="14" :stroke-width="2" aria-hidden="true" />
@@ -170,8 +177,13 @@ async function onKeydown(event: KeyboardEvent, index: number) {
       </div>
       <span v-if="markerStyle" class="drop-marker" :style="markerStyle" aria-hidden="true"></span>
     </div>
-    <AppTooltip text="新建临时会话">
-      <button class="icon-button" type="button" aria-label="新建临时会话" @click="emit('new-temporary')">
+    <AppTooltip :text="t('session.tabs.new')">
+      <button
+        class="icon-button"
+        type="button"
+        :aria-label="t('session.tabs.new')"
+        @click="emit('new-temporary')"
+      >
         <Plus :size="18" :stroke-width="1.75" aria-hidden="true" />
       </button>
     </AppTooltip>
