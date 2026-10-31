@@ -560,11 +560,11 @@ test("语言包组件：走 t()、用统一的设置控件、失败用 alert 暴
   assert.doesNotMatch(panel, /\stitle="/u, "提示走 AppTooltip，不用原生 title");
 });
 
-test("语言包区接进扩展页，扩展页仍是静态占位", async () => {
+test("语言包区接进扩展页，扩展页本身只读、不写存储", async () => {
   const page = await readSourceFile("components/settings/SettingsExtensions.vue");
   assert.ok(page.includes("SettingsLocale"), "扩展页要渲染语言包区");
-  assert.ok(page.includes("占位"), "占位说明不能删");
-  assert.doesNotMatch(page, /localStorage|persist[A-Z]|invoke\(/u, "占位页本身不写存储、不发 IPC");
+  assert.ok(page.includes("仅供查阅"), "只读清单要如实说明用途");
+  assert.doesNotMatch(page, /localStorage|persist[A-Z]|invoke\(/u, "只读页本身不写存储、不发 IPC");
 });
 
 test("顶栏文案全部走 t()：common 模块完成迁移", async () => {

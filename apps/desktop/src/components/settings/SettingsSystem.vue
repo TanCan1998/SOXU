@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * 设置 → 系统（Issue #116 · V4-S2）：7 项。
+ * 设置 → 系统（Issue #116）：7 项。
  *
- * 三个开关只做「UI + 持久化」：更新检查、系统通知、托盘策略都还没有对应的后端能力
- * （分别属于发布流程、Issue #117 通知切片与托盘策略切片），所以每一项都在注释位置
- * 写清楚当前的真实状态，不让用户以为开关已经生效。
+ * 三个开关只做「界面 + 持久化」：自动更新、完成通知与托盘行为都还没有对应的后端能力，
+ * 所以每一项的说明都写清楚此刻的真实状态，不让用户以为开关已经生效。
+ * 开关本身会落盘（下次打开保持），这一点在说明里也写明，不夸大也不含糊。
  *
  * 行标题与说明不写在这里（Issue #123）：SettingsRow 按 setting id 从
  * settings/catalog.ts 取，命令面板读的是同一份元数据。
@@ -56,7 +56,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
         />
       </template>
       <template #note>
-        更新通道尚未接入：本项只保存偏好，下面的「检查更新」会说明当前版本。
+        本项只保存偏好：当前版本不会自动下载更新。
       </template>
     </SettingsRow>
 
@@ -69,7 +69,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
         />
       </template>
       <template #note>
-        通知呈现（Toast / 系统通知 / 声音）见 Issue #117；本项只保存开关状态。
+        本项只保存开关状态；提醒的呈现方式（浮层 / 系统通知 / 声音）还没有单独的设置项。
       </template>
     </SettingsRow>
 
@@ -82,7 +82,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
         />
       </template>
       <template #note>
-        当前版本关闭窗口总是最小化到托盘（Issue #90）；本开关随托盘策略切片接入后端。
+        当前版本关闭窗口总是最小化到托盘；本开关只保存偏好，暂不改变该行为。
       </template>
     </SettingsRow>
 
@@ -92,7 +92,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
     >
       <SettingsButton label="检查更新" disabled />
       <template #note>
-        更新检查需要后端命令与发布通道，本切片只显示当前版本。
+        当前版本只显示已安装的版本号，还不能在线检查更新。
       </template>
     </SettingsRow>
 
@@ -110,8 +110,8 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
         @click="emit('copy-data-dir')"
       />
       <template #note>
-        打开文件夹需要后端命令（等 #112 的命令层拆分完成后接入）；现在可以复制路径自行打开，
-        该目录可安全删除重建。
+        可以复制路径后在文件管理器中打开。该目录由应用自行维护，删除会连同已导入的社区语言包
+        一起丢失。
       </template>
     </SettingsRow>
 

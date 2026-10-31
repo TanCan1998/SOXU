@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 设置 → 会话（Issue #116 · V4-S2）。
+ * 设置 → 会话（Issue #116）。
  *
  * 四个开关 + 思考强度 + 忙碌时发送 + 清空会话。开关与选择只改偏好（由 App.vue
  * 持有的 useSessionSettings 落地与持久化），本组件不做任何 IO。
@@ -155,7 +155,8 @@ function thinkingLabel(value: string): string {
         />
       </template>
       <template #note>
-        「加入当前」插进正在进行的回答，「排到下轮」等本轮结束后自动发送；真正的投递语义随会话切片接入。
+        「加入当前」插进正在进行的回答，「排到下轮」等本轮结束后自动发送。这两种投递方式即将支持，
+        现在只保存偏好。
       </template>
     </SettingsRow>
 

@@ -4,7 +4,7 @@
  * 能在 Node 里确定验证的部分：
  * - 会话页 / 系统页偏好的读写、默认值与逐字段容错；
  * - 强调色、代码字体、正文宽度、衬线字体在 base.css 里的档位与组件消费方式同源；
- * - 扩展页只是静态占位（12 个扩展、不写存储、带 TODO(V4-S7)）；
+ * - 扩展页是纯只读展示（12 个扩展、没有开关、不写存储、没有编造的状态）；
  * - 弹窗结构：四个 tab、reka-ui 的 Tabs/Switch/Select、Esc 关闭与打开即聚焦；
  * - App.vue 的接线：思考强度随发送透传、清空会话只重开不删除、恢复布局、复制路径。
  *
@@ -204,39 +204,49 @@ test("系统页默认值三项都开，读写往返且脏值回退", () => {
 });
 
 // ──────────────────────────────────────────────────────────────
-// 3. 扩展页：静态占位
+// 3. 扩展页：只读展示
 // ──────────────────────────────────────────────────────────────
-test("扩展页占位数据：12 个扩展、名字唯一、技能与 MCP 非空", () => {
-  assert.equal(EXTENSION_ENTRIES.length, 12, "Issue #116 要求 12 个扩展开关");
+test("扩展列表：12 个扩展、名字唯一、每条只有名字与用途", () => {
+  assert.equal(EXTENSION_ENTRIES.length, 12, "扩展页固定列出这 12 个扩展");
   assert.equal(
     new Set(EXTENSION_ENTRIES.map((entry) => entry.name)).size,
     EXTENSION_ENTRIES.length,
-    "扩展名必须唯一（开关状态按名字索引）",
+    "扩展名必须唯一",
   );
   for (const entry of EXTENSION_ENTRIES) {
     assert.ok(entry.name.length > 0);
     assert.ok(entry.description.length > 0, entry.name + " 需要一句用途说明");
-    assert.equal(typeof entry.enabled, "boolean");
+    // 没有 enabled：真实开关状态还读不到，凭常量编一个就是假开关。
+    assert.deepEqual(Object.keys(entry).sort(), ["description", "name"]);
   }
   assert.ok(SKILL_ENTRIES.length >= 3, "技能列表至少要有几项");
   assert.ok(MCP_SERVICE_ENTRIES.length >= 2, "MCP 服务列表至少要有几项");
-  assert.ok(MCP_SERVICE_ENTRIES.every((entry) => entry.toolCount > 0));
+  for (const entry of [...SKILL_ENTRIES, ...MCP_SERVICE_ENTRIES]) {
+    // 文件数、工具数、连接状态都是本机实况，没有数据来源就不许渲染。
+    assert.deepEqual(Object.keys(entry).sort(), ["description", "name"]);
+  }
 });
 
-test("扩展页标注 TODO(V4-S7)，并且真的不写存储", async () => {
+test("扩展页没有任何可点击的开关，也不写存储", async () => {
   const module = await readSource("settings/extensions.ts");
-  assert.match(module, /TODO\(V4-S7\)/, "占位数据必须标出后续切片的接管点");
-  assert.doesNotMatch(module, /localStorage|invoke\(/, "占位数据不读存储、不发 IPC");
+  assert.doesNotMatch(
+    module,
+    /enabled|fileCount|toolCount|connected/,
+    "真实状态接入前，常量表里不许出现开关或计数",
+  );
+  assert.doesNotMatch(module, /localStorage|invoke\(/, "只读数据不读存储、不发 IPC");
 
   const panel = await readSource("components/settings/SettingsExtensions.vue");
-  assert.match(panel, /TODO\(V4-S7\)/, "组件同样标注后续切片");
+  assert.doesNotMatch(panel, /SettingsSwitch/, "扩展页不得渲染开关");
+  assert.doesNotMatch(panel, /item-tag/, "不得渲染「已启用 / 未连接」这类状态徽章");
   assert.doesNotMatch(
     panel,
     /localStorage|persist[A-Z]|invoke\(/,
-    "静态占位不许写存储：否则会留下一个「看起来已保存」的假开关",
+    "只读页不许写存储：否则会留下一个「看起来已保存」的假开关",
   );
-  // 页面上要如实说明这是占位，用户不会以为改了真实配置
-  assert.match(panel, /占位/);
+  assert.ok(panel.includes("SettingsLocale"), "语言包区保留：它真的读写磁盘");
+  // 页面上如实说明这是查阅用清单，用户不会以为改了真实配置
+  assert.match(panel, /仅供查阅/);
 });
 
 // ──────────────────────────────────────────────────────────────

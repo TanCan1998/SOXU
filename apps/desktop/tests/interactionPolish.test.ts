@@ -115,7 +115,7 @@ test("「添加项目」改为按钮：点击直接开系统目录选择器，�
   );
 });
 
-test("「临时会话」按钮换成虚线对话气泡图标，文案与快捷键提示不变", async () => {
+test("「临时会话」按钮：虚线对话气泡图标 + 不再冒充 Ctrl K", async () => {
   const sidebar = await readFile(SIDEBAR, "utf8");
   assert.ok(sidebar.includes("MessageSquareDashed"), "必须引入 MessageSquareDashed");
 
@@ -123,8 +123,18 @@ test("「临时会话」按钮换成虚线对话气泡图标，文案与快捷�
   assert.ok(button.includes("<MessageSquareDashed"), "按钮图标换成虚线对话气泡");
   assert.ok(!button.includes("<Plus"), "按钮不再使用 Plus 图标");
   assert.ok(button.includes("临时会话"), "按钮文案保持不变");
-  assert.ok(button.includes("Ctrl K"), "快捷键提示保持不变");
   assert.ok(button.includes("new-temporary"), "点击行为保持不变");
+
+  /*
+   * Ctrl K 在 App.vue 里打开命令面板，「新建临时会话」是面板里的一条命令。
+   * 按钮上标 Ctrl K 会让用户以为按下去就是新建临时会话 —— 标注必须与真实绑定一致，
+   * 所以这里断言按钮不再自带该快捷键提示，而提示语里说明它属于命令面板。
+   */
+  assert.ok(!button.includes("Ctrl K"), "按钮不得再标 Ctrl K（那个组合键打开的是命令面板）");
+  assert.ok(sidebar.includes("Ctrl K 打开命令面板"), "提示语里说明 Ctrl K 属于命令面板");
+  const app = await readFile(APP, "utf8");
+  assert.ok(app.includes('key === "k"'), "App.vue 仍然绑定 Ctrl/⌘+K");
+  assert.ok(app.includes("paletteOpen.value = !paletteOpen.value"), "Ctrl/⌘+K 绑定的是命令面板");
 });
 
 test("全量界面源码不再残留手输路径示例", async () => {

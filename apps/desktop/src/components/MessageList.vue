@@ -149,7 +149,7 @@ function measure(element: unknown) {
   });
 }
 
-/** 用户与 agent 的消息按 markdown 渲染（V4-S1）：代码块、行内 code、表格、引用。 */
+/** 用户与 agent 的消息按 markdown 渲染：代码块、行内 code、表格、引用。 */
 function isRichRole(message: ChatMessage | undefined): boolean {
   return message?.role === "user" || message?.role === "assistant";
 }
