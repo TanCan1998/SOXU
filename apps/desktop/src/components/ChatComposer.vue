@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 消息输入区（V4-S1，Issue #111）。
+ * 消息输入区。
  *
  * 结构照原型：上方是「下一条消息将 X」横条（send-mode-bar），下方是输入框 + 底部工具条，
  * 发送按钮拆成「主钮 + caret」两半（caret 打开三选菜单，见 ComposerSendMenu.vue）。
@@ -8,9 +8,10 @@
  * 三条边界：
  * - 待发投递方式按会话记录（`pendingBySession`）：ChatPanel 在切换 Tab 时复用同一个组件实例，
  *   如果只放一个 ref，切回来会看到别的会话的选择；用完即清，不残留到下一轮。
- * - 主发送按钮在 agent 忙碌时仍然禁用：本切片只做 UI 与参数管道，
- *   注入/排队/并行会话的运行时语义属于后续切片，不能在这里假装已经生效。
- * - 「忙碌时发送」默认值只影响文案与后续切片的行为，默认值本身来自设置（busyDelivery）。
+ * - 主发送按钮在 agent 忙碌时仍然禁用：注入 / 排队 / 并行会话的运行时语义还没接上，
+ *   输入区只做界面与参数管道，不在这里假装已经生效。
+ * - 「忙碌时发送」的偏好来自设置（busyDelivery），投递语义接入后才由它决定忙碌时的行为，
+ *   所以运行中的提示写「即将支持」而不是声称已经按偏好投递。
  */
 
 import { computed, nextTick, ref, watch } from "vue";
@@ -74,7 +75,7 @@ const sendShortcut = computed(() => (props.enterToSend ? "Enter" : "Ctrl/⌘+Ent
 
 const hint = computed(() =>
   running.value
-    ? `本轮运行中 · 忙碌时默认「${defaultDeliveryLabel.value}」`
+    ? `本轮运行中 · 忙碌时发送即将支持（当前偏好「${defaultDeliveryLabel.value}」）`
     : props.enterToSend
       ? "Enter 发送 · Shift+Enter 换行 · Esc 取消当前轮次"
       : "Ctrl/⌘+Enter 发送 · Enter 换行 · Esc 取消当前轮次",

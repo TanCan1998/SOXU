@@ -41,7 +41,7 @@ const historyText = computed(() => {
     <div class="inspector-head">
       <div>
         <strong>会话状态</strong>
-        <p>真实状态 · 无演示数据</p>
+        <p>状态来自运行时事件</p>
       </div>
     </div>
 

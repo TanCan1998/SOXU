@@ -1,0 +1,90 @@
+{
+  "generatedAt": "2026-10-31T04:07:48.789Z",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "browser": "Edg/156.0.4314.50",
+  "shots": [
+    "01-extensions-light.png",
+    "02-extensions-dark.png",
+    "03-sidebar-light.png"
+  ],
+  "checks": [
+    {
+      "name": "扩展页没有任何开关",
+      "ok": true,
+      "switches": 0
+    },
+    {
+      "name": "扩展页没有状态徽章",
+      "ok": true,
+      "badges": 0
+    },
+    {
+      "name": "扩展页仍然列出 12 个扩展（只读展示不缩水）",
+      "ok": true,
+      "items": 20
+    },
+    {
+      "name": "扩展页浅色文案没有开发术语",
+      "ok": true,
+      "hits": []
+    },
+    {
+      "name": "深色下扩展页同样没有开关",
+      "ok": true,
+      "switches": 0
+    },
+    {
+      "name": "深色主题确实生效",
+      "ok": true,
+      "theme": "dark"
+    },
+    {
+      "name": "扩展页深色文案没有开发术语",
+      "ok": true,
+      "hits": []
+    },
+    {
+      "name": "临时会话按钮不再自带 kbd 标注",
+      "ok": true,
+      "kbd": 0
+    },
+    {
+      "name": "按钮文案保持不变",
+      "ok": true,
+      "text": "临时会话"
+    }
+  ],
+  "extensionsLight": {
+    "switches": 0,
+    "badges": 0,
+    "items": 20,
+    "buttons": [
+      "",
+      "外观",
+      "会话",
+      "扩展",
+      "系统",
+      "简体中文",
+      "English",
+      "导入语言包",
+      "复制",
+      "刷新"
+    ],
+    "wording": []
+  },
+  "extensionsDark": {
+    "switches": 0,
+    "badges": 0,
+    "theme": "dark",
+    "wording": []
+  },
+  "sidebar": {
+    "text": "临时会话",
+    "kbd": 0,
+    "hostText": "SOXU索序临时会话 未连接：这是浏览器预览，不会加载真实会话。 添加项目目录 未连接 · 浏览器预览本地工作区"
+  },
+  "pageErrors": []
+}

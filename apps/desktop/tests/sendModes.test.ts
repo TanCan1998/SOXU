@@ -17,6 +17,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   SEND_MODE_ORDER,
+  SEND_MODES_PENDING_REASON,
+  SEND_MODES_READY,
   SEND_MODE_TEXT,
   isPlainTextDraft,
   sendModeAvailability,
@@ -50,44 +52,79 @@ test("三项顺序与文案照决策文档：加入当前 / 排到下轮 / 并�
   assert.equal(sendModeLabel("followUp"), "排到下轮");
 });
 
-test("加入当前：仅 agent 忙碌时可用，空闲置灰并给出原因", () => {
-  const idle = sendModeAvailability({ busy: false, draft: "写个测试" });
+test("投递语义接入前：三项一律置灰，原因如实写「即将支持」", () => {
+  assert.equal(SEND_MODES_READY, false, "协议结论落地前保持关闭");
+  assert.match(SEND_MODES_PENDING_REASON, /即将支持/, "置灰原因必须是「即将支持」类文案");
+
+  // 任何状态组合下都不许出现「看起来能点、点了没反应」的入口。
+  for (const busy of [true, false]) {
+    for (const draft of ["", "  ", "有内容"]) {
+      for (const hasProject of [true, false]) {
+        const availability = sendModeAvailability({ busy, draft, hasProject });
+        for (const mode of SEND_MODE_ORDER) {
+          assert.equal(
+            availability[mode].enabled,
+            false,
+            `busy=${busy} draft="${draft}" 时 ${mode} 不得可点`,
+          );
+          assert.equal(availability[mode].reason, SEND_MODES_PENDING_REASON);
+        }
+      }
+    }
+  }
+});
+
+test("三项文案与顺序不变：可见但不可点，不是藏起来", () => {
+  assert.deepEqual(SEND_MODE_ORDER, ["steer", "followUp", "parallel"]);
+  assert.ok(SEND_MODE_TEXT.steer.label.length > 0);
+  assert.ok(SEND_MODE_TEXT.followUp.label.length > 0);
+  assert.ok(SEND_MODE_TEXT.parallel.label.length > 0);
+});
+
+test("加入当前（协议接入后）：仅 agent 忙碌时可用，空闲置灰并给出原因", () => {
+  const idle = sendModeAvailability({ busy: false, draft: "写个测试" }, { ready: true });
   assert.equal(idle.steer.enabled, false, "空闲时不需要插进当前回合");
   assert.ok(idle.steer.reason && idle.steer.reason.length > 0, "置灰必须说明原因");
 
-  const busy = sendModeAvailability({ busy: true, draft: "写个测试" });
+  const busy = sendModeAvailability({ busy: true, draft: "写个测试" }, { ready: true });
   assert.equal(busy.steer.enabled, true);
   assert.equal(busy.steer.reason, null);
 });
 
-test("排到下轮：任何状态都可用", () => {
+test("排到下轮（协议接入后）：任何状态都可用", () => {
   for (const busy of [true, false]) {
     for (const draft of ["", "  ", "有内容"]) {
-      const availability = sendModeAvailability({ busy, draft });
+      const availability = sendModeAvailability({ busy, draft }, { ready: true });
       assert.equal(availability.followUp.enabled, true, `busy=${busy} draft="${draft}"`);
       assert.equal(availability.followUp.reason, null);
     }
   }
 });
 
-test("并行发送：草稿非空 + 纯文本 + 有项目，三个条件缺一不可", () => {
-  const ready = sendModeAvailability({ busy: false, draft: "帮我查一下", attachments: 0 });
+test("并行发送（协议接入后）：草稿非空 + 纯文本 + 有项目，三个条件缺一不可", () => {
+  const ready = sendModeAvailability({ busy: false, draft: "帮我查一下", attachments: 0 }, {
+    ready: true,
+  });
   assert.equal(ready.parallel.enabled, true);
 
-  const emptyDraft = sendModeAvailability({ busy: false, draft: "   " });
+  const emptyDraft = sendModeAvailability({ busy: false, draft: "   " }, { ready: true });
   assert.equal(emptyDraft.parallel.enabled, false, "空草稿不能并行发送");
   assert.match(emptyDraft.parallel.reason ?? "", /输入/);
 
-  const withAttachment = sendModeAvailability({ busy: false, draft: "看图", attachments: 1 });
+  const withAttachment = sendModeAvailability({ busy: false, draft: "看图", attachments: 1 }, {
+    ready: true,
+  });
   assert.equal(withAttachment.parallel.enabled, false, "带附件的消息不能并行发送");
   assert.match(withAttachment.parallel.reason ?? "", /附件/);
 
-  const noProject = sendModeAvailability({ busy: false, draft: "看图", hasProject: false });
+  const noProject = sendModeAvailability({ busy: false, draft: "看图", hasProject: false }, {
+    ready: true,
+  });
   assert.equal(noProject.parallel.enabled, false, "没有 projectId 就没有落点");
   assert.match(noProject.parallel.reason ?? "", /项目/);
 
   // 忙碌时并行发送同样可用：它的语义就是「不打断当前输出」。
-  const busy = sendModeAvailability({ busy: true, draft: "另开一路" });
+  const busy = sendModeAvailability({ busy: true, draft: "另开一路" }, { ready: true });
   assert.equal(busy.parallel.enabled, true);
 });
 
@@ -109,8 +146,8 @@ test("菜单结构：reka DropdownMenu 向上右对齐，三项都绑定可用�
   assert.ok(source.includes("sendModeAvailability"), "可用条件必须走纯函数");
   assert.ok(source.includes('@select="choose(item.mode)"'), "选中后把模式交给 composer");
   assert.ok(
-    source.includes("item.enabled ? item.description : item.reason"),
-    "置灰项要在描述位置写出原因",
+    source.includes("{{ item.description }}<template v-if=\"!item.enabled\"> · {{ item.reason }}"),
+    "置灰项保留描述并把原因接在后面（只用原因会让三项看起来一样）",
   );
   assert.ok(!/\stitle=/.test(source), "提示不走原生 title（统一 AppTooltip）");
 });
@@ -140,12 +177,24 @@ test("发送三选的判定用 mock 状态即可验证：置灰项与可用项�
   ];
 
   for (const item of cases) {
-    const availability = sendModeAvailability({ busy: item.busy, draft: item.draft });
+    const availability = sendModeAvailability({ busy: item.busy, draft: item.draft }, {
+      ready: true,
+    });
     const actual = SEND_MODE_ORDER.map((mode) => availability[mode].enabled);
     assert.deepEqual(
       actual,
       item.expect,
       `busy=${item.busy} draft="${item.draft}" 的可用状态不符`,
+    );
+  }
+
+  // 默认（协议未接入）时同一组状态全部置灰：条件判定不会被绕过。
+  for (const item of cases) {
+    const availability = sendModeAvailability({ busy: item.busy, draft: item.draft });
+    assert.deepEqual(
+      SEND_MODE_ORDER.map((mode) => availability[mode].enabled),
+      [false, false, false],
+      "协议未接入时不得出现可点的投递方式",
     );
   }
 });

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 发送选项菜单（Issue #111 · V4-S1）。
+ * 发送选项菜单。
  *
  * 结构照 PiDeck `ComposerPanels.tsx:368-410`：主钮旁边一个 caret 钮，
  * 点开是 reka-ui DropdownMenu，`side="top" align="end" side-offset=6`（贴着主钮向上弹出、右对齐）。
@@ -8,6 +8,9 @@
  * 可用条件全部来自 `sendMode.ts` 的纯函数，组件不自己判断：
  * 不可用的项直接 `disabled`，并在描述位置写出原因（不用 title 属性，
  * 项目的悬浮说明统一走 AppTooltip；菜单项里塞 tooltip 会和菜单的键盘交互打架）。
+ *
+ * 三种投递方式的运行时语义还没接上，因此三项此刻全部置灰、原因写「即将支持」：
+ * 菜单仍然打得开、选项仍然看得见，但没有一个能点出「看起来生效、其实没发出去」的结果。
  */
 
 import { computed } from "vue";
@@ -31,7 +34,7 @@ import type { SendMode } from "../workspace/types.ts";
 /*
  * 注意：boolean 类型的 prop 在 Vue 里"缺省即 false"（Boolean casting），
  * 所以 hasProject 必须显式给默认值 true——否则「没传」会被读成「没有项目」，
- * 并行发送会被莫名置灰。attachments 是 number，缺省是 undefined，同样给个 0 兜底。
+ * 协议接入后并行发送会被莫名置灰。attachments 是 number，缺省是 undefined，同样给个 0 兜底。
  */
 const props = withDefaults(
   defineProps<{
@@ -101,7 +104,13 @@ function choose(mode: SendMode) {
           <component :is="icons[item.mode]" :size="14" :stroke-width="1.9" aria-hidden="true" />
           <span class="mi-text">
             <span class="mi-label">{{ item.label }}</span>
-            <span class="mi-desc">{{ item.enabled ? item.description : item.reason }}</span>
+            <!--
+              描述始终显示（用户要知道「加入当前」是什么意思），不可用时再把原因接在后面。
+              只用原因替换描述会让三项看起来一模一样，反而看不出它们的差别。
+            -->
+            <span class="mi-desc">
+              {{ item.description }}<template v-if="!item.enabled"> · {{ item.reason }}</template>
+            </span>
           </span>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -113,7 +122,7 @@ function choose(mode: SendMode) {
 /*
  * 与主钮拼成一个整体：右半是 caret，左侧一条分隔线（原型 send-split）。
  *
- * 前景与分隔线必须引用 --soxu-on-accent（Issue #116 复审阻塞点）：
+ * 前景与分隔线必须引用 --soxu-on-accent（复审阻塞点）：
  * 上一版这里写死 #fff，在青绿/蓝绿/玫红/琥珀四个色板上是白字压浅底——
  * 琥珀 2.15:1、蓝绿 2.49:1，低于 WCAG 1.4.11 的非文本 3:1。
  * 色板自己在 base.css 里按「白/墨取对比度更高者」定义这个 token，

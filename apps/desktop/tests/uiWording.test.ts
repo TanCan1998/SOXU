@@ -1,10 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Issue #89：界面文案不得暴露实现术语，只能展示使用者能理解的状态。
+import {
+  BANNED_WORDING,
+  formatHit,
+  scanText,
+  scanWording,
+  stripComments,
+  visibleFragments,
+} from "./support/uiWordingScan.ts";
+
+// 界面文案不得暴露实现术语，只能展示使用者能理解的状态。
 const SRC_ROOT = fileURLToPath(new URL("../src", import.meta.url));
 const INSPECTOR = join(SRC_ROOT, "components", "RuntimeInspector.vue");
 
@@ -92,4 +101,112 @@ test("版本与平台信息只保留在「设置 → 关于」，不在主界面
   assert.ok(settings.includes('setting="system.about"'), "版本信息收进「设置 → 关于」");
   assert.ok(settings.includes("appVersion"), "「关于」保留版本信息");
   assert.ok(settings.includes("连接状态"), "连接状态用状态表述，不写技术栈名词");
+});
+
+// ──────────────────────────────────────────────────────────────
+// 文案扫描器：用户可见字符串不得出现开发术语
+// ──────────────────────────────────────────────────────────────
+
+test("禁用词表与验收要求一致", () => {
+  assert.deepEqual([...BANNED_WORDING], [
+    "切片",
+    "Issue #",
+    "占位",
+    "演示",
+    "V4-S",
+    "后续切片",
+    "TODO(",
+  ]);
+});
+
+test("扫描器自检：.vue 只扫模板文案，注释与脚本块不算", () => {
+  const sample = [
+    '<script setup lang="ts">',
+    "// 本切片只是演示：注释里的开发术语不是用户文案",
+    'const label = "占位";',
+    "</script>",
+    "<template>",
+    "  <!-- 本切片是演示 -->",
+    "  <p>本切片是演示</p>",
+    '  <button aria-label="Issue #143">x</button>',
+    "  <AppTooltip :text=\"'后续切片'\" />",
+    "</template>",
+  ].join("\n");
+
+  const hits = scanWording("Sample.vue", sample);
+  assert.deepEqual(
+    hits.map((hit) => hit.term).sort(),
+    ["Issue #", "后续切片", "切片", "切片", "演示"].sort(),
+    "模板文本与属性值要扫到，HTML 注释与 <script> 里的字面量不能算",
+  );
+  // 行号必须落在模板里那一行，否则报告无法定位
+  assert.deepEqual(
+    hits.filter((hit) => hit.term === "演示").map((hit) => hit.line),
+    [7],
+  );
+  assert.deepEqual(
+    hits.filter((hit) => hit.term === "Issue #").map((hit) => hit.line),
+    [8],
+  );
+});
+
+test("扫描器自检：.ts 抹掉注释但保留字符串，URL 里的 // 不会截断", () => {
+  const sample = [
+    "/** 本切片只是占位。 */",
+    "// Issue #143 的演示注释",
+    'export const label = "演示标题";',
+    'export const url = "https://example.com/a//b";',
+    "export const other = 'TODO(V4-S7)';",
+  ].join("\n");
+
+  const hits = scanWording("sample.ts", sample);
+  assert.deepEqual(
+    hits.map((hit) => hit.term),
+    ["演示", "V4-S", "TODO("],
+    "只有字符串字面量算文案：注释里的术语一条都不该命中",
+  );
+  const fragments = visibleFragments("sample.ts", sample).map((fragment) => fragment.text);
+  assert.ok(
+    fragments.some((text) => text.includes("https://example.com/a//b")),
+    "字符串里的 // 不能被当成注释，否则后面的文案会被整段漏掉",
+  );
+  assert.ok(
+    !stripComments(sample).includes("本切片"),
+    "注释必须真的被抹掉，而不是靠白名单绕过",
+  );
+
+  // 渲染后的纯文本没有注释概念：整段都按文案算，证据脚本用它复核屏幕内容。
+  assert.deepEqual(
+    scanText("本切片是演示").map((hit) => hit.term),
+    ["切片", "演示"],
+  );
+});
+
+test("界面文案扫描：apps/desktop/src 的用户可见字符串没有开发术语", async () => {
+  const violations: string[] = [];
+  const fragments: string[] = [];
+  for (const file of await collect(SRC_ROOT)) {
+    if (!/\.(vue|ts|json)$/u.test(file)) continue;
+    const text = await readFile(file, "utf8");
+    const label = relative(SRC_ROOT, file).replaceAll("\\", "/");
+    fragments.push(...visibleFragments(file, text).map((fragment) => fragment.text));
+    for (const hit of scanWording(file, text)) violations.push(formatHit(label, hit));
+  }
+
+  // 反假绿：扫描器如果提取不到东西，上面那条断言会永远通过。
+  // 这里钉住「真的读到了模板文案」，否则提取逻辑一坏，门禁就形同虚设。
+  assert.ok(
+    fragments.length > 300,
+    "只提取到 " + fragments.length + " 段用户可见字符串，提取逻辑可能已经失效",
+  );
+  assert.ok(
+    fragments.some((text) => text.includes("临时会话")),
+    "侧栏按钮文案必须被提取到，否则说明模板扫描没生效",
+  );
+  assert.deepEqual(
+    violations,
+    [],
+    "用户可见字符串里出现了开发术语，改成面向用户的功能说明，或把这句话移回注释：\n"
+      + violations.join("\n"),
+  );
 });

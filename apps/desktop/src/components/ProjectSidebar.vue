@@ -86,11 +86,16 @@ async function addProject() {
       </div>
     </div>
 
-    <button class="new-session" type="button" @click="emit('new-temporary')">
-      <MessageSquareDashed :size="18" :stroke-width="1.75" aria-hidden="true" />
-      <span>临时会话</span>
-      <kbd>Ctrl K</kbd>
-    </button>
+    <!--
+      这里不再标 Ctrl K：该组合键在 App.vue 里打开命令面板，「新建临时会话」是面板里
+      的一条命令。按钮上写 Ctrl K 会让用户以为按下去就是新建临时会话，按了却弹出面板。
+    -->
+    <AppTooltip text="临时会话：不写入项目目录，关闭即结束；Ctrl K 打开命令面板">
+      <button class="new-session" type="button" @click="emit('new-temporary')">
+        <MessageSquareDashed :size="18" :stroke-width="1.75" aria-hidden="true" />
+        <span>临时会话</span>
+      </button>
+    </AppTooltip>
 
     <div class="search-field">
       <Search :size="16" :stroke-width="1.75" aria-hidden="true" />
@@ -272,13 +277,6 @@ async function addProject() {
 
 .new-session:hover {
   background: var(--soxu-hover);
-}
-
-.new-session kbd {
-  margin-left: auto;
-  font-size: 0.625rem;
-  font-weight: 400;
-  color: var(--soxu-muted);
 }
 
 .search-field {
