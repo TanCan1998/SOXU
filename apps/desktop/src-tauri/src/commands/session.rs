@@ -2,6 +2,8 @@
 
 use tauri::{AppHandle, State};
 
+use soxu_agent_runtime::StreamingBehavior;
+
 use crate::dto::{PromptMode, RuntimeStarted, RuntimeStatus, ThinkingLevel};
 use crate::session_runtime;
 use crate::state::AppState;
@@ -18,10 +20,15 @@ pub async fn start_session(
 
 /// 发送一条消息。
 ///
-/// `mode` 与 `thinking` 是 V4-S1 新增的可选参数（Issue #111）：
-/// 命令层接收并校验取值（非法值由 serde 直接报错），但**不改变行为**——
-/// 注入当前回合 / 排队到下一轮 / 并行会话的运行时语义属于后续切片。
-/// 旧前端不传这两个字段时按 `None` 处理，行为与改动前完全一致。
+/// `mode` 的运行时语义自 Issue #146 起真的生效（协议事实见
+/// docs/development/send-modes.md）：
+/// - `steer` → prompt + streamingBehavior=steer，插进当前回合；
+/// - `followUp` → prompt + streamingBehavior=followUp，本轮结束后再处理；
+/// - `parallel` → 不带排队方式：并行发送由前端另开临时会话，这里只作为兜底，
+///   避免任何取值被静默丢弃；
+/// - 省略（None）→ 空闲投递，线格式与旧客户端完全一致。
+///
+/// `thinking` 仍然只做参数管道：思考强度要等 set_thinking_level 接入。
 #[tauri::command]
 pub async fn send_prompt(
     state: State<'_, AppState>,
@@ -30,10 +37,25 @@ pub async fn send_prompt(
     mode: Option<PromptMode>,
     thinking: Option<ThinkingLevel>,
 ) -> Result<(), String> {
-    // 显式消费两个参数：既让「参数已接通但未生效」这件事留在代码里，
-    // 也避免编译器对未使用参数告警。
-    let _ = (mode, thinking);
-    session_runtime::prompt(state.inner(), &session_id, &text).await
+    let _ = thinking;
+    let behavior = match mode {
+        Some(PromptMode::Steer) => Some(StreamingBehavior::Steer),
+        Some(PromptMode::FollowUp) => Some(StreamingBehavior::FollowUp),
+        Some(PromptMode::Parallel) | None => None,
+    };
+    session_runtime::prompt(state.inner(), &session_id, &text, behavior).await
+}
+
+/// 清空 Pi 侧的排队消息（steering + follow-up）。
+///
+/// 「停止」在 abort 之前调用它：Pi 的 abort 会继续执行仍留在队列里的消息，
+/// 用户按了停止却看到排队的消息又跑起来是明确的错误行为。
+#[tauri::command]
+pub async fn clear_queued_prompts(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<(), String> {
+    session_runtime::clear_queue(state.inner(), &session_id).await
 }
 
 #[tauri::command]

@@ -6,14 +6,14 @@
  * - 排到下轮（followUp）：总是可用；
  * - 并行发送（parallel）：草稿非空 **且** 纯文本（带图置灰）**且** 有 projectId。
  *
- * 但「可用」的前提是运行时真的能按这三种方式投递，而 Pi 侧的投递语义还没接上。
- * 因此 `SEND_MODES_READY` 为 false 时三项一律置灰，原因统一写「即将支持」：
- * 少一个能点的入口，好过一个点了没反应的假按钮。
- * 条件判定本身保留在 `sendModeAvailability` 里（测试用 ready 选项驱动），
- * 协议结论落地后把开关打开即可复用，不需要重写规则。
+ * 这三种方式的运行时语义自 Issue #146 起全部接通（协议事实与实测见
+ * docs/development/send-modes.md）：steer / followUp 走 Pi 的 streamingBehavior，
+ * parallel 由前端另开临时会话。因此 `SEND_MODES_READY` 已经打开——菜单里不再有
+ * 「可见但点了没效果」的选项；条件判定仍然只在这一个纯函数里，组件不自己判断。
  */
 
 import { useLocale } from "../locales/index.ts";
+import type { BusySendDelivery } from "../settings/busyDelivery.ts";
 import type { SendMode } from "../workspace/types.ts";
 
 export interface SendModeAvailability {
@@ -41,11 +41,13 @@ export interface SendModeAvailabilityOptions {
 }
 
 /**
- * 三种投递方式的运行时语义是否已接入 Pi 协议。
+ * 三种投递方式的运行时语义是否已接入。
  *
- * 协议调查结论落地前保持 false：菜单三项可见但不可点，这是刻意的降级。
+ * Issue #146 已完成协议调查与落地，开关打开：三项都真的会发出消息。
+ * 保留这个常量是为了让「条件判定」与「是否已接入」解耦——测试仍然可以用
+ * `{ ready: false }` 验证未接入时的整体置灰行为（例如回滚到旧协议版本）。
  */
-export const SEND_MODES_READY = false;
+export const SEND_MODES_READY = true;
 
 /**
  * 未接入时统一显示的原因 key（Issue #144）：文案在 session.json，
@@ -126,6 +128,24 @@ export function sendModeAvailability(
     followUp: { enabled: true, reason: null },
     parallel: { enabled: parallelReason === null, reason: parallelReason },
   };
+}
+
+/**
+ * 这一次点击「发送」实际要用哪种投递方式（Issue #146）。
+ *
+ * - 用户在三选里选过：就用它（选择只对下一条消息生效）；
+ * - 没选过但 agent 正在跑：用设置里的「忙碌时发送」默认值（steer / followUp）；
+ * - 其余情况返回 null，表示空闲时的普通投递。
+ *
+ * 抽成纯函数是为了让「默认设置真的参与决策」这件事可测，而不是靠组件里的字符串匹配。
+ */
+export function resolveSendMode(
+  pending: SendMode | null,
+  busy: boolean,
+  defaultDelivery: BusySendDelivery,
+): SendMode | null {
+  if (pending) return pending;
+  return busy ? defaultDelivery : null;
 }
 
 /** 草稿是否纯文本：首版没有附件通道，只按「有没有附件」判定。 */

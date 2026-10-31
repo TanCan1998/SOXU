@@ -70,6 +70,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // ── session ──
             commands::cancel_session,
+            commands::clear_queued_prompts,
             commands::release_session_events,
             commands::retain_session_events,
             commands::runtime_status,

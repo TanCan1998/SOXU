@@ -8,10 +8,11 @@
  * 三条边界：
  * - 待发投递方式按会话记录（`pendingBySession`）：ChatPanel 在切换 Tab 时复用同一个组件实例，
  *   如果只放一个 ref，切回来会看到别的会话的选择；用完即清，不残留到下一轮。
- * - 主发送按钮在 agent 忙碌时仍然禁用：注入 / 排队 / 并行会话的运行时语义还没接上，
- *   输入区只做界面与参数管道，不在这里假装已经生效。
- * - 「忙碌时发送」的偏好来自设置（busyDelivery），投递语义接入后才由它决定忙碌时的行为，
- *   所以运行中的提示写「即将支持」而不是声称已经按偏好投递。
+ * - 主发送按钮在 agent 忙碌时**可用**（Issue #146）：没显式选过投递方式时按设置里的
+ *   「忙碌时发送」默认值走（steer / followUp），两者因此真的联动。只有历史加载中与
+ *   正在取消这两个状态才禁用——那时运行时不会接受新命令。
+ * - 排队中的条数由上层透传（`pendingCount`）：用户必须看到「已经排了几条」，
+ *   否则停止按钮把排队消息撤回时，界面变化会显得毫无来由。
  */
 
 import { computed, nextTick, ref, watch } from "vue";
@@ -21,7 +22,7 @@ import AppTooltip from "./AppTooltip.vue";
 import ComposerSendMenu from "./ComposerSendMenu.vue";
 import SessionStatsRing from "./SessionStatsRing.vue";
 import SessionStatsRow from "./SessionStatsRow.vue";
-import { sendModeLabel } from "./sendMode.ts";
+import { resolveSendMode, sendModeLabel } from "./sendMode.ts";
 import { useLocale } from "../locales/index.ts";
 import type { SessionStatsView } from "./sessionStats.ts";
 import type { BusySendDelivery } from "../settings/busyDelivery.ts";
@@ -38,6 +39,8 @@ const props = defineProps<{
   defaultDelivery: BusySendDelivery;
   /** 设置 → 会话 → Enter 发送（Issue #116）：关掉后 Enter 换行、⌘/Ctrl+↵ 发送。 */
   enterToSend: boolean;
+  /** 已交给 Pi 排队、还没被消费的消息条数（Issue #146）。 */
+  pendingCount?: number;
   /** 当前会话是否有已登记的项目：并行发送需要一个落点。 */
   hasProject: boolean;
   /** 上下文环 / 统计浮窗 / 统计行共用的视图（Issue #119）。 */
@@ -60,9 +63,19 @@ const { t } = useLocale();
 
 const textarea = ref<HTMLTextAreaElement | null>(null);
 const running = computed(() => props.status === "running" || props.status === "cancelling");
+/**
+ * 忙碌时也能发送：投递方式由三选菜单或设置里的默认值决定，消息进 Pi 的队列。
+ * 只有「历史加载中」与「正在取消」禁用——这两个状态下运行时不会接受新命令。
+ */
 const canSend = computed(
-  () => props.draft.trim().length > 0 && !props.disabled && !running.value && !props.busy,
+  () =>
+    props.draft.trim().length > 0 &&
+    !props.disabled &&
+    !props.busy &&
+    props.status !== "loading" &&
+    props.status !== "cancelling",
 );
+const queuedCount = computed(() => props.pendingCount ?? 0);
 
 /** 每个会话各自的待发投递方式；切换 Tab 不会串味。 */
 const pendingBySession = ref<Record<string, SendMode>>({});
@@ -130,10 +143,12 @@ function clearMode() {
 
 function send() {
   if (!canSend.value) return;
-  const mode = pendingMode.value;
+  // 忙碌时没显式选过投递方式，就按设置里的默认值走（Issue #146）：
+  // 「忙碌时发送」偏好与三选菜单因此是同一套语义，不是两份各自为政的设置。
+  const mode = resolveSendMode(pendingMode.value, running.value, props.defaultDelivery);
   emit("send", mode);
   // 选择只对「下一条消息」生效：发出去就清掉，避免用户以为还会继续生效。
-  if (mode) clearMode();
+  if (pendingMode.value) clearMode();
 }
 
 watch(
@@ -167,6 +182,14 @@ defineExpose({ focus: () => textarea.value?.focus() });
         </button>
       </AppTooltip>
     </div>
+
+    <!--
+      排队回执：消息已经交给 Pi 的队列，本轮结束前不会再显示为「发送中」。
+      条数由 Tab 的 pending 决定，停止时这些消息会被撤回并回到输入框。
+    -->
+    <p v-if="queuedCount > 0" class="queued-note" role="status">
+      {{ t("composer.queued.note", { count: queuedCount }) }}
+    </p>
 
     <div class="composer" :data-running="running">
       <label class="sr-only" for="soxu-composer">{{ t("composer.input.label") }}</label>
@@ -292,6 +315,13 @@ defineExpose({ focus: () => textarea.value?.focus() });
     opacity: 1;
     transform: none;
   }
+}
+
+.queued-note {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 0.6875rem;
+  color: var(--soxu-muted);
 }
 
 .composer {

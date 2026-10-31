@@ -109,7 +109,7 @@ export const useWorkspaceStore = defineStore("workspace", () => {
    * 新建临时会话：身份由后端分配（只在内存里），因此重启后不会出现在历史中。
    * 没有已登记项目时仍可打开（浏览器预览/空工作区），此时不会写任何后端状态。
    */
-  function openTemporary(): Promise<void> {
+  function openTemporary(): Promise<SessionId | null> {
     return session.openTemporary(state.projects[0]?.id ?? null);
   }
 

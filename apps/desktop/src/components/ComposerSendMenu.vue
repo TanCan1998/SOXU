@@ -9,8 +9,13 @@
  * 不可用的项直接 `disabled`，并在描述位置写出原因（不用 title 属性，
  * 项目的悬浮说明统一走 AppTooltip；菜单项里塞 tooltip 会和菜单的键盘交互打架）。
  *
- * 三种投递方式的运行时语义还没接上，因此三项此刻全部置灰、原因写「即将支持」：
- * 菜单仍然打得开、选项仍然看得见，但没有一个能点出「看起来生效、其实没发出去」的结果。
+ * 三种投递方式的运行时语义自 Issue #146 起全部接通（协议事实与实测见
+ * docs/development/send-modes.md）：steer / followUp 走 Pi 的 streamingBehavior，
+ * parallel 由前端另开临时会话。菜单里因此不再有「可见但点了没效果」的选项；
+ * 仍然不可点的项都是**条件不满足**（例如空闲时的「加入当前」），并当场写出原因。
+ *
+ * 回滚路径保留：`sendModeAvailability` 的 ready=false 会把三项整体置灰并显示
+ * 「即将支持」，用于协议回退到旧版本的情况（测试覆盖）。
  */
 
 import { computed } from "vue";

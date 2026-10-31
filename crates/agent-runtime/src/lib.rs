@@ -42,6 +42,6 @@ pub use state::{IllegalTransition, RuntimeState};
 pub use supervisor::PiSupervisor;
 
 pub use soxu_pi_protocol::{
-    EVENT_AGENT_SETTLED, Inbound, PiCommand, ProtocolError, RpcEvent, RpcResponse, decode_inbound,
-    encode_command,
+    EVENT_AGENT_SETTLED, Inbound, PiCommand, ProtocolError, RpcEvent, RpcResponse,
+    StreamingBehavior, decode_inbound, encode_command,
 };
