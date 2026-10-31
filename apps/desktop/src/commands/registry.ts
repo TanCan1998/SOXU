@@ -1,27 +1,39 @@
 /**
- * 命令注册表（Issue #123 · TASK-031）。
+ * 命令注册表（Issue #123 · TASK-031；Issue #145 起文案全部走语言包）。
  *
  * 一份数据 + 一个动作接口：注册表不认识 Vue、不认识 store，也不做 IO，
  * 执行时由 App.vue 注入 CommandActions。于是「有哪些命令、能不能用、执行什么」
  * 全部可以在 Node 里用假 actions 断言，不需要挂载组件。
  *
- * 两条纪律：
+ * 三条纪律：
  * 1. **只登记真实存在的动作**。终端面板与文件打开在本切片都还没有实现，
  *    因此注册表里没有「打开终端 / 打开文件」——宁可少一条，也不放一条点了没反应的命令
  *    （见 docs/development/command-palette.md 的「未覆盖」一节）。
  * 2. **设置类命令由 settings/catalog.ts 生成**，不在这里复制标题：
  *    新增一项设置，命令面板自动多一条可搜索项。
+ * 3. **本文件不含任何界面文案**：标题 / 说明 / 搜索别名 / 不可用原因都是
+ *    locales/<tag>/commands.json 里的 key，由 buildCommands(t) 在渲染时解析。
+ *    因此切换语言后命令面板立刻变成对应语言，不需要重新加载注册表。
  */
 
 import {
   SETTINGS_ENTRIES,
   SETTINGS_TABS,
+  camelToKey,
+  settingsEntryView,
   settingsTab,
+  settingsTabView,
   type SettingsTabId,
+  type Translate,
 } from "../settings/catalog.ts";
 
-/** 结果分组；只用于界面上的小标签，不改变排序（排序见 commands/match.ts）。 */
-export type CommandGroup = "面板" | "会话" | "设置" | "系统";
+/**
+ * 结果分组；只用于界面上的小标签，不改变排序（排序见 commands/match.ts）。
+ *
+ * 存的是稳定 id 而不是文案：面板用 t("commands.group.<id>") 渲染，
+ * 于是同一份注册表可以同时服务中文与英文界面。
+ */
+export type CommandGroup = "panel" | "session" | "settings" | "system";
 
 /**
  * 命令可用性上下文。
@@ -61,7 +73,7 @@ export interface CommandActions {
 export interface CommandEntry {
   /** 稳定 id：测试、日志与未来「最近使用」都靠它，不随文案变化。 */
   id: string;
-  /** 结果行主文案，也是搜索与高亮的对象。 */
+  /** 结果行主文案（当前语言），也是搜索与高亮的对象。 */
   title: string;
   group: CommandGroup;
   /** 结果行右侧的补充说明（分组名 / 目标页）。 */
@@ -75,111 +87,63 @@ export interface CommandEntry {
   run: (actions: CommandActions) => void;
 }
 
-const NEEDS_SESSION = "当前没有打开的会话";
-const NEEDS_PROJECT = "还没有登记项目";
+/**
+ * 命令的可翻译声明：只写 id 与动作。
+ *
+ * 语言包 key 由 id 推导（commands.entry.<id 转点分>.title / .hint / .keywords），
+ * 因此新增命令只有两个动作：写一条 spec、在语言包里补三个 key。
+ * 两边拼错任意一半都会在测试里暴露——缺 key 时 t() 会原样返回 key，一眼可见。
+ */
+interface CommandSpec {
+  id: string;
+  group: CommandGroup;
+  shortcut?: string;
+  /** 执行前提；缺了就给出对应原因，而不是点了没反应。 */
+  requires?: "session" | "project";
+  run: (actions: CommandActions) => void;
+}
+
+/** 命令 id → 语言包 key（session.newTemporary → commands.entry.session.new.temporary.*）。 */
+export function commandKeys(id: string): {
+  titleKey: string;
+  hintKey: string;
+  keywordsKey: string;
+} {
+  const path = "commands.entry." + id.split(".").map(camelToKey).join(".");
+  return {
+    titleKey: path + ".title",
+    hintKey: path + ".hint",
+    keywordsKey: path + ".keywords",
+  };
+}
 
 /** 面板类命令：都是右侧面板 / 浮层的开关，与顶栏按钮一一对应。 */
-const PANEL_COMMANDS: readonly CommandEntry[] = [
-  {
-    id: "panel.settings",
-    title: "打开设置",
-    group: "面板",
-    hint: "设置",
-    keywords: ["settings", "preferences", "设置", "配置", "偏好"],
-    shortcut: "Ctrl+,",
-    run: (actions) => actions.openSettings(null),
-  },
-  {
-    id: "panel.search",
-    title: "打开会话搜索",
-    group: "面板",
-    hint: "搜索",
-    keywords: ["search", "find", "搜索", "查找", "会话内搜索"],
-    shortcut: "Ctrl+F",
-    run: (actions) => actions.openSearch(),
-  },
-  {
-    id: "panel.git",
-    title: "打开 Git 面板",
-    group: "面板",
-    hint: "更改",
-    keywords: ["git", "diff", "更改", "提交", "源代码", "版本"],
-    shortcut: "Ctrl+G",
-    run: (actions) => actions.toggleGit(),
-  },
-  {
-    id: "panel.inspector",
-    title: "打开会话状态",
-    group: "面板",
-    hint: "运行时",
-    keywords: ["inspector", "status", "状态", "运行时", "检查器", "内存"],
-    shortcut: "Ctrl+I",
-    run: (actions) => actions.toggleInspector(),
-  },
-  {
-    id: "panel.sidebar",
-    title: "切换侧栏",
-    group: "面板",
-    hint: "项目与会话列表",
-    keywords: ["sidebar", "侧栏", "项目", "会话列表", "折叠"],
-    shortcut: "Ctrl+B",
-    run: (actions) => actions.toggleSidebar(),
-  },
-  {
-    id: "panel.notifications",
-    title: "打开通知历史",
-    group: "面板",
-    hint: "通知",
-    keywords: ["notification", "通知", "历史", "提醒", "未读"],
-    run: (actions) => actions.openNotifications(),
-  },
-  {
-    id: "panel.worktrees",
-    title: "打开工作树面板",
-    group: "面板",
-    hint: "Git 工作树",
-    keywords: ["worktree", "工作树", "分支", "隔离"],
-    unavailable: (context) => (context.hasProject ? null : NEEDS_PROJECT),
-    run: (actions) => actions.openWorktrees(),
-  },
+const PANEL_COMMANDS: readonly CommandSpec[] = [
+  { id: "panel.settings", group: "panel", shortcut: "Ctrl+,", run: (a) => a.openSettings(null) },
+  { id: "panel.search", group: "panel", shortcut: "Ctrl+F", run: (a) => a.openSearch() },
+  { id: "panel.git", group: "panel", shortcut: "Ctrl+G", run: (a) => a.toggleGit() },
+  { id: "panel.inspector", group: "panel", shortcut: "Ctrl+I", run: (a) => a.toggleInspector() },
+  { id: "panel.sidebar", group: "panel", shortcut: "Ctrl+B", run: (a) => a.toggleSidebar() },
+  { id: "panel.notifications", group: "panel", run: (a) => a.openNotifications() },
+  { id: "panel.worktrees", group: "panel", requires: "project", run: (a) => a.openWorktrees() },
 ];
 
 /** 会话类命令：作用于当前 Tab。 */
-const SESSION_COMMANDS: readonly CommandEntry[] = [
-  {
-    id: "session.newTemporary",
-    title: "新建临时会话",
-    group: "会话",
-    hint: "不进历史",
-    keywords: ["new", "temp", "temporary", "新建", "临时", "新会话"],
-    run: (actions) => actions.newTemporarySession(),
-  },
+const SESSION_COMMANDS: readonly CommandSpec[] = [
+  { id: "session.newTemporary", group: "session", run: (a) => a.newTemporarySession() },
   {
     id: "session.closeActive",
-    title: "关闭当前会话",
-    group: "会话",
-    hint: "关闭标签",
-    keywords: ["close", "关闭", "标签", "结束"],
-    unavailable: (context) => (context.hasActiveSession ? null : NEEDS_SESSION),
-    run: (actions) => actions.closeActiveSession(),
+    group: "session",
+    requires: "session",
+    run: (a) => a.closeActiveSession(),
   },
   {
     id: "session.reopen",
-    title: "重新打开当前会话",
-    group: "会话",
-    hint: "重新载入消息",
-    keywords: ["retry", "reopen", "重试", "重新打开", "刷新", "重载"],
-    unavailable: (context) => (context.hasActiveSession ? null : NEEDS_SESSION),
-    run: (actions) => actions.reopenActiveSession(),
+    group: "session",
+    requires: "session",
+    run: (a) => a.reopenActiveSession(),
   },
-  {
-    id: "session.toggleTheme",
-    title: "切换主题",
-    group: "会话",
-    hint: "深色 / 浅色",
-    keywords: ["theme", "dark", "light", "主题", "深色", "浅色", "夜间"],
-    run: (actions) => actions.toggleTheme(),
-  },
+  { id: "session.toggleTheme", group: "session", run: (a) => a.toggleTheme() },
 ];
 
 /**
@@ -189,42 +153,86 @@ const SESSION_COMMANDS: readonly CommandEntry[] = [
  * 同一个动作出现两条同名命令会让用户不知道该选哪一条，也会让「同分按注册表顺序」
  * 的排序规则变得没有意义。
  */
-const SYSTEM_COMMANDS: readonly CommandEntry[] = [
-  {
-    id: "system.copyDataDirectory",
-    title: "复制数据目录路径",
-    group: "系统",
-    hint: "剪贴板",
-    keywords: ["copy", "data", "directory", "复制", "目录", "路径"],
-    run: (actions) => actions.copyDataDirectory(),
-  },
+const SYSTEM_COMMANDS: readonly CommandSpec[] = [
+  { id: "system.copyDataDirectory", group: "system", run: (a) => a.copyDataDirectory() },
 ];
+
+/** 逗号分隔的别名串 → 数组；解析规则与 settings/catalog.ts 的 keywordList 一致。 */
+function keywordsOf(t: Translate, key: string): readonly string[] {
+  return t(key)
+    .split(",")
+    .map((word) => word.trim())
+    .filter((word) => word.length > 0);
+}
+
+/**
+ * 前提 → 不可用原因。
+ *
+ * 原因在**渲染时**才取文案（闭包捕获当前语言的 t），因此切换语言后
+ * 面板里那句「当前没有打开的会话」也会跟着变。
+ */
+function unavailableFor(
+  spec: CommandSpec,
+  t: Translate,
+): ((context: CommandContext) => string | null) | undefined {
+  const requires = spec.requires;
+  if (!requires) return undefined;
+  const reasonKey =
+    requires === "session" ? "commands.reason.needs.session" : "commands.reason.needs.project";
+  return (context) => {
+    const ready = requires === "session" ? context.hasActiveSession : context.hasProject;
+    return ready ? null : t(reasonKey);
+  };
+}
+
+/** spec + 当前语言的 t → 可以直接渲染的命令条目。 */
+function toEntry(spec: CommandSpec, t: Translate): CommandEntry {
+  const keys = commandKeys(spec.id);
+  const entry: CommandEntry = {
+    id: spec.id,
+    title: t(keys.titleKey),
+    group: spec.group,
+    hint: t(keys.hintKey),
+    keywords: keywordsOf(t, keys.keywordsKey),
+    run: spec.run,
+  };
+  if (spec.shortcut) entry.shortcut = spec.shortcut;
+  const unavailable = unavailableFor(spec, t);
+  if (unavailable) entry.unavailable = unavailable;
+  return entry;
+}
 
 /**
  * 设置类命令：每页一条「打开设置 · 某页」，每一项设置一条。
  *
  * 标题全部来自 settings/catalog.ts（与设置页的行标题同一份数据），
- * 这里不出现任何中文标题字面量。
+ * 这里不出现任何标题字面量。
  */
-function settingsCommands(): CommandEntry[] {
-  const tabs: CommandEntry[] = SETTINGS_TABS.map((tab) => ({
-    id: "settings.tab." + tab.id,
-    title: "打开设置 · " + tab.label,
-    group: "设置",
-    hint: tab.description,
-    keywords: ["settings", "设置", tab.label, ...tab.keywords],
-    run: (actions) => actions.openSettings(tab.id),
-  }));
+function settingsCommands(t: Translate): CommandEntry[] {
+  const settingsKeyword = t("commands.keyword.settings");
 
-  const entries: CommandEntry[] = SETTINGS_ENTRIES.map((entry) => {
-    const tabLabel = settingsTab(entry.tab).label;
+  const tabs: CommandEntry[] = SETTINGS_TABS.map((meta) => {
+    const tab = settingsTabView(meta, t);
     return {
-      id: "setting." + entry.id,
-      title: entry.label,
-      group: "设置",
-      hint: "设置 · " + tabLabel,
-      keywords: ["settings", "设置", tabLabel, ...entry.keywords],
-      run: (actions) => actions.openSettings(entry.tab),
+      id: "settings.tab." + tab.id,
+      title: t("commands.settings.open.tab", { tab: tab.label }),
+      group: "settings",
+      hint: tab.description,
+      keywords: [settingsKeyword, tab.label, ...tab.keywords],
+      run: (actions) => actions.openSettings(tab.id),
+    };
+  });
+
+  const entries: CommandEntry[] = SETTINGS_ENTRIES.map((meta) => {
+    const item = settingsEntryView(meta, t);
+    const tabLabel = settingsTabView(settingsTab(item.tab), t).label;
+    return {
+      id: "setting." + item.id,
+      title: item.label,
+      group: "settings",
+      hint: t("commands.settings.hint.tab", { tab: tabLabel }),
+      keywords: [settingsKeyword, tabLabel, ...item.keywords],
+      run: (actions) => actions.openSettings(item.tab),
     };
   });
 
@@ -235,13 +243,17 @@ function settingsCommands(): CommandEntry[] {
  * 全部命令，顺序即空查询时的展示顺序。
  *
  * 顺序的理由：面板开关最常用，其次是会话动作，然后是设置（页 → 项），最后是系统动作。
+ * 每次调用都重新解析文案（代价是几十次查表），换来的是「切语言立刻生效」，
+ * 不需要在 App.vue 里手工监听 locale 变化去重建注册表。
  */
-export const COMMANDS: readonly CommandEntry[] = Object.freeze([
-  ...PANEL_COMMANDS,
-  ...SESSION_COMMANDS,
-  ...settingsCommands(),
-  ...SYSTEM_COMMANDS,
-]);
+export function buildCommands(t: Translate): readonly CommandEntry[] {
+  return [
+    ...PANEL_COMMANDS.map((spec) => toEntry(spec, t)),
+    ...SESSION_COMMANDS.map((spec) => toEntry(spec, t)),
+    ...settingsCommands(t),
+    ...SYSTEM_COMMANDS.map((spec) => toEntry(spec, t)),
+  ];
+}
 
 /** 供组件使用的命令上下文快照。 */
 export function commandContext(facts: Partial<CommandContext> = {}): CommandContext {

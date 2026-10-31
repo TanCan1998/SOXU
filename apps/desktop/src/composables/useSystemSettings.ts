@@ -1,8 +1,12 @@
 /**
  * 系统页设置的响应式状态与持久化（Issue #116 · V4-S2）。
  *
- * 三个开关目前只落到存储：更新检查、系统通知、托盘行为分别属于发布流程与
- * 通知切片（Issue #117），本切片不假装它们已经生效。
+ * 这里只负责「状态 + 落盘」，与后端/通知层的接线由 App.vue 完成：
+ * - 完成通知总闸传给 useNotifications；
+ * - 关闭行为经 settings/systemBridge.ts 推给 Rust 托盘层。
+ *
+ * 拆开的好处是 composable 仍然可以在 Node 里用假存储断言读写，
+ * 不需要 Tauri 宿主或通知 store。
  */
 
 import { ref, watch, type Ref } from "vue";

@@ -8,6 +8,9 @@
   标题与默认说明统一来自 settings/catalog.ts，面板只写 setting="appearance.theme"，
   于是「设置页显示的名字」与「命令面板搜到的名字」在结构上不可能不一致。
 
+  为什么还要 t()：Issue #145 起 catalog 只存语言包 key，标题/说明在这里按当前语言
+  解析；t() 读的是响应式表，切换语言后本行立刻重渲染，不需要重建组件。
+
   无障碍：标题元素带 useId 生成的 id，并通过插槽把 labelId 交给控件，
   控件用它做 aria-labelledby —— 读屏读到的名字与界面上的可见标题逐字一致。
 -->
@@ -15,7 +18,7 @@
 import { computed } from "vue";
 import { useId } from "reka-ui";
 
-import { settingsEntry } from "../../settings/catalog.ts";
+import { settingsEntry, settingsEntryView } from "../../settings/catalog.ts";
 import { useLocale } from "../../locales/index.ts";
 
 const props = defineProps<{
@@ -39,11 +42,13 @@ const props = defineProps<{
 
 const { t } = useLocale();
 const meta = computed(() => (props.setting ? settingsEntry(props.setting) : null));
+/** 目录里的文案只在需要时解析一次；t() 变化（切语言）会让它重算。 */
+const view = computed(() => (meta.value ? settingsEntryView(meta.value, t) : null));
 const resolvedLabel = computed(() => {
   if (props.labelKey) return t(props.labelKey);
-  return meta.value?.label ?? "";
+  return view.value?.label ?? "";
 });
-const description = computed(() => props.description ?? meta.value?.description);
+const description = computed(() => props.description ?? view.value?.description);
 
 const labelId = useId();
 </script>

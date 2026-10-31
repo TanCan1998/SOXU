@@ -26,6 +26,7 @@ import { appendNotification, type NotificationRecord } from "../notifications/hi
 import {
   NOTIFICATION_EVENT_META,
   clampVolume,
+  isSystemNotificationEnabled,
   normalizeNotificationSettings,
   persistNotificationSettings,
   readNotificationSettings,
@@ -221,17 +222,23 @@ export const useNotificationStore = defineStore("notifications", () => {
    *
    * 调用方必须已经按 `runtimeId + generation` 过滤过（`WorkspaceSession.handleEvent`
    * 在 gate 之后才通知观察者），因此这里不再重复判断迟到。
+   *
+   * `systemSettings` 是设置 → 系统 → 任务完成通知（Issue #145）：它是通知层之外
+   * 的另一道总闸，关闭后完成/出错不提醒（等待输入照旧）。默认打开，
+   * 因此不传这个参数的调用方行为不变。
    */
   function handleRuntimeEvent(
     event: RuntimeEvent,
     tab?: Pick<SessionTab, "title"> | null,
     context: Pick<ClassifyOptions, "previousStatus"> = {},
+    systemSettings: { notifyOnComplete: boolean } = { notifyOnComplete: true },
   ): ToastItem | null {
     const notification = classifyRuntimeEvent(event, {
       title: tab?.title ?? null,
       previousStatus: context.previousStatus,
     });
     if (!notification) return null;
+    if (!isSystemNotificationEnabled(notification.kind, systemSettings)) return null;
     return notify(notification);
   }
 

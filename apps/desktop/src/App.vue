@@ -31,7 +31,7 @@ import {
   Search,
   SquareTerminal,
 } from "@lucide/vue";
-import { COMMANDS, commandContext, type CommandActions, type CommandEntry } from "./commands/registry.ts";
+import { buildCommands, commandContext, type CommandActions, type CommandEntry } from "./commands/registry.ts";
 import AppTooltip from "./components/AppTooltip.vue";
 import ChatPanel from "./components/ChatPanel.vue";
 import CommandPalette from "./components/CommandPalette.vue";
@@ -58,6 +58,11 @@ import { copyText } from "./services/clipboard.ts";
 import { runtimeInfo, type RuntimeInfo } from "./services/native.ts";
 import type { SettingsTabId } from "./settings/catalog.ts";
 import { dataDirectoryHint } from "./settings/dataDirectory.ts";
+import {
+  defaultSystemBridge,
+  openDataDirectoryInFileManager,
+  pushCloseBehavior,
+} from "./settings/systemBridge.ts";
 import type { Appearance } from "./theme/appearance.ts";
 import { useWorkspaceStore } from "./stores/workspace.ts";
 import {
@@ -142,18 +147,43 @@ const { appearance, patchAppearance } = useAppearance();
 const { busyDelivery, setBusyDelivery } = useBusyDelivery();
 /** 设置 → 会话页其余偏好（Issue #116）：自动贴底、Enter 发送、工具输出、时间戳、思考强度。 */
 const { session, patchSession } = useSessionSettings();
-/** 设置 → 系统页开关（Issue #116）：只持久化，真实能力随对应切片接入。 */
+/**
+ * 设置 → 系统页开关（Issue #116）。Issue #145 起两项真的生效：
+ * 完成通知并入通知事件链（见下面的 useNotifications），关闭行为推给 Rust 托盘层。
+ */
 const { system, patchSystem } = useSystemSettings();
+/** 系统页后端通道（关闭行为 / 打开数据目录）：注入点便于测试与浏览器预览降级。 */
+const systemBridge = defaultSystemBridge();
 /** Tauri 框架版本（「设置 → 系统 → 关于」用）；浏览器预览下保持 null。 */
 const tauriVersion = ref<string | null>(null);
 /** 「数据目录」复制按钮的结果回显。 */
 const copyState = ref<"idle" | "copied" | "failed">("idle");
+/** 「打开数据目录」的结果回显：失败时按钮文案如实说明，不静默无反应。 */
+const openDirState = ref<"idle" | "opened" | "failed">("idle");
 /**
  * 通知（V4-S2b，Issue #117）：订阅已按 generation 过滤的运行时事件流，
  * 由通知 store 决定弹窗、声音与历史。订阅与 store 的生命周期绑定在 App 上，
  * 卸载时一并释放（定时器、焦点监听、AudioContext）。
  */
-const { notifications, visibleToasts, unreadCount } = useNotifications();
+const { notifications, visibleToasts, unreadCount } = useNotifications({
+  // 设置 → 系统 → 任务完成通知：总闸关掉后完成/出错不再提醒（等待输入仍然提醒）。
+  completionEnabled: () => system.value.notifyOnComplete,
+});
+
+/**
+ * 关闭窗口的行为随设置变化（Issue #145）。
+ *
+ * 立即推一次：上次运行把开关关掉后，这次启动的 Rust 侧默认值仍是「隐藏到托盘」，
+ * 不推就会让用户以为设置没生效。之后每次改动都再推一次。
+ * 浏览器预览下 invoke 会抛错，pushCloseBehavior 已经把它降级成一行诊断。
+ */
+watch(
+  () => system.value.minimizeToTray,
+  (enabled) => {
+    void pushCloseBehavior(systemBridge, enabled);
+  },
+  { immediate: true },
+);
 /** 通知历史抽屉是否打开；顶栏铃铛是唯一开关。 */
 const notificationsOpen = ref(false);
 const {
@@ -565,6 +595,14 @@ const paletteContext = computed(() =>
   }),
 );
 
+/**
+ * 命令清单（Issue #145）：标题/说明/别名来自语言包，因此每次切语言都重新构建。
+ *
+ * 放在 computed 里而不是模块常量：buildCommands(t) 读的是响应式文案表，
+ * 语言一变面板里的命令标题立刻跟着变，不需要重新加载或重开面板。
+ */
+const commands = computed(() => buildCommands(t));
+
 /** 执行一条命令：先收起面板再执行，设置弹窗/抽屉才不会被面板盖住。 */
 function runCommand(command: CommandEntry) {
   paletteOpen.value = false;
@@ -682,10 +720,10 @@ const dataDirectory = computed(() => dataDirectoryHint(info.value?.platform));
  */
 const clearBlockedReason = computed(() => {
   const tab = activeTab.value;
-  if (!tab) return "当前没有打开的会话";
-  if (tab.mode === "temporary") return "临时会话关闭即结束，不能只清界面缓存";
+  if (!tab) return t("settings.session.blocked.no.session");
+  if (tab.mode === "temporary") return t("settings.session.blocked.temporary");
   if (tab.status === "running" || tab.status === "cancelling") {
-    return "当前轮次还没结束，结束后再清空";
+    return t("settings.session.blocked.running");
   }
   return null;
 });
@@ -734,9 +772,20 @@ function resetLayout() {
   }
 }
 
-/** 复制数据目录路径：打开文件夹需要后端命令，本切片只保证路径可复制。 */
+/** 复制数据目录路径。 */
 async function copyDataDirectory() {
   copyState.value = (await copyText(dataDirectory.value)) ? "copied" : "failed";
+}
+
+/**
+ * 用系统文件管理器打开数据目录（Issue #145）。
+ *
+ * 路径由后端取 app_data_dir()，前端不传任何路径：这条命令只是「定位应用自己的数据目录」，
+ * 不是通用的「打开任意目录」能力。
+ */
+async function openDataDirectory() {
+  const result = await openDataDirectoryInFileManager(systemBridge);
+  openDirState.value = result.ok ? "opened" : "failed";
 }
 
 function onKeydown(event: KeyboardEvent) {
@@ -1121,7 +1170,7 @@ onUnmounted(() => {
 
     <CommandPalette
       v-if="paletteOpen"
-      :commands="COMMANDS"
+      :commands="commands"
       :context="paletteContext"
       @close="paletteOpen = false"
       @run="runCommand"
@@ -1141,6 +1190,7 @@ onUnmounted(() => {
       :tauri-version="tauriVersion"
       :data-directory="dataDirectory"
       :copy-state="copyState"
+      :open-state="openDirState"
       :clear-blocked-reason="clearBlockedReason"
       @close="settingsOpen = false"
       @update:theme="(value: ThemeName) => void setTheme(value)"
@@ -1151,6 +1201,7 @@ onUnmounted(() => {
       @clear-session="clearSessionCache"
       @reset-layout="resetLayout"
       @copy-data-dir="copyDataDirectory"
+      @open-data-dir="openDataDirectory"
     />
 
     <NotificationToasts

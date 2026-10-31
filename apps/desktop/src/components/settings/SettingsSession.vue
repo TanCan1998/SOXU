@@ -12,6 +12,7 @@
  * settings/catalog.ts 取，命令面板读的是同一份元数据。
  */
 
+import { computed } from "vue";
 import { ChevronDown } from "@lucide/vue";
 import {
   SelectContent,
@@ -25,11 +26,16 @@ import {
   SelectViewport,
 } from "reka-ui";
 
+import { useLocale } from "../../locales/index.ts";
 import {
   BUSY_DELIVERY_OPTIONS,
   isBusySendDelivery,
   type BusySendDelivery,
 } from "../../settings/busyDelivery.ts";
+import {
+  localizedDescribedOptions,
+  optionText,
+} from "../../settings/optionLabels.ts";
 import {
   THINKING_LEVEL_OPTIONS,
   isThinkingLevel,
@@ -53,6 +59,19 @@ const emit = defineEmits<{
   (event: "clear-session"): void;
 }>();
 
+const { t } = useLocale();
+
+/**
+ * 选项文案按当前语言解析（Issue #145）：档位表仍是唯一事实来源，
+ * 这里只换 label / description；缺 key 时回退表里的字面量。
+ */
+const thinkingOptions = computed(() =>
+  localizedDescribedOptions(THINKING_LEVEL_OPTIONS, t, "settings.option.thinking"),
+);
+const busyDeliveryOptions = computed(() =>
+  localizedDescribedOptions(BUSY_DELIVERY_OPTIONS, t, "settings.option.busy.delivery"),
+);
+
 function setFlag(key: keyof SessionSettings, value: boolean): void {
   emit("update:settings", { [key]: value });
 }
@@ -67,7 +86,7 @@ function onBusyDelivery(value: string): void {
 
 /** SelectValue 在没有选中项时会显示 placeholder；这里始终有值，直接把标签渲染出来。 */
 function thinkingLabel(value: string): string {
-  return THINKING_LEVEL_OPTIONS.find((option) => option.value === value)?.label ?? value;
+  return optionText(t, "settings.option.thinking." + value, value);
 }
 </script>
 
@@ -129,7 +148,7 @@ function thinkingLabel(value: string): string {
             <SelectContent class="select-content" position="popper" :side-offset="6">
               <SelectViewport>
                 <SelectItem
-                  v-for="option in THINKING_LEVEL_OPTIONS"
+                  v-for="option in thinkingOptions"
                   :key="option.value"
                   :value="option.value"
                   class="select-item"
@@ -149,26 +168,25 @@ function thinkingLabel(value: string): string {
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="busyDelivery"
-          :options="BUSY_DELIVERY_OPTIONS"
+          :options="busyDeliveryOptions"
           :labelledby="labelId"
           @update:model-value="onBusyDelivery"
         />
       </template>
       <template #note>
-        「加入当前」插进正在进行的回答，「排到下轮」等本轮结束后自动发送。这两种投递方式即将支持，
-        现在只保存偏好。
+        {{ t("settings.note.session.busy.delivery") }}
       </template>
     </SettingsRow>
 
     <SettingsRow setting="session.clearSession">
       <SettingsButton
-        label="清空"
+        :label="t('settings.action.session.clear')"
         tone="danger"
         :disabled="clearBlockedReason !== null"
         @click="emit('clear-session')"
       />
       <template #note>
-        {{ clearBlockedReason ?? "只清界面缓存，Pi 的会话 JSONL 不会被删除或改写。" }}
+        {{ clearBlockedReason ?? t("settings.note.session.clear.session") }}
       </template>
     </SettingsRow>
   </div>

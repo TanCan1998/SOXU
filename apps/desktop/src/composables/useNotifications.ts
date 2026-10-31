@@ -15,6 +15,17 @@ import type { ToastItem } from "../notifications/toast.ts";
 import { useNotificationStore } from "../stores/notifications.ts";
 import { useWorkspaceStore } from "../stores/workspace.ts";
 
+export interface NotificationsOptions {
+  /**
+   * 设置 → 系统 → 任务完成通知（Issue #145）。
+   *
+   * 用 getter 而不是值：设置页改了开关之后，下一个事件必须按新值判断，
+   * 而订阅只注册一次（不重新订阅就不会有丢事件/重复订阅的窗口）。
+   * 省略时视为打开——独立使用通知层的测试与将来其它宿主行为不变。
+   */
+  completionEnabled?: () => boolean;
+}
+
 export interface NotificationsControls {
   /** 通知 store 本身（设置页/铃铛/抽屉都从它读）。 */
   notifications: ReturnType<typeof useNotificationStore>;
@@ -23,12 +34,14 @@ export interface NotificationsControls {
   unreadCount: ComputedRef<number>;
 }
 
-export function useNotifications(): NotificationsControls {
+export function useNotifications(options: NotificationsOptions = {}): NotificationsControls {
   const notifications = useNotificationStore();
   const workspace = useWorkspaceStore();
 
   const stop = workspace.onRuntimeEvent((event, tab, context) => {
-    notifications.handleRuntimeEvent(event, tab, context);
+    notifications.handleRuntimeEvent(event, tab, context, {
+      notifyOnComplete: options.completionEnabled?.() ?? true,
+    });
   });
 
   onScopeDispose(() => {

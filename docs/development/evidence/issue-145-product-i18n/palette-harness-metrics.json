@@ -1,0 +1,1008 @@
+{
+  "generatedAt": "2026-10-31T04:46:54.671Z",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "browser": "Edg/156.0.4314.50",
+  "shots": [
+    "01-light-open.png",
+    "02-light-dk.png",
+    "03-light-keyboard.png",
+    "04-after-execute.png",
+    "05-light-sz.png",
+    "06-light-setting-entry.png",
+    "07-light-no-results.png",
+    "08-dark-dk.png",
+    "09-settings-retarget.png"
+  ],
+  "checks": [
+    {
+      "name": "open-focused",
+      "ok": true,
+      "actual": "cp-input"
+    },
+    {
+      "name": "pinyin-lazy-loaded",
+      "ok": true,
+      "actual": "ready"
+    },
+    {
+      "name": "all-commands-listed",
+      "ok": true,
+      "actual": 34
+    },
+    {
+      "name": "footer-hints",
+      "ok": true,
+      "actual": "↑↓ 选择↵ 执行Esc 关闭"
+    },
+    {
+      "name": "dk-hits-all-open-commands",
+      "ok": true,
+      "actual": {
+        "expected": [
+          "打开设置",
+          "打开会话搜索",
+          "打开 Git 面板",
+          "打开会话状态",
+          "打开通知历史",
+          "打开工作树面板",
+          "打开设置 · 外观",
+          "打开设置 · 会话",
+          "打开设置 · 扩展",
+          "打开设置 · 系统"
+        ],
+        "rows": [
+          "打开设置",
+          "打开会话搜索",
+          "打开 Git 面板",
+          "打开会话状态",
+          "打开通知历史",
+          "打开工作树面板",
+          "打开设置 · 外观",
+          "打开设置 · 会话",
+          "打开设置 · 扩展",
+          "打开设置 · 系统",
+          "重新打开当前会话"
+        ]
+      }
+    },
+    {
+      "name": "dk-first-is-settings",
+      "ok": true,
+      "actual": "打开设置"
+    },
+    {
+      "name": "dk-highlight-marks-open",
+      "ok": true,
+      "actual": [
+        "打开"
+      ]
+    },
+    {
+      "name": "dk-latency-budget",
+      "ok": true,
+      "actual": 17
+    },
+    {
+      "name": "arrow-down-moves-active",
+      "ok": true,
+      "actual": 2
+    },
+    {
+      "name": "aria-activedescendant",
+      "ok": true,
+      "actual": "soxu-command-option-2"
+    },
+    {
+      "name": "enter-executes-active-row",
+      "ok": true,
+      "actual": [
+        "panel.search"
+      ]
+    },
+    {
+      "name": "action-really-ran",
+      "ok": true,
+      "actual": [
+        "openSearch"
+      ]
+    },
+    {
+      "name": "panel-closes-after-run",
+      "ok": true,
+      "actual": false
+    },
+    {
+      "name": "escape-closes-without-running",
+      "ok": true,
+      "actual": [
+        "panel.search"
+      ]
+    },
+    {
+      "name": "sz-hits-settings",
+      "ok": true,
+      "actual": "打开设置"
+    },
+    {
+      "name": "sz-highlight-settings",
+      "ok": true,
+      "actual": [
+        "设置"
+      ]
+    },
+    {
+      "name": "setting-entry-found",
+      "ok": true,
+      "actual": {
+        "title": "消息时间戳",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": true,
+        "disabled": false,
+        "marks": [
+          "消息时间戳"
+        ]
+      }
+    },
+    {
+      "name": "setting-entry-opens-tab",
+      "ok": true,
+      "actual": [
+        "openSearch",
+        "openSettings:session"
+      ]
+    },
+    {
+      "name": "setting-entry-really-opened-settings",
+      "ok": true,
+      "actual": {
+        "open": true,
+        "activeTab": "会话"
+      }
+    },
+    {
+      "name": "no-results-state",
+      "ok": true,
+      "actual": "没有匹配的命令"
+    },
+    {
+      "name": "dark-panel",
+      "ok": true,
+      "actual": "rgb(33, 33, 33)"
+    },
+    {
+      "name": "a11y",
+      "ok": true,
+      "actual": {
+        "dialog": "dialog",
+        "modal": "true",
+        "combobox": "combobox",
+        "controls": "soxu-command-list",
+        "listbox": "listbox",
+        "options": 11,
+        "selected": 1,
+        "statusRole": "status"
+      }
+    },
+    {
+      "name": "tab-trap-stays-inside",
+      "ok": true,
+      "actual": {
+        "id": "",
+        "className": "cp-input",
+        "insidePalette": true
+      }
+    },
+    {
+      "name": "shift-tab-trap-stays-inside",
+      "ok": true,
+      "actual": {
+        "id": "",
+        "className": "cp-input",
+        "insidePalette": true
+      }
+    },
+    {
+      "name": "focus-restored-to-trigger",
+      "ok": true,
+      "actual": {
+        "id": "harness-trigger",
+        "className": "",
+        "insidePalette": false
+      }
+    },
+    {
+      "name": "settings-tab-command-found",
+      "ok": true,
+      "actual": "打开设置 · 系统"
+    },
+    {
+      "name": "settings-opened-on-target-tab",
+      "ok": true,
+      "actual": {
+        "open": true,
+        "activeTab": "系统",
+        "request": 2,
+        "baseline": 1
+      }
+    },
+    {
+      "name": "settings-stays-open-on-retarget",
+      "ok": true,
+      "actual": true
+    },
+    {
+      "name": "settings-retargeted-to-new-tab",
+      "ok": true,
+      "actual": "外观"
+    },
+    {
+      "name": "settings-request-incremented",
+      "ok": true,
+      "actual": {
+        "request": 3,
+        "baseline": 1
+      }
+    },
+    {
+      "name": "no-page-errors",
+      "ok": true,
+      "actual": []
+    }
+  ],
+  "opened": {
+    "open": true,
+    "query": "",
+    "count": "34 条命令",
+    "rows": [
+      {
+        "title": "打开设置",
+        "hint": "设置",
+        "group": "面板",
+        "active": true,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开会话搜索",
+        "hint": "搜索",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开 Git 面板",
+        "hint": "更改",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开会话状态",
+        "hint": "运行时",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "切换侧栏",
+        "hint": "项目与会话列表",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开通知历史",
+        "hint": "通知",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开工作树面板",
+        "hint": "Git 工作树",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "新建临时会话",
+        "hint": "不进历史",
+        "group": "会话",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "关闭当前会话",
+        "hint": "关闭标签",
+        "group": "会话",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "重新打开当前会话",
+        "hint": "重新载入消息",
+        "group": "会话",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "切换主题",
+        "hint": "深色 / 浅色",
+        "group": "会话",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开设置 · 外观",
+        "hint": "主题、强调色、字号、字体与正文宽度",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开设置 · 会话",
+        "hint": "发送方式、工具输出、时间戳与思考强度",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开设置 · 扩展",
+        "hint": "扩展、技能与 MCP 服务列表",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "打开设置 · 系统",
+        "hint": "通知、托盘与数据目录",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "主题",
+        "hint": "设置 · 外观",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "强调色",
+        "hint": "设置 · 外观",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "界面字号",
+        "hint": "设置 · 外观",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "界面字体",
+        "hint": "设置 · 外观",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "代码字体",
+        "hint": "设置 · 外观",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "正文宽度",
+        "hint": "设置 · 外观",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "发送后滚动",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "Enter 发送",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "显示工具调用",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "消息时间戳",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "默认思考强度",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "忙碌时发送",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "清空当前会话",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "任务完成通知",
+        "hint": "设置 · 系统",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "关闭时最小化到托盘",
+        "hint": "设置 · 系统",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "恢复默认布局",
+        "hint": "设置 · 系统",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "数据目录",
+        "hint": "设置 · 系统",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "关于",
+        "hint": "设置 · 系统",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      },
+      {
+        "title": "复制数据目录路径",
+        "hint": "剪贴板",
+        "group": "系统",
+        "active": false,
+        "disabled": false,
+        "marks": []
+      }
+    ],
+    "footer": "↑↓ 选择↵ 执行Esc 关闭",
+    "activeDescendant": "soxu-command-option-0",
+    "notice": null,
+    "focused": "cp-input",
+    "pinyin": "ready"
+  },
+  "dk": {
+    "open": true,
+    "query": "dk",
+    "count": "11 条命令",
+    "rows": [
+      {
+        "title": "打开设置",
+        "hint": "设置",
+        "group": "面板",
+        "active": true,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开会话搜索",
+        "hint": "搜索",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开 Git 面板",
+        "hint": "更改",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开会话状态",
+        "hint": "运行时",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开通知历史",
+        "hint": "通知",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开工作树面板",
+        "hint": "Git 工作树",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开设置 · 外观",
+        "hint": "主题、强调色、字号、字体与正文宽度",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开设置 · 会话",
+        "hint": "发送方式、工具输出、时间戳与思考强度",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开设置 · 扩展",
+        "hint": "扩展、技能与 MCP 服务列表",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开设置 · 系统",
+        "hint": "通知、托盘与数据目录",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "重新打开当前会话",
+        "hint": "重新载入消息",
+        "group": "会话",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      }
+    ],
+    "footer": "↑↓ 选择↵ 执行Esc 关闭",
+    "activeDescendant": "soxu-command-option-0",
+    "notice": null,
+    "focused": "cp-input",
+    "pinyin": "ready"
+  },
+  "dkLatencyMs": 17,
+  "moved": {
+    "open": true,
+    "query": "dk",
+    "count": "11 条命令",
+    "rows": [
+      {
+        "title": "打开设置",
+        "hint": "设置",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开会话搜索",
+        "hint": "搜索",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开 Git 面板",
+        "hint": "更改",
+        "group": "面板",
+        "active": true,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开会话状态",
+        "hint": "运行时",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开通知历史",
+        "hint": "通知",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开工作树面板",
+        "hint": "Git 工作树",
+        "group": "面板",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开设置 · 外观",
+        "hint": "主题、强调色、字号、字体与正文宽度",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开设置 · 会话",
+        "hint": "发送方式、工具输出、时间戳与思考强度",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开设置 · 扩展",
+        "hint": "扩展、技能与 MCP 服务列表",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "打开设置 · 系统",
+        "hint": "通知、托盘与数据目录",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      },
+      {
+        "title": "重新打开当前会话",
+        "hint": "重新载入消息",
+        "group": "会话",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "打开"
+        ]
+      }
+    ],
+    "footer": "↑↓ 选择↵ 执行Esc 关闭",
+    "activeDescendant": "soxu-command-option-2",
+    "notice": null,
+    "focused": "cp-input",
+    "pinyin": "ready"
+  },
+  "keyboardRun": {
+    "selectedTitle": "打开会话搜索",
+    "executed": {
+      "ids": [
+        "panel.search"
+      ],
+      "actions": [
+        "openSearch"
+      ]
+    },
+    "afterRun": {
+      "open": false,
+      "query": "",
+      "count": "",
+      "rows": [],
+      "footer": "",
+      "activeDescendant": null,
+      "notice": null,
+      "focused": "",
+      "pinyin": null
+    }
+  },
+  "sz": {
+    "open": true,
+    "query": "sz",
+    "count": "6 条命令",
+    "rows": [
+      {
+        "title": "打开设置",
+        "hint": "设置",
+        "group": "面板",
+        "active": true,
+        "disabled": false,
+        "marks": [
+          "设置"
+        ]
+      },
+      {
+        "title": "打开设置 · 外观",
+        "hint": "主题、强调色、字号、字体与正文宽度",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "设置"
+        ]
+      },
+      {
+        "title": "打开设置 · 会话",
+        "hint": "发送方式、工具输出、时间戳与思考强度",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "设置"
+        ]
+      },
+      {
+        "title": "打开设置 · 扩展",
+        "hint": "扩展、技能与 MCP 服务列表",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "设置"
+        ]
+      },
+      {
+        "title": "打开设置 · 系统",
+        "hint": "通知、托盘与数据目录",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "设置"
+        ]
+      },
+      {
+        "title": "关闭时最小化到托盘",
+        "hint": "设置 · 系统",
+        "group": "设置",
+        "active": false,
+        "disabled": false,
+        "marks": [
+          "时最"
+        ]
+      }
+    ],
+    "footer": "↑↓ 选择↵ 执行Esc 关闭",
+    "activeDescendant": "soxu-command-option-0",
+    "notice": null,
+    "focused": "cp-input",
+    "pinyin": "ready"
+  },
+  "settingRow": {
+    "open": true,
+    "query": "消息时间戳",
+    "count": "1 条命令",
+    "rows": [
+      {
+        "title": "消息时间戳",
+        "hint": "设置 · 会话",
+        "group": "设置",
+        "active": true,
+        "disabled": false,
+        "marks": [
+          "消息时间戳"
+        ]
+      }
+    ],
+    "footer": "↑↓ 选择↵ 执行Esc 关闭",
+    "activeDescendant": "soxu-command-option-0",
+    "notice": null,
+    "focused": "cp-input",
+    "pinyin": "ready"
+  },
+  "settingRun": {
+    "ids": [
+      "panel.search",
+      "setting.session.showTimestamps"
+    ],
+    "actions": [
+      "openSearch",
+      "openSettings:session"
+    ]
+  },
+  "noResults": {
+    "open": true,
+    "query": "xxt",
+    "count": "没有匹配的命令",
+    "rows": [],
+    "footer": "↑↓ 选择↵ 执行Esc 关闭",
+    "activeDescendant": null,
+    "notice": null,
+    "focused": "cp-input",
+    "pinyin": "ready"
+  },
+  "dark": {
+    "panelBackground": "rgb(33, 33, 33)",
+    "rows": 11
+  },
+  "a11y": {
+    "dialog": "dialog",
+    "modal": "true",
+    "combobox": "combobox",
+    "controls": "soxu-command-list",
+    "listbox": "listbox",
+    "options": 11,
+    "selected": 1,
+    "statusRole": "status"
+  },
+  "focus": {
+    "opened": {
+      "id": "",
+      "className": "cp-input",
+      "insidePalette": true
+    },
+    "afterTab": {
+      "id": "",
+      "className": "cp-input",
+      "insidePalette": true
+    },
+    "afterShiftTab": {
+      "id": "",
+      "className": "cp-input",
+      "insidePalette": true
+    }
+  },
+  "focusRestored": {
+    "id": "harness-trigger",
+    "className": "",
+    "insidePalette": false
+  },
+  "settingsRetarget": {
+    "baseline": 1,
+    "firstOpen": {
+      "open": true,
+      "activeTab": "系统",
+      "request": 2,
+      "log": [
+        {
+          "tab": "session",
+          "request": 1
+        },
+        {
+          "tab": "system",
+          "request": 2
+        }
+      ],
+      "tabs": [
+        "外观",
+        "会话",
+        "扩展",
+        "系统"
+      ]
+    },
+    "retargeted": {
+      "open": true,
+      "activeTab": "外观",
+      "request": 3,
+      "log": [
+        {
+          "tab": "session",
+          "request": 1
+        },
+        {
+          "tab": "system",
+          "request": 2
+        },
+        {
+          "tab": "appearance",
+          "request": 3
+        }
+      ],
+      "tabs": [
+        "外观",
+        "会话",
+        "扩展",
+        "系统"
+      ]
+    }
+  },
+  "ok": true
+}

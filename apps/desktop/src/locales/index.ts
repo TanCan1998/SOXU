@@ -19,10 +19,12 @@
 
 import { shallowRef, type Ref, type ShallowRef } from "vue";
 
+import enUSCommands from "./en-US/commands.json" with { type: "json" };
 import enUSCommon from "./en-US/common.json" with { type: "json" };
 import enUSComposer from "./en-US/composer.json" with { type: "json" };
 import enUSSession from "./en-US/session.json" with { type: "json" };
 import enUSSettings from "./en-US/settings.json" with { type: "json" };
+import zhCNCommands from "./zh-CN/commands.json" with { type: "json" };
 import zhCNCommon from "./zh-CN/common.json" with { type: "json" };
 import zhCNComposer from "./zh-CN/composer.json" with { type: "json" };
 import zhCNSession from "./zh-CN/session.json" with { type: "json" };
@@ -147,15 +149,18 @@ export function buildLocaleMessages(modules: LocaleModuleSet): Record<string, st
 
 /** 内置语言的全部模块。新增模块时在这里登记一次，两个语言必须同时提供。 */
 const BUILTIN_MODULES: Record<BuiltinLocaleTag, LocaleModuleSet> = {
-  // session / composer 是 Issue #144（TASK-034）的存量迁移产物：
-  // 会话区与输入区的文案按界面切片归属，与 settings（设置页）互不重叠。
+  // 模块按界面切片归属：common / commands（命令面板，Issue #145）/
+  // composer + session（会话区与输入区，Issue #144）/ settings（设置页，Issue #145）。
+  // 切片之间互不重叠，一个切片只改自己模块的包，避免并行改动把语言包变成冲突热点。
   "zh-CN": {
+    commands: zhCNCommands,
     common: zhCNCommon,
     composer: zhCNComposer,
     session: zhCNSession,
     settings: zhCNSettings,
   },
   "en-US": {
+    commands: enUSCommands,
     common: enUSCommon,
     composer: enUSComposer,
     session: enUSSession,

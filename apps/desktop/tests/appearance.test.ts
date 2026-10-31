@@ -576,12 +576,15 @@ test("设置面板文案与真实作用域一致：等宽档说的是「界面�
   // 说明文案写在该字段的 <template #note> 里；取到这一行的 </SettingsRow> 为止。
   const rowEnd = withoutComments.indexOf("</SettingsRow>", fieldStart);
   assert.ok(rowEnd > fieldStart, "界面字体字段应该是一个完整的设置行");
-  const note = withoutComments
-    .slice(fieldStart, rowEnd)
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const noteSource = withoutComments.slice(fieldStart, rowEnd);
+  assert.ok(
+    noteSource.includes('t("settings.note.appearance.font.family")'),
+    "说明文案自 Issue #145 起走语言包",
+  );
 
+  // 文案内容在基准包里：仍然要求它点到「界面」与「正文」。
+  const zh = JSON.parse(await readSource("locales/zh-CN/settings.json")) as Record<string, string>;
+  const note = zh["note.appearance.font.family"] ?? "";
   assert.match(note, /界面/, "文案必须说明这一项改的是界面字体");
   assert.match(note, /正文/, "文案必须说明会话正文不受影响");
   assert.doesNotMatch(

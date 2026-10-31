@@ -1,12 +1,19 @@
-//! 系统托盘：关闭主窗口只隐藏到托盘，托盘负责恢复窗口或真正退出进程。
+//! 系统托盘：关闭主窗口是否隐藏到托盘由用户偏好决定，托盘负责恢复窗口或真正退出进程。
 //!
 //! 托盘完全由 Rust 侧创建，不向 WebView 暴露任何新能力（`capabilities/default.json`
 //! 不需要改动）。窗口隐藏后进程与 Supervisor 继续存活，因此隐藏不会中断运行中的会话；
-//! 真正结束进程只有「托盘 → 退出」一条路径，`RunEvent::Exit` 仍会回收受管 Pi 进程。
+//! 真正结束进程有两条路径：「托盘 → 退出」与「关闭时最小化到托盘」关闭时的窗口 ×。
+//! `RunEvent::Exit` 仍会回收受管 Pi 进程。
+//!
+//! 偏好来源（Issue #145）：前端「设置 → 系统 → 关闭时最小化到托盘」经命令
+//! `set_close_behavior` 写入受管的 `ClosePreference`。Rust 不在启动时读 localStorage
+//! （那是 WebView 的存储），因此默认值与前端默认值保持一致（true），前端挂载后立刻推一次。
 //!
 //! 隐藏后必须留下可感知的痕迹（Issue #101）：窗口消失本身就是「点 × 有反应」的
 //! 全部证据，所以隐藏成功会把托盘 tooltip 换成「已最小化到托盘 · 单击图标显示窗口」，
 //! 恢复可见时再改回来。这里不加通知插件，避免为一句提示引入常驻依赖与权限。
+
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -54,10 +61,42 @@ pub enum CloseAction {
     Default,
 }
 
-/// 托盘不可用时隐藏窗口会让应用再也无法恢复，因此必须回落到默认关闭行为
-/// （例如 Linux 缺少 `libayatana-appindicator` 运行时导致托盘创建失败）。
-pub fn close_action(tray_present: bool) -> CloseAction {
-    if tray_present {
+/// 「关闭时最小化到托盘」偏好的唯一镜像（Issue #145）。
+///
+/// 为什么是受管状态而不是读磁盘：偏好本身存在 WebView 的 localStorage 里，
+/// Rust 侧不需要、也不应该去解析它；前端在挂载时与每次改动时把布尔值推过来即可。
+/// 一个 AtomicBool 就够——读发生在窗口事件回调里，不阻塞、不需要锁。
+pub struct ClosePreference(AtomicBool);
+
+impl ClosePreference {
+    /// 默认值与前端 `DEFAULT_SYSTEM_SETTINGS.minimizeToTray` 一致（true）。
+    pub fn new(minimize_to_tray: bool) -> Self {
+        Self(AtomicBool::new(minimize_to_tray))
+    }
+
+    pub fn set_minimize_to_tray(&self, enabled: bool) {
+        self.0.store(enabled, Ordering::Relaxed);
+    }
+
+    pub fn minimize_to_tray(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
+impl Default for ClosePreference {
+    fn default() -> Self {
+        Self::new(true)
+    }
+}
+
+/// 关闭请求的最终裁决：托盘存在**且**用户选择最小化到托盘时隐藏，否则按系统默认关闭。
+///
+/// 两个条件缺一不可：
+/// - 托盘创建失败（例如 Linux 缺少 `libayatana-appindicator`）时隐藏会让窗口再也无法恢复，
+///   必须回落到默认关闭，无论用户偏好是什么；
+/// - 用户把「关闭时最小化到托盘」关掉时，点 × 就是要退出进程（Issue #145 的验收点）。
+pub fn close_action(tray_present: bool, minimize_to_tray: bool) -> CloseAction {
+    if tray_present && minimize_to_tray {
         CloseAction::HideToTray
     } else {
         CloseAction::Default
@@ -158,13 +197,19 @@ pub fn handle_tray_icon_event<R: Runtime>(tray: &TrayIcon<R>, event: TrayIconEve
     }
 }
 
-/// 处理窗口事件：托盘可用时把关闭请求改成隐藏。
+/// 处理窗口事件：托盘可用且用户选择「最小化到托盘」时，把关闭请求改成隐藏。
 pub fn handle_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
     let WindowEvent::CloseRequested { api, .. } = event else {
         return;
     };
-    let tray_present = window.app_handle().tray_by_id(TRAY_ID).is_some();
-    if close_action(tray_present) == CloseAction::HideToTray {
+    let app = window.app_handle();
+    let tray_present = app.tray_by_id(TRAY_ID).is_some();
+    // 偏好没登记（例如测试宿主）时按默认值 true 处理：托盘存在就隐藏，与改动前一致。
+    let minimize_to_tray = app
+        .try_state::<ClosePreference>()
+        .map(|preference| preference.minimize_to_tray())
+        .unwrap_or(true);
+    if close_action(tray_present, minimize_to_tray) == CloseAction::HideToTray {
         // 顺序不能反：先阻止关闭，再隐藏；否则窗口已被销毁，托盘无法恢复。
         api.prevent_close();
         if let Err(error) = window.hide() {
@@ -172,7 +217,7 @@ pub fn handle_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) 
             return;
         }
         // 隐藏成功后才改提示：hide 失败时窗口仍在，提示必须继续描述「窗口可见」。
-        sync_tooltip(window.app_handle(), true);
+        sync_tooltip(app, true);
     }
 }
 

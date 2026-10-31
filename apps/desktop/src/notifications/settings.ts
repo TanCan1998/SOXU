@@ -233,6 +233,24 @@ export function resolveToastDuration(
 }
 
 /**
+ * 系统页「任务完成通知」总开关（Issue #145）。
+ *
+ * 设置 → 系统 → 任务完成通知 是**总闸**，关闭后：
+ * - 会话完成（sessionCompleted）与运行出错（sessionError）都不再提醒；
+ * - 等待输入（awaitingInput）仍然提醒——那不是「一次任务完成」，而是用户正等着回应的交互，
+ *   一起静音会让 Agent 卡在那里却没人知道。
+ *
+ * 纯函数：store 与测试共用同一份判定，避免「设置关了但某个分支还在弹」。
+ */
+export function isSystemNotificationEnabled(
+  kind: NotificationEventKind,
+  system: { notifyOnComplete: boolean },
+): boolean {
+  if (system.notifyOnComplete) return true;
+  return kind === "awaitingInput";
+}
+
+/**
  * 是否该出声。
  *
  * toast 是否显示由事件开关单独决定：这个函数只管声音，所以「仅失焦时提醒」

@@ -10,6 +10,8 @@ apps/desktop/src-tauri/target/
 
 # SOXU Agent Loop runtime
 .soxu/
+# 临时调试脚本目录（走查期间的探针，不进仓库）
+.soxu-tmp/
 
 # Logs
 *.log

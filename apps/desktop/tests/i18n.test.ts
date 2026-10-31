@@ -563,7 +563,8 @@ test("语言包组件：走 t()、用统一的设置控件、失败用 alert 暴
 test("语言包区接进扩展页，扩展页本身只读、不写存储", async () => {
   const page = await readSourceFile("components/settings/SettingsExtensions.vue");
   assert.ok(page.includes("SettingsLocale"), "扩展页要渲染语言包区");
-  assert.ok(page.includes("仅供查阅"), "只读清单要如实说明用途");
+  // Issue #145 起这句说明在语言包里：源码里断言 key，措辞在基准包中断言。
+  assert.ok(page.includes('t("settings.extensions.intro")'), "只读清单要如实说明用途");
   assert.doesNotMatch(page, /localStorage|persist[A-Z]|invoke\(/u, "只读页本身不写存储、不发 IPC");
 });
 

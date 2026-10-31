@@ -342,21 +342,31 @@ async function main() {
     );
     report.shots.push(await screenshot(cdp, "04-extensions-light.png"));
 
-    // ---- 系统页：7 行 + 复制路径 + 检查更新禁用
+    // ---- 系统页：5 行 + 复制路径 + 打开数据目录（Issue #145 移除了两个更新入口）
     await clickElement(cdp, byRoleText("tab", "系统"));
-    await waitFor("系统页", async () => cdp.evaluate("document.querySelectorAll('.row').length >= 7"));
+    await waitFor("系统页", async () => cdp.evaluate("document.querySelectorAll('.row').length >= 5"));
     report.system = await cdp.evaluate(
       "({ rows: document.querySelectorAll('.row').length," +
-        " checkUpdateDisabled: Array.from(document.querySelectorAll('button.action'))" +
-        "   .find((el) => el.textContent.trim() === '检查更新')?.disabled ?? null," +
-        " about: document.querySelectorAll('.row')[6]?.textContent?.replace(/\\s+/g, ' ').trim() ?? null })",
+        " hasOpenDataDir: Array.from(document.querySelectorAll('button.action'))" +
+        "   .some((el) => el.textContent.trim() === '打开数据目录')," +
+        " hasUpdateEntry: document.body.textContent.includes('检查更新')" +
+        "   || document.body.textContent.includes('自动更新')," +
+        " about: document.querySelectorAll('.row')[4]?.textContent?.replace(/\\s+/g, ' ').trim() ?? null })",
     );
+    check("系统页没有更新入口（发布通道落地前移除）", report.system.hasUpdateEntry === false, report.system);
+    check("系统页有「打开数据目录」", report.system.hasOpenDataDir === true, report.system);
     report.shots.push(await screenshot(cdp, "05-system-light.png"));
-    // 三个开关只做持久化：点掉「自动更新」后存储里要能看到 false
+    // 两个开关都真接线：点掉「任务完成通知」后存储里要能看到 false
     await clickElement(cdp, "document.querySelectorAll('[role=switch]')[0]");
     report.systemToggled = await cdp.evaluate("window.__soxu116.read()");
     await clickElement(cdp, byText("button.action", "复制路径"));
     report.copy = await cdp.evaluate("window.__soxu116.read()");
+    await clickElement(cdp, byText("button.action", "打开数据目录"));
+    report.openDataDir = await cdp.evaluate("window.__soxu116.read()");
+    check("「打开数据目录」接到真实动作", report.openDataDir.openDataDirCount === 1, {
+      count: report.openDataDir.openDataDirCount,
+      state: report.openDataDir.openState,
+    });
 
     // ---- 深色主题：走 App.vue 同一条圆形扩散路径
     await clickElement(cdp, byRoleText("tab", "外观"));
@@ -408,6 +418,85 @@ async function main() {
     await clickElement(cdp, bySelector("#harness-open"));
     await waitFor("重启后弹窗", async () => cdp.evaluate("Boolean(document.querySelector('[role=\"dialog\"]'))"));
     report.shots.push(await screenshot(cdp, "08-after-reload-dark-violet.png"));
+
+    // ---- Issue #145：切到 en-US 后设置页全英文
+    // （源码级断言在 tests/productI18n.test.ts；这里量的是真实渲染出来的文字）
+    await cdp.evaluate("window.__soxu116.setLocale('en-US')");
+    await sleep(500);
+    report.english = await cdp.evaluate(
+      "({ text: (document.querySelector('[role=dialog]')?.textContent ?? '').replace(/\\s+/g, ' ').trim()," +
+        " tabs: Array.from(document.querySelectorAll('[role=tab]')).map((el) => el.textContent.trim())," +
+        " rows: Array.from(document.querySelectorAll('.row-label')).map((el) => el.textContent.trim()) })",
+    );
+    const CJK = /[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]/u;
+    check("en-US 下设置页没有中文文案", !CJK.test(report.english.text), {
+      text: report.english.text.slice(0, 200),
+    });
+    check(
+      "en-US 下四个标签页是英文",
+      report.english.tabs.join(",") === "Appearance,Session,Extensions,System",
+      report.english.tabs,
+    );
+    report.shots.push(await screenshot(cdp, "09-settings-en-us.png"));
+
+    // 扩展页：静态清单（12 个扩展 + 技能 + MCP）也要全英文
+    await clickElement(cdp, byRoleText("tab", "Extensions"));
+    await waitFor("en-US 扩展页", async () =>
+      cdp.evaluate("document.querySelectorAll('.item').length >= 12"),
+    );
+    /*
+     * 复审阻塞点（Issue #145）：上一版只读 `[role=tabpanel]` 的 textContent，
+     * 取到空串时 !CJK.test("") 恒真——「没有中文」就变成了一条永远成立的断言。
+     * 现在同时量三件事：条目数量、每个条目是否有真实文案、面板文本是否够长，
+     * 并把「文本必须够长」写进断言本身，空文本一律判失败。
+     */
+    report.englishExtensions = await cdp.evaluate(
+      "(() => {" +
+        " const items = Array.from(document.querySelectorAll('.item'))" +
+        "   .map((el) => (el.textContent ?? '').replace(/\\s+/g, ' ').trim());" +
+        " const panels = Array.from(document.querySelectorAll('[role=tabpanel]'));" +
+        " const visible = panels.filter((panel) => !panel.hasAttribute('hidden'));" +
+        " const panelText = visible.map((panel) => panel.textContent ?? '')" +
+        "   .join(' ').replace(/\\s+/g, ' ').trim();" +
+        " return { items: items.length," +
+        "   emptyItems: items.filter((text) => text.length === 0).length," +
+        "   shortestItem: items.reduce((min, text) => Math.min(min, text.length), Number.POSITIVE_INFINITY)," +
+        "   itemText: items.join(' | ')," +
+        "   panels: panels.length," +
+        "   visiblePanels: visible.length," +
+        "   panelText }; })()",
+    );
+    check(
+      "en-US 下扩展页 20 个条目全部渲染（12 个扩展 + 4 个技能 + 4 个 MCP）",
+      report.englishExtensions.items === 20 && report.englishExtensions.emptyItems === 0,
+      { items: report.englishExtensions.items, emptyItems: report.englishExtensions.emptyItems },
+    );
+    check(
+      "en-US 下扩展页每个条目都有真实文案（空文本不能让 CJK 断言恒真）",
+      report.englishExtensions.shortestItem >= 10,
+      { shortestItem: report.englishExtensions.shortestItem },
+    );
+    check(
+      "en-US 下扩展页面板渲染出内容（面板文本非空）",
+      report.englishExtensions.panelText.length >= 200,
+      {
+        panels: report.englishExtensions.panels,
+        visiblePanels: report.englishExtensions.visiblePanels,
+        length: report.englishExtensions.panelText.length,
+      },
+    );
+    check(
+      "en-US 下扩展页没有中文文案",
+      report.englishExtensions.panelText.length >= 200 &&
+        !CJK.test(report.englishExtensions.panelText) &&
+        !CJK.test(report.englishExtensions.itemText),
+      {
+        panel: report.englishExtensions.panelText.slice(0, 200),
+        items: report.englishExtensions.itemText.slice(0, 200),
+      },
+    );
+    report.shots.push(await screenshot(cdp, "10-extensions-en-us.png"));
+    await cdp.evaluate("window.__soxu116.setLocale('zh-CN')");
 
     report.pageErrors = cdp.errors;
     report.checks = checks;

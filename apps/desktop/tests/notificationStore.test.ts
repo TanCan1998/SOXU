@@ -94,6 +94,48 @@ test("store：事件开关关闭时既不弹窗也不记历史", async () => {
   });
 });
 
+test("store：系统页「任务完成通知」关闭后完成/出错不提醒，等待输入照旧（Issue #145）", async () => {
+  await withStorage(async () => {
+    const store = freshStore();
+    try {
+      const off = { notifyOnComplete: false };
+      // 完成与出错都属于「任务完成通知」的范围。
+      assert.equal(store.handleRuntimeEvent(event({ type: "settled" }), { title: "发布" }, {}, off), null);
+      assert.equal(
+        store.handleRuntimeEvent(
+          event({ type: "exit", code: 1, reason: "crash" }),
+          { title: "发布" },
+          {},
+          off,
+        ),
+        null,
+      );
+      assert.equal(store.toasts.length, 0, "总闸关闭后不弹 toast");
+      assert.equal(store.history.length, 0, "总闸关闭后不记历史");
+
+      // 等待输入不是「任务完成」：仍然提醒，否则 Agent 会卡在等人回应却没人知道。
+      store.setEventEnabled("awaitingInput", true);
+      const waiting = store.handleRuntimeEvent(
+        event({ type: "warning", detail: "未处理的记录类型：extension_ui_request" }),
+        { title: "发布" },
+        {},
+        off,
+      );
+      assert.ok(waiting, "等待输入必须仍然提醒");
+      assert.equal(waiting.kind, "awaitingInput");
+
+      // 总闸打开后立刻恢复（getter 语义：不重新订阅也能按新值判断）。
+      const completed = store.handleRuntimeEvent(event({ type: "settled" }), { title: "发布" }, {}, {
+        notifyOnComplete: true,
+      });
+      assert.ok(completed);
+      assert.equal(completed.kind, "sessionCompleted");
+    } finally {
+      store.dispose();
+    }
+  });
+});
+
 test("store：运行时事件 → 通知，且按 dedupeKey 合并交互请求", async () => {
   await withStorage(async () => {
     const store = freshStore();

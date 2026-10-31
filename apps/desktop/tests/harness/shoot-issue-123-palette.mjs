@@ -247,7 +247,8 @@ async function main() {
     report.shots.push(await screenshot(cdp, "01-light-open.png"));
     check("open-focused", opened.open && opened.focused === "cp-input", opened.focused);
     check("pinyin-lazy-loaded", opened.pinyin === "ready", opened.pinyin);
-    check("all-commands-listed", opened.rows.length === 36, opened.rows.length);
+    // Issue #145 移除了两个更新入口，命令总数 36 → 34。
+  check("all-commands-listed", opened.rows.length === 34, opened.rows.length);
     check(
       "footer-hints",
       opened.footer.includes("选择") && opened.footer.includes("执行") && opened.footer.includes("关闭"),

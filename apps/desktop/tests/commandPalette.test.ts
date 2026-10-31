@@ -34,14 +34,22 @@ import {
   type PinyinChar,
 } from "../src/commands/match.ts";
 import {
-  COMMANDS,
+  buildCommands,
   clampActiveIndex,
   commandContext,
   nextActiveIndex,
   paletteKeyAction,
+  type CommandEntry,
 } from "../src/commands/registry.ts";
 import { FOCUSABLE_SELECTOR, focusTargetIndex } from "../src/commands/focusTrap.ts";
-import { SETTINGS_ENTRIES, SETTINGS_TABS, settingsEntry } from "../src/settings/catalog.ts";
+import { useLocale } from "../src/locales/index.ts";
+import {
+  SETTINGS_ENTRIES,
+  SETTINGS_TABS,
+  settingsEntry,
+  settingsEntryView,
+  settingsTabView,
+} from "../src/settings/catalog.ts";
 
 const SRC_ROOT = fileURLToPath(new URL("../src", import.meta.url));
 
@@ -61,7 +69,18 @@ function installPinyin(): void {
   );
 }
 
-before(() => {
+/**
+ * 命令清单与当前语言绑定（Issue #145）：注册表只存 key，标题由 t() 解析。
+ *
+ * 语言显式钉成 zh-CN：默认语言来自系统（CI 是 en-US、开发机多为 zh-CN），
+ * 不钉住的话「dk 命中所有以『打开』开头的命令」这类断言会随机器漂移。
+ */
+const { t, setLocale } = useLocale();
+let COMMANDS: readonly CommandEntry[] = buildCommands(t);
+
+before(async () => {
+  await setLocale("zh-CN", { persist: false });
+  COMMANDS = buildCommands(t);
   installPinyin();
 });
 
@@ -256,7 +275,10 @@ test("命令 id 与标题都唯一，且每条命令都有可执行实现", () =
     assert.ok(!titles.has(command.title), "命令标题重复：" + command.title);
     titles.add(command.title);
     assert.equal(typeof command.run, "function", command.id + " 必须有执行实现");
-    assert.ok(["面板", "会话", "设置", "系统"].includes(command.group), "分组取值受控");
+    assert.ok(
+      ["panel", "session", "settings", "system"].includes(command.group),
+      "分组取值受控（稳定 id，不是文案）",
+    );
   }
 });
 
@@ -264,13 +286,17 @@ test("设置类命令由 settings/catalog.ts 生成，不复制标题", () => {
   for (const tab of SETTINGS_TABS) {
     const id = "settings.tab." + tab.id;
     assert.ok(COMMANDS.some((command) => command.id === id), "缺少设置页命令：" + id);
-    assert.equal(titleOf(id), "打开设置 · " + tab.label);
+    assert.equal(titleOf(id), "打开设置 · " + settingsTabView(tab, t).label);
   }
   for (const entry of SETTINGS_ENTRIES) {
     const id = "setting." + entry.id;
     const command = COMMANDS.find((candidate) => candidate.id === id);
     assert.ok(command, "缺少设置项命令：" + id);
-    assert.equal(command.title, entry.label, "命令标题必须等于设置项的可见标题");
+    assert.equal(
+      command.title,
+      settingsEntryView(entry, t).label,
+      "命令标题必须等于设置项的可见标题",
+    );
   }
 });
 
@@ -369,9 +395,16 @@ test("命令面板：ARIA 结构、底部快捷键提示、纯渲染无资源", 
   }
 
   // 底部快捷键提示是验收点的一部分：↑↓ 选择 / ↵ 执行 / Esc 关闭。
-  assert.ok(palette.includes("选择"), "底部提示要说明 ↑↓ 选择");
-  assert.ok(palette.includes("执行"), "底部提示要说明 ↵ 执行");
-  assert.ok(palette.includes("关闭"), "底部提示要说明 Esc 关闭");
+  // 文案自 Issue #145 起走语言包，源码里断言 key，字面量在 locales/*/commands.json。
+  assert.ok(
+    palette.includes('t("commands.palette.footer.select")'),
+    "底部提示要说明 ↑↓ 选择",
+  );
+  assert.ok(palette.includes('t("commands.palette.footer.run")'), "底部提示要说明 ↵ 执行");
+  assert.ok(
+    palette.includes('t("commands.palette.footer.close")'),
+    "底部提示要说明 Esc 关闭",
+  );
 
   assert.ok(palette.includes('emit("run"'), "执行结果交给上层");
   assert.ok(palette.includes('emit("close"'), "Esc / 点击遮罩关闭");
@@ -407,7 +440,7 @@ test("App.vue：Ctrl+K 打开命令面板，命令由注册表注入，设置可
   assert.ok(app.includes('import CommandPalette from "./components/CommandPalette.vue"'));
   assert.ok(app.includes('from "./commands/registry.ts"'), "命令清单来自注册表");
   assert.match(app, /paletteOpen\.value = !paletteOpen\.value/, "Ctrl+K 是开/关切换");
-  assert.match(app, /<CommandPalette[\s\S]{0,200}:commands="COMMANDS"/);
+  assert.match(app, /<CommandPalette[\s\S]{0,200}:commands="commands"/);
   assert.match(app, /<CommandPalette[\s\S]{0,200}:context="paletteContext"/);
   assert.ok(app.includes('@run="runCommand"'));
   assert.ok(app.includes('@close="paletteOpen = false"'));
@@ -426,7 +459,7 @@ test("SettingsDialog：initialTab 只是初始页，普通打开仍停留在上�
   const dialog = await readSource("components/SettingsDialog.vue");
   assert.ok(dialog.includes("initialTab: SettingsTabId | null"));
   assert.match(dialog, /if \(props\.initialTab\) tab\.value = props\.initialTab/);
-  assert.ok(dialog.includes("SETTINGS_TABS"), "标签页来自 catalog.ts");
+  assert.ok(dialog.includes("settingsTabs"), "标签页来自 catalog.ts（按当前语言解析）");
   // 复审阻塞点：设置已经开着时，新请求也必须切页（判定在 settings/openRequest.ts）。
   assert.ok(dialog.includes("settingsOpenTransition"), "已打开时的换页判定走纯函数");
   assert.ok(dialog.includes("request: number"), "弹窗接收打开请求序号");
@@ -460,5 +493,6 @@ test("命令面板读的是同一份设置元数据（不重复维护）", async
   const registry = await readSource("commands/registry.ts");
   assert.ok(registry.includes("SETTINGS_ENTRIES"), "设置项命令由目录生成");
   assert.ok(registry.includes("SETTINGS_TABS"), "设置页命令由目录生成");
-  assert.doesNotMatch(registry, /title: "主题"/, "注册表里不得出现设置项标题字面量");
+  // Issue #145：注册表只存语言包 key，任何标题字面量（中英文都一样）都不该出现。
+  assert.doesNotMatch(registry, /title:\s*"/, "注册表里不得出现标题字面量");
 });

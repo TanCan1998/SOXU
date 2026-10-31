@@ -1,0 +1,329 @@
+{
+  "generatedAt": "2026-10-31T07:47:04.839Z",
+  "environment": {
+    "exe": "F:\\workplace\\pi\\soxu-worktrees\\github-issue-145-m1-task-035-i18n\\target\\debug\\soxu-desktop.exe",
+    "vitePort": 1420,
+    "cdpPort": 9451,
+    "viewport": {
+      "width": 1280,
+      "height": 820
+    },
+    "platform": "win32",
+    "node": "v26.10.0"
+  },
+  "trayOn": {
+    "switch": {
+      "changed": false,
+      "value": "true"
+    },
+    "switchShot": "desktop-tray-on-switch-on.png",
+    "switchCrop": {
+      "file": "desktop-tray-on-switch-crop.png",
+      "md5": "8420cd649ec9fc629f0b556e4a3406ce",
+      "checked": "true"
+    },
+    "storageBefore": "{\"autoUpdate\":true,\"notifyOnComplete\":false,\"minimizeToTray\":true}",
+    "closePath": "escape",
+    "consoleWarnings": [],
+    "beforeClose": {
+      "process": "alive",
+      "window": "visible",
+      "tree": {
+        "total": 6,
+        "byName": {
+          "msedgewebview2.exe": 6
+        }
+      }
+    },
+    "closeMainWindow": "True",
+    "afterClose": {
+      "process": "alive",
+      "window": "hidden",
+      "windows": [
+        "tray_icon_app|hidden",
+        "Tauri Window|hidden",
+        "Tao Thread Event Target|visible",
+        "MSCTFIME UI|hidden",
+        "IME|hidden"
+      ],
+      "tree": {
+        "total": 6,
+        "byName": {
+          "msedgewebview2.exe": 6
+        }
+      }
+    },
+    "visibilityState": "visible",
+    "stderr": "",
+    "restored": {
+      "written": {
+        "autoUpdate": true,
+        "notifyOnComplete": true,
+        "minimizeToTray": true
+      },
+      "readBack": "{\"autoUpdate\":true,\"notifyOnComplete\":true,\"minimizeToTray\":true}"
+    }
+  },
+  "trayOff": {
+    "switch": {
+      "changed": true,
+      "value": "false"
+    },
+    "switchShot": "desktop-tray-off-switch-off.png",
+    "switchCrop": {
+      "file": "desktop-tray-off-switch-crop.png",
+      "md5": "593fd0f84cff012e22261f3fca750d20",
+      "checked": "false"
+    },
+    "storageBefore": "{\"autoUpdate\":true,\"notifyOnComplete\":false,\"minimizeToTray\":false}",
+    "closePath": "escape",
+    "consoleWarnings": [],
+    "beforeClose": {
+      "process": "alive",
+      "window": "visible",
+      "tree": {
+        "total": 6,
+        "byName": {
+          "msedgewebview2.exe": 6
+        }
+      }
+    },
+    "closeMainWindow": "True",
+    "afterClose": {
+      "process": "gone",
+      "window": "missing",
+      "windows": [],
+      "tree": {
+        "total": 0,
+        "byName": {}
+      }
+    },
+    "restored": {
+      "written": {
+        "autoUpdate": true,
+        "notifyOnComplete": true,
+        "minimizeToTray": true
+      },
+      "readBack": "{\"autoUpdate\":true,\"notifyOnComplete\":true,\"minimizeToTray\":true}"
+    }
+  },
+  "notify": {
+    "paletteCommand": "clicked",
+    "eventTap": "wrapped:1",
+    "sessionId": "ses_tmp_cf24eafe65e5e0ee",
+    "retained": 1,
+    "switchOn": {
+      "changed": false,
+      "value": "true"
+    },
+    "toastOn": {
+      "title": "会话完成",
+      "body": "「临时会话」已完成这一轮回答"
+    },
+    "stderr": "",
+    "diagnostics": {
+      "composerValue": "",
+      "toasts": 1,
+      "toastKinds": [
+        "sessionCompleted"
+      ],
+      "messageCount": 0,
+      "statusLine": null
+    },
+    "storage": "{\"soxu.theme\":\"dark\",\"soxu.system\":\"{\\\"autoUpdate\\\":true,\\\"notifyOnComplete\\\":true,\\\"minimizeToTray\\\":true}\"}",
+    "consoleIssues": [],
+    "events": [
+      {
+        "event": "soxu://runtime-event",
+        "type": "state",
+        "generation": 1,
+        "runtimeId": "ses_tmp_cf24eafe65e5e0ee#1"
+      },
+      {
+        "event": "soxu://runtime-event",
+        "type": "state",
+        "generation": 1,
+        "runtimeId": "ses_tmp_cf24eafe65e5e0ee#1"
+      },
+      {
+        "event": "soxu://runtime-event",
+        "type": "stream",
+        "generation": 1,
+        "runtimeId": "ses_tmp_cf24eafe65e5e0ee#1"
+      },
+      {
+        "event": "soxu://runtime-event",
+        "type": "state",
+        "generation": 1,
+        "runtimeId": "ses_tmp_cf24eafe65e5e0ee#1"
+      },
+      {
+        "event": "soxu://runtime-event",
+        "type": "settled",
+        "generation": 1,
+        "runtimeId": "ses_tmp_cf24eafe65e5e0ee#1"
+      }
+    ],
+    "shotToastOn": "desktop-notify-on-toast.png",
+    "switchOff": {
+      "changed": true,
+      "value": "false"
+    },
+    "toastCountBeforeOff": 0,
+    "toastCountAfterOff": {
+      "toasts": 0,
+      "completed": 0
+    },
+    "shotToastOff": "desktop-notify-off.png",
+    "restored": {
+      "written": {
+        "autoUpdate": true,
+        "notifyOnComplete": true,
+        "minimizeToTray": true
+      },
+      "readBack": "{\"autoUpdate\":true,\"notifyOnComplete\":true,\"minimizeToTray\":true}"
+    }
+  },
+  "dataDir": {
+    "click": "clicked",
+    "buttonLabels": [
+      "重置",
+      "复制路径",
+      "已打开"
+    ],
+    "explorerUrls": [
+      "file:///C:/Users/tanca/AppData/Roaming/dev.soxu.desktop",
+      "file:///C:/Users/tanca/AppData/Roaming/dev.soxu.desktop",
+      "file:///C:/Users/tanca/AppData/Roaming/dev.soxu.desktop",
+      "file:///C:/Users/tanca/AppData/Roaming/dev.soxu.desktop"
+    ],
+    "shot": "desktop-open-data-directory.png"
+  },
+  "checks": [
+    {
+      "name": "「关闭时最小化到托盘」= 开：开关已开且偏好推送没有 [system] 失败诊断",
+      "ok": true,
+      "switch": {
+        "changed": false,
+        "value": "true"
+      },
+      "warnings": []
+    },
+    {
+      "name": "「关闭时最小化到托盘」= 开：点 × 后进程仍在、主窗口存在但不可见",
+      "ok": true,
+      "process": "alive",
+      "window": "hidden",
+      "windows": [
+        "tray_icon_app|hidden",
+        "Tauri Window|hidden",
+        "Tao Thread Event Target|visible",
+        "MSCTFIME UI|hidden",
+        "IME|hidden"
+      ],
+      "tree": {
+        "total": 6,
+        "byName": {
+          "msedgewebview2.exe": 6
+        }
+      }
+    },
+    {
+      "name": "隐藏到托盘后 WebView2 子进程仍在（从托盘恢复时不会白屏）",
+      "ok": true,
+      "before": {
+        "total": 6,
+        "byName": {
+          "msedgewebview2.exe": 6
+        }
+      },
+      "after": {
+        "total": 6,
+        "byName": {
+          "msedgewebview2.exe": 6
+        }
+      }
+    },
+    {
+      "name": "关掉开关后前端把偏好推给 Rust（没有 [system] 同步失败诊断）",
+      "ok": true,
+      "switch": {
+        "changed": true,
+        "value": "false"
+      },
+      "warnings": []
+    },
+    {
+      "name": "「关闭时最小化到托盘」= 关：点 × 后 soxu-desktop.exe 退出（窗口随之消失）",
+      "ok": true,
+      "process": "gone",
+      "window": "missing",
+      "windows": [],
+      "tree": {
+        "total": 0,
+        "byName": {}
+      }
+    },
+    {
+      "name": "进程退出后没有残留子进程（整棵进程树一起结束）",
+      "ok": true,
+      "before": {
+        "total": 6,
+        "byName": {
+          "msedgewebview2.exe": 6
+        }
+      },
+      "after": {
+        "total": 0,
+        "byName": {}
+      }
+    },
+    {
+      "name": "通知开：完成一轮后真的弹出 sessionCompleted Toast",
+      "ok": true,
+      "toast": {
+        "title": "会话完成",
+        "body": "「临时会话」已完成这一轮回答"
+      }
+    },
+    {
+      "name": "通知关：同样的完成事件不再弹 Toast",
+      "ok": true,
+      "before": 0,
+      "after": {
+        "toasts": 0,
+        "completed": 0
+      }
+    },
+    {
+      "name": "「打开数据目录」打开了应用数据目录（资源管理器窗口）",
+      "ok": true,
+      "urls": [
+        "file:///C:/Users/tanca/AppData/Roaming/dev.soxu.desktop",
+        "file:///C:/Users/tanca/AppData/Roaming/dev.soxu.desktop",
+        "file:///C:/Users/tanca/AppData/Roaming/dev.soxu.desktop",
+        "file:///C:/Users/tanca/AppData/Roaming/dev.soxu.desktop"
+      ],
+      "labels": [
+        "重置",
+        "复制路径",
+        "已打开"
+      ]
+    },
+    {
+      "name": "两张托盘证据截图的开关区域确实不同（截图反映开关状态，不是同一张图）",
+      "ok": true,
+      "on": {
+        "file": "desktop-tray-on-switch-crop.png",
+        "md5": "8420cd649ec9fc629f0b556e4a3406ce",
+        "checked": "true"
+      },
+      "off": {
+        "file": "desktop-tray-off-switch-crop.png",
+        "md5": "593fd0f84cff012e22261f3fca750d20",
+        "checked": "false"
+      }
+    }
+  ],
+  "piSpawns": "spawn args=[\"--mode\", \"rpc\"]\nstart\ncommand get_state\ncommand prompt\ncommand prompt\n"
+}

@@ -11,12 +11,17 @@
 
   键盘可达（验收点）：输入 → ↑↓ 选择 → ↵ 执行 → Esc 关闭，全程不需要鼠标。
   DOM 有上界：结果最多 MAX_RESULTS 条（见 commands/match.ts），不会随命令增长而爆。
+
+  文案（Issue #145）：面板自身与命令标题都走语言包，组件里不再有中文标题字面量；
+  命令清单由 App.vue 传入（buildCommands(t) 的结果），切换语言后 props.commands 变化，
+  这里的结果行、条数说明与空态提示一起重算。
 -->
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Search } from "@lucide/vue";
 
 import { FOCUSABLE_SELECTOR, focusTargetIndex } from "../commands/focusTrap.ts";
+import { useLocale } from "../locales/index.ts";
 import {
   clampActiveIndex,
   nextActiveIndex,
@@ -33,7 +38,7 @@ import {
 } from "../commands/match.ts";
 
 const props = defineProps<{
-  /** 命令清单；由 App.vue 传入 COMMANDS，测试可以塞夹具。 */
+  /** 命令清单；由 App.vue 传入 buildCommands(t) 的结果，测试可以塞夹具。 */
   commands: readonly CommandEntry[];
   /** 可用性上下文（是否有会话 / 项目）。 */
   context: CommandContext;
@@ -45,6 +50,7 @@ const emit = defineEmits<{
   (event: "run", command: CommandEntry): void;
 }>();
 
+const { t } = useLocale();
 const query = ref("");
 const activeIndex = ref(0);
 /**
@@ -92,18 +98,23 @@ const rows = computed(() =>
 );
 
 const countText = computed(() => {
-  if (rows.value.length === 0) return "没有匹配的命令";
+  if (rows.value.length === 0) return t("commands.palette.empty");
   const total = ranked.value.matched;
   if (total > rows.value.length) {
-    return "显示前 " + String(rows.value.length) + " 条，共 " + String(total) + " 条匹配";
+    return t("commands.palette.count.limited", { shown: rows.value.length, total });
   }
-  return String(total) + " 条命令";
+  return t("commands.palette.count", { total });
 });
 
 /** 空查询时列表就是全部命令；有查询时按分数排序。提示文案随之变化。 */
 const emptyHint = computed(() =>
-  query.value.trim() ? "没有匹配的命令：试试首字母，例如 dk（打开）或 sz（设置）。" : "",
+  query.value.trim() ? t("commands.palette.empty.hint") : "",
 );
+
+/** 分组标签：注册表里存的是稳定 id，文案在这里查表（切语言后跟着变）。 */
+function groupLabel(group: CommandEntry["group"]): string {
+  return t("commands.group." + group);
+}
 
 watch(query, () => {
   notice.value = null;
@@ -143,7 +154,10 @@ function run(index: number): void {
   const row = rows.value[index];
   if (!row) return;
   if (row.reason) {
-    notice.value = row.command.title + " 现在不可用：" + row.reason;
+    notice.value = t("commands.palette.unavailable", {
+      title: row.command.title,
+      reason: row.reason,
+    });
     return;
   }
   emit("run", row.command);
@@ -257,7 +271,7 @@ onBeforeUnmount(() => {
       :data-pinyin="pinyinLoaded ? 'ready' : 'pending'"
       @keydown="onKeydown"
     >
-      <h2 id="soxu-command-palette-title" class="sr-only">命令面板</h2>
+      <h2 id="soxu-command-palette-title" class="sr-only">{{ t("commands.palette.title") }}</h2>
 
       <div class="cp-input-row">
         <Search class="cp-input-icon" :size="15" :stroke-width="1.9" aria-hidden="true" />
@@ -271,8 +285,8 @@ onBeforeUnmount(() => {
           aria-autocomplete="list"
           aria-controls="soxu-command-list"
           :aria-activedescendant="activeId ?? undefined"
-          aria-label="搜索命令"
-          placeholder="搜索命令：dk 打开设置、sz 设置、git…"
+          :aria-label="t('commands.palette.search.label')"
+          :placeholder="t('commands.palette.placeholder')"
           autocomplete="off"
           spellcheck="false"
         />
@@ -288,7 +302,7 @@ onBeforeUnmount(() => {
         ref="list"
         class="cp-list"
         role="listbox"
-        aria-label="命令结果"
+        :aria-label="t('commands.palette.results')"
       >
         <li
           v-for="(row, index) in rows"
@@ -311,7 +325,7 @@ onBeforeUnmount(() => {
           </span>
           <span v-if="row.reason" class="cp-reason">{{ row.reason }}</span>
           <span v-else-if="row.command.hint" class="cp-hint">{{ row.command.hint }}</span>
-          <span class="cp-group">{{ row.command.group }}</span>
+          <span class="cp-group">{{ groupLabel(row.command.group) }}</span>
           <kbd v-if="row.command.shortcut" class="cp-key">{{ row.command.shortcut }}</kbd>
         </li>
       </ul>
@@ -321,9 +335,9 @@ onBeforeUnmount(() => {
       <p v-if="notice" class="cp-notice" role="alert">{{ notice }}</p>
 
       <footer class="cp-footer">
-        <span><kbd>↑</kbd><kbd>↓</kbd> 选择</span>
-        <span><kbd>↵</kbd> 执行</span>
-        <span><kbd>Esc</kbd> 关闭</span>
+        <span><kbd>↑</kbd><kbd>↓</kbd> {{ t("commands.palette.footer.select") }}</span>
+        <span><kbd>↵</kbd> {{ t("commands.palette.footer.run") }}</span>
+        <span><kbd>Esc</kbd> {{ t("commands.palette.footer.close") }}</span>
       </footer>
     </div>
   </div>

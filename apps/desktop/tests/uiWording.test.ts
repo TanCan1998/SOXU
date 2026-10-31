@@ -100,7 +100,20 @@ test("版本与平台信息只保留在「设置 → 关于」，不在主界面
   // Issue #123 起行标题来自 settings/catalog.ts，这里按设置项 id 定位「关于」这一行。
   assert.ok(settings.includes('setting="system.about"'), "版本信息收进「设置 → 关于」");
   assert.ok(settings.includes("appVersion"), "「关于」保留版本信息");
-  assert.ok(settings.includes("连接状态"), "连接状态用状态表述，不写技术栈名词");
+  // Issue #145 起这句文案在语言包里：源码里只剩 key，措辞在基准包中断言。
+  assert.ok(
+    settings.includes("settings.system.note.about"),
+    "「关于」的说明走语言包（连接状态 / 平台）",
+  );
+  const zhSettings = JSON.parse(
+    await readFile(join(SRC_ROOT, "locales", "zh-CN", "settings.json"), "utf8"),
+  ) as Record<string, string>;
+  assert.match(zhSettings["system.note.about"] ?? "", /连接状态/u, "连接状态用状态表述");
+  assert.doesNotMatch(
+    zhSettings["system.note.about"] ?? "",
+    /Rust|运行时/u,
+    "说明里不写技术栈名词",
+  );
 });
 
 // ──────────────────────────────────────────────────────────────
