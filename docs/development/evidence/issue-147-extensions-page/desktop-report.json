@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2026-10-31T08:22:19.810Z",
+  "viewport": {
+    "width": 900,
+    "height": 1100
+  },
+  "browser": "Edg/156.0.4314.50",
+  "fixture": "/tests/harness/extensions.html",
+  "scanSource": "docs/development/evidence/issue-147-extensions-page/agent-scan-windows.json",
+  "agentDir": "C:\\Users\\tanca\\.pi\\agent",
+  "counts": {
+    "extensions": 9,
+    "skills": 63,
+    "mcpServers": 5,
+    "disabled": 2
+  },
+  "shots": [
+    "01-ready-zh-CN.png",
+    "02-ready-skill-detail-zh-CN.png",
+    "03-ready-en-US.png",
+    "04-loading-zh-CN.png",
+    "05-error-zh-CN.png",
+    "06-empty-zh-CN.png"
+  ],
+  "checks": [
+    {
+      "name": "渲染顺序与扫描 JSON 完全一致（扩展 + 技能 + MCP）",
+      "ok": true,
+      "rendered": 77,
+      "scanned": 77
+    },
+    {
+      "name": "区块计数与 JSON 一致",
+      "ok": true,
+      "sections": [
+        "扩展 · 9 个",
+        "技能 · 63 个",
+        "MCP 服务 · 5 个"
+      ]
+    },
+    {
+      "name": "来源徽章数 = 扩展数 + 带传输方式的 MCP 数",
+      "ok": true,
+      "sources": 14
+    },
+    {
+      "name": "停用条数与 JSON 一致",
+      "ok": true,
+      "disabled": 2,
+      "states": 2
+    },
+    {
+      "name": "MCP 连接状态如实写「未知」",
+      "ok": true,
+      "mcp": 5
+    },
+    {
+      "name": "页面上说明了只读与读取来源",
+      "ok": true,
+      "note": [
+        "SOXU 只读显示这些内容；要启停扩展或技能，请在 Pi 里修改配置。"
+      ]
+    },
+    {
+      "name": "技能详情展示真实文件数",
+      "ok": true,
+      "skill": "coding-guidelines",
+      "fileCount": 3,
+      "rendered": [
+        "3 个文件C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\coding-guidelines"
+      ]
+    },
+    {
+      "name": "详情里带上技能目录",
+      "ok": true
+    },
+    {
+      "name": "en-US 下状态词是英文",
+      "ok": true,
+      "states": [
+        "Enabled",
+        "Disabled",
+        "Connection unknown"
+      ]
+    },
+    {
+      "name": "读取中显示进度文案",
+      "ok": true,
+      "status": [
+        "正在读取本机 Pi 的配置…"
+      ]
+    },
+    {
+      "name": "失败态显示后端原因",
+      "ok": true,
+      "failure": [
+        "读取失败：读不到 Pi 的配置目录 C:\\Users\\tanca\\.pi\\agent（系统找不到指定的路径）"
+      ]
+    },
+    {
+      "name": "失败态有重试入口",
+      "ok": true,
+      "buttons": [
+        "重新读取"
+      ]
+    },
+    {
+      "name": "失败态不出现空态文案（不把失败装成空列表）",
+      "ok": true,
+      "empty": []
+    },
+    {
+      "name": "空清单三段各有一条空态文案",
+      "ok": true,
+      "empty": [
+        "这个目录下没有发现扩展。",
+        "这个目录下没有发现技能。",
+        "mcp.json 里没有配置 MCP 服务。"
+      ]
+    },
+    {
+      "name": "zh-CN 渲染文本没有开发术语",
+      "ok": true,
+      "hits": []
+    },
+    {
+      "name": "en-US 渲染文本没有开发术语",
+      "ok": true,
+      "hits": []
+    },
+    {
+      "name": "failure 渲染文本没有开发术语",
+      "ok": true,
+      "hits": []
+    }
+  ]
+}

@@ -1,0 +1,557 @@
+{
+  "agentDir": "C:\\Users\\tanca\\.pi\\agent",
+  "extensions": [
+    {
+      "id": "builtin:codemode",
+      "name": "codemode",
+      "source": "builtin",
+      "enabled": true,
+      "description": null,
+      "path": null
+    },
+    {
+      "id": "builtin:llama.cpp",
+      "name": "llama.cpp",
+      "source": "builtin",
+      "enabled": true,
+      "description": null,
+      "path": null
+    },
+    {
+      "id": "builtin:mcp",
+      "name": "mcp",
+      "source": "builtin",
+      "enabled": true,
+      "description": null,
+      "path": null
+    },
+    {
+      "id": "builtin:tool-search",
+      "name": "tool-search",
+      "source": "builtin",
+      "enabled": true,
+      "description": null,
+      "path": null
+    },
+    {
+      "id": "package:context-mode",
+      "name": "context-mode",
+      "source": "user",
+      "enabled": true,
+      "description": "MCP plugin that saves 98% of your context window. Works with Claude Code, Gemini CLI, VS Code Copilot, OpenCode, and Codex CLI. Sandboxed code execution, FTS5 knowledge base, and intent-driven search.",
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode"
+    },
+    {
+      "id": "package:pi-subagents",
+      "name": "pi-subagents",
+      "source": "user",
+      "enabled": true,
+      "description": "Pi extension for single-agent delegation and scripted multi-agent workflows",
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\pi-subagents"
+    },
+    {
+      "id": "package:pi-tracker",
+      "name": "pi-tracker",
+      "source": "user",
+      "enabled": true,
+      "description": "Model usage analytics extension for pi — track tokens & cost by model, project, and session",
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\pi-tracker"
+    },
+    {
+      "id": "package:pi-web-access",
+      "name": "pi-web-access",
+      "source": "user",
+      "enabled": true,
+      "description": "Web search, URL fetching, GitHub repo cloning, PDF extraction, YouTube video understanding, and local video analysis for Pi coding agent. Supports OpenAI, Brave, Parallel, TinyFish, Search1API, Searchinfinity, Querit, Tavily, Firecrawl, Crawl4AI, Jina, SERPdive, Kagi, Ollama, AnySearch, Bright Data SERP, SerpBase, SerpApi, Serply, You.com, SearXNG, degoog, Exa, Perplexity, Gemini, Kimi, and Mistra…",
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\pi-web-access"
+    },
+    {
+      "id": "extension:rtk",
+      "name": "rtk",
+      "source": "user",
+      "enabled": true,
+      "description": null,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\extensions\\rtk.ts"
+    }
+  ],
+  "skills": [
+    {
+      "id": "skill:coding-guidelines",
+      "name": "coding-guidelines",
+      "description": "Use when asking about Rust code style or best practices. Keywords: naming, formatting, comment, clippy, rustfmt, lint, code style, best practice, P.NAM, G.FMT, code review, naming convention, variable naming, function naming, type naming, 命名规范, 代码风格, 格式化, 最佳实践, 代码审查, 怎么命名",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\coding-guidelines"
+    },
+    {
+      "id": "skill:context-mode/context-mode",
+      "name": "context-mode",
+      "description": "Use context-mode tools (ctx_execute, ctx_execute_file) instead of Bash/cat when processing large outputs. Triggers: \"analyze logs\", \"summarize output\", \"process data\", \"parse JSON\", \"filter results\", \"extract errors\", \"check build output\", \"analyze dependencies\", \"process API response\", \"large file analysis\", \"page snapshot\", \"browser snapshot\", \"DOM structure\", \"inspect page\", \"accessibility tree…",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode\\skills\\context-mode"
+    },
+    {
+      "id": "skill:context-mode/ctx-doctor",
+      "name": "ctx-doctor",
+      "description": "Run context-mode diagnostics. Checks runtimes, hooks, FTS5, plugin registration, npm and marketplace versions. Trigger: /context-mode:ctx-doctor",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode\\skills\\ctx-doctor"
+    },
+    {
+      "id": "skill:context-mode/ctx-index",
+      "name": "ctx-index",
+      "description": "Index a local file or directory into context-mode's persistent FTS5 knowledge base so future ctx_search calls can retrieve focused snippets without rereading raw files. Trigger: /context-mode:ctx-index",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode\\skills\\ctx-index"
+    },
+    {
+      "id": "skill:context-mode/ctx-insight",
+      "name": "ctx-insight",
+      "description": "Open the context-mode Insight dashboard in your default browser. Insight is the hosted analytics layer for AI-assisted engineering teams — per-engineer productive rate, retry waste, blocker detection, role-narrowed views. Trigger: /context-mode:ctx-insight",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode\\skills\\ctx-insight"
+    },
+    {
+      "id": "skill:context-mode/ctx-purge",
+      "name": "ctx-purge",
+      "description": "Purge the context-mode knowledge base. Permanently deletes all indexed content and resets session stats. This is destructive and cannot be undone. Trigger: /context-mode:ctx-purge",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode\\skills\\ctx-purge"
+    },
+    {
+      "id": "skill:context-mode/ctx-search",
+      "name": "ctx-search",
+      "description": "Search context-mode's persistent FTS5 knowledge base for previously indexed local project content, documentation, or session memory. Trigger: /context-mode:ctx-search",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode\\skills\\ctx-search"
+    },
+    {
+      "id": "skill:context-mode/ctx-stats",
+      "name": "ctx-stats",
+      "description": "Show how much context window context-mode saved this session. Displays token consumption, context savings ratio, and per-tool breakdown. Read-only — shows stats only, no reset capability. To wipe the knowledge base entirely, use ctx_purge instead. Trigger: /context-mode:ctx-stats",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode\\skills\\ctx-stats"
+    },
+    {
+      "id": "skill:context-mode/ctx-upgrade",
+      "name": "ctx-upgrade",
+      "description": "Update context-mode from GitHub and fix hooks/settings. Pulls latest, builds, installs, updates npm global, configures hooks. Trigger: /context-mode:ctx-upgrade",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\context-mode\\skills\\ctx-upgrade"
+    },
+    {
+      "id": "skill:core-actionbook",
+      "name": "core-actionbook",
+      "description": "Internal support skill for actionbook MCP selectors used by Rust documentation research workflows. Use only when another rust-skills workflow explicitly requests actionbook-backed selectors.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\core-actionbook"
+    },
+    {
+      "id": "skill:core-agent-browser",
+      "name": "core-agent-browser",
+      "description": "Internal support skill for agent-browser CLI workflows used by rust-learner, docs-researcher, and crate-researcher. Use only when browser automation is explicitly required.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\core-agent-browser"
+    },
+    {
+      "id": "skill:core-dynamic-skills",
+      "name": "core-dynamic-skills",
+      "description": "Internal command support for dynamic Rust crate skill management. Use only when explicitly invoked by /sync-crate-skills, /clean-crate-skills, or /update-crate-skill.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\core-dynamic-skills"
+    },
+    {
+      "id": "skill:core-fix-skill-docs",
+      "name": "core-fix-skill-docs",
+      "description": "Internal maintenance support for checking and fixing generated Rust skill documentation references. Use only when explicitly invoked by /fix-skill-docs.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\core-fix-skill-docs"
+    },
+    {
+      "id": "skill:docx",
+      "name": "docx",
+      "description": "Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx files) or Word templates (.dotx files). Triggers include: any mention of 'Word doc', 'word document', '.docx', '.dotx', or requests to produce professional documents with formatting like tables of contents, headings, page numbers, or letterheads. Also use when extracting or reorganizing content from .…",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\docx-craft"
+    },
+    {
+      "id": "skill:domain-cli",
+      "name": "domain-cli",
+      "description": "Use when building CLI tools. Keywords: CLI, command line, terminal, clap, structopt, argument parsing, subcommand, interactive, TUI, ratatui, crossterm, indicatif, progress bar, colored output, shell completion, config file, environment variable, 命令行, 终端应用, 参数解析",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\domain-cli"
+    },
+    {
+      "id": "skill:domain-cloud-native",
+      "name": "domain-cloud-native",
+      "description": "Use when building cloud-native apps. Keywords: kubernetes, k8s, docker, container, grpc, tonic, microservice, service mesh, observability, tracing, metrics, health check, cloud, deployment, 云原生, 微服务, 容器",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\domain-cloud-native"
+    },
+    {
+      "id": "skill:domain-embedded",
+      "name": "domain-embedded",
+      "description": "Use when developing embedded/no_std Rust. Keywords: embedded, no_std, microcontroller, MCU, ARM, RISC-V, bare metal, firmware, HAL, PAC, RTIC, embassy, interrupt, DMA, peripheral, GPIO, SPI, I2C, UART, embedded-hal, cortex-m, esp32, stm32, nrf, 嵌入式, 单片机, 固件, 裸机",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\domain-embedded"
+    },
+    {
+      "id": "skill:domain-fintech",
+      "name": "domain-fintech",
+      "description": "Use when building fintech apps. Keywords: fintech, trading, decimal, currency, financial, money, transaction, ledger, payment, exchange rate, precision, rounding, accounting, 金融, 交易系统, 货币, 支付",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\domain-fintech"
+    },
+    {
+      "id": "skill:domain-iot",
+      "name": "domain-iot",
+      "description": "Use when building IoT apps. Keywords: IoT, Internet of Things, sensor, MQTT, device, edge computing, telemetry, actuator, smart home, gateway, protocol, 物联网, 传感器, 边缘计算, 智能家居",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\domain-iot"
+    },
+    {
+      "id": "skill:domain-ml",
+      "name": "domain-ml",
+      "description": "Use when building ML/AI apps in Rust. Keywords: machine learning, ML, AI, tensor, model, inference, neural network, deep learning, training, prediction, ndarray, tch-rs, burn, candle, 机器学习, 人工智能, 模型推理",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\domain-ml"
+    },
+    {
+      "id": "skill:domain-web",
+      "name": "domain-web",
+      "description": "Use when building web services. Keywords: web server, HTTP, REST API, GraphQL, WebSocket, axum, actix, warp, rocket, tower, hyper, reqwest, middleware, router, handler, extractor, state management, authentication, authorization, JWT, session, cookie, CORS, rate limiting, web 开发, HTTP 服务, API 设计, 中间件, 路由",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\domain-web"
+    },
+    {
+      "id": "skill:fluxdown-download",
+      "name": "fluxdown-download",
+      "description": "Use the local FluxDown desktop downloader for large HTTP/HTTPS files or models, with resumable downloads, task polling, and checksum verification.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\fluxdown-download"
+    },
+    {
+      "id": "skill:image-gen",
+      "name": "image-gen",
+      "description": "生成图片。当用户想让 AI 生成图片、插画、海报、头像等图像内容时使用。读取生图供应商配置，调用 OpenAI 兼容的图片生成 API（支持 OpenAI、火山方舟、SiliconFlow 三种方言与参考图），把生成的图片保存到项目目录。",
+      "enabled": false,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\image-gen"
+    },
+    {
+      "id": "skill:m01-ownership",
+      "name": "m01-ownership",
+      "description": "CRITICAL: Use for ownership/borrow/lifetime issues. Triggers: E0382, E0597, E0506, E0507, E0515, E0716, E0106, value moved, borrowed value does not live long enough, cannot move out of, use of moved value, ownership, borrow, lifetime, 'a, 'static, move, clone, Copy, 所有权, 借用, 生命周期",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m01-ownership"
+    },
+    {
+      "id": "skill:m02-resource",
+      "name": "m02-resource",
+      "description": "CRITICAL: Use for smart pointers and resource management. Triggers: Box, Rc, Arc, Weak, RefCell, Cell, smart pointer, heap allocation, reference counting, RAII, Drop, should I use Box or Rc, when to use Arc vs Rc, 智能指针, 引用计数, 堆分配",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m02-resource"
+    },
+    {
+      "id": "skill:m03-mutability",
+      "name": "m03-mutability",
+      "description": "CRITICAL: Use for mutability issues. Triggers: E0596, E0499, E0502, cannot borrow as mutable, already borrowed as immutable, mut, &mut, interior mutability, Cell, RefCell, Mutex, RwLock, 可变性, 内部可变性, 借用冲突",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m03-mutability"
+    },
+    {
+      "id": "skill:m04-zero-cost",
+      "name": "m04-zero-cost",
+      "description": "CRITICAL: Use for generics, traits, zero-cost abstraction. Triggers: E0277, E0308, E0599, generic, trait, impl, dyn, where, monomorphization, static dispatch, dynamic dispatch, impl Trait, trait bound not satisfied, 泛型, 特征, 零成本抽象, 单态化",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m04-zero-cost"
+    },
+    {
+      "id": "skill:m05-type-driven",
+      "name": "m05-type-driven",
+      "description": "CRITICAL: Use for type-driven design. Triggers: type state, PhantomData, newtype, marker trait, builder pattern, make invalid states unrepresentable, compile-time validation, sealed trait, ZST, 类型状态, 新类型模式, 类型驱动设计",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m05-type-driven"
+    },
+    {
+      "id": "skill:m06-error-handling",
+      "name": "m06-error-handling",
+      "description": "CRITICAL: Use for error handling. Triggers: Result, Option, Error, ?, unwrap, expect, panic, anyhow, thiserror, when to panic vs return Result, custom error, error propagation, 错误处理, Result 用法, 什么时候用 panic",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m06-error-handling"
+    },
+    {
+      "id": "skill:m07-concurrency",
+      "name": "m07-concurrency",
+      "description": "CRITICAL: Use for concurrency/async. Triggers: E0277 Send Sync, cannot be sent between threads, thread, spawn, channel, mpsc, Mutex, RwLock, Atomic, async, await, Future, tokio, deadlock, race condition, 并发, 线程, 异步, 死锁",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m07-concurrency"
+    },
+    {
+      "id": "skill:m09-domain",
+      "name": "m09-domain",
+      "description": "CRITICAL: Use for domain modeling. Triggers: domain model, DDD, domain-driven design, entity, value object, aggregate, repository pattern, business rules, validation, invariant, 领域模型, 领域驱动设计, 业务规则",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m09-domain"
+    },
+    {
+      "id": "skill:m10-performance",
+      "name": "m10-performance",
+      "description": "CRITICAL: Use for performance optimization. Triggers: performance, optimization, benchmark, profiling, flamegraph, criterion, slow, fast, allocation, cache, SIMD, make it faster, 性能优化, 基准测试",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m10-performance"
+    },
+    {
+      "id": "skill:m11-ecosystem",
+      "name": "m11-ecosystem",
+      "description": "Use when integrating crates or ecosystem questions. Keywords: E0425, E0433, E0603, crate, cargo, dependency, feature flag, workspace, which crate to use, using external C libraries, creating Python extensions, PyO3, wasm, WebAssembly, bindgen, cbindgen, napi-rs, cannot find, private, crate recommendation, best crate for, Cargo.toml, features, crate 推荐, 依赖管理, 特性标志, 工作空间, Python 绑定",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m11-ecosystem"
+    },
+    {
+      "id": "skill:m12-lifecycle",
+      "name": "m12-lifecycle",
+      "description": "Use when designing resource lifecycles. Keywords: RAII, Drop, resource lifecycle, connection pool, lazy initialization, connection pool design, resource cleanup patterns, cleanup, scope, OnceCell, Lazy, once_cell, OnceLock, transaction, session management, when is Drop called, cleanup on error, guard pattern, scope guard, 资源生命周期, 连接池, 惰性初始化, 资源清理, RAII 模式",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m12-lifecycle"
+    },
+    {
+      "id": "skill:m13-domain-error",
+      "name": "m13-domain-error",
+      "description": "Use when designing domain error handling. Keywords: domain error, error categorization, recovery strategy, retry, fallback, domain error hierarchy, user-facing vs internal errors, error code design, circuit breaker, graceful degradation, resilience, error context, backoff, retry with backoff, error recovery, transient vs permanent error, 领域错误, 错误分类, 恢复策略, 重试, 熔断器, 优雅降级",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m13-domain-error"
+    },
+    {
+      "id": "skill:m14-mental-model",
+      "name": "m14-mental-model",
+      "description": "Use when learning Rust concepts. Keywords: mental model, how to think about ownership, understanding borrow checker, visualizing memory layout, analogy, misconception, explaining ownership, why does Rust, help me understand, confused about, learning Rust, explain like I'm, ELI5, intuition for, coming from Java, coming from Python, 心智模型, 如何理解所有权, 学习 Rust, Rust 入门, 为什么 Rust",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m14-mental-model"
+    },
+    {
+      "id": "skill:m15-anti-pattern",
+      "name": "m15-anti-pattern",
+      "description": "Use when reviewing code for anti-patterns. Keywords: anti-pattern, common mistake, pitfall, code smell, bad practice, code review, is this an anti-pattern, better way to do this, common mistake to avoid, why is this bad, idiomatic way, beginner mistake, fighting borrow checker, clone everywhere, unwrap in production, should I refactor, 反模式, 常见错误, 代码异味, 最佳实践, 地道写法",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\m15-anti-pattern"
+    },
+    {
+      "id": "skill:meta-cognition-parallel",
+      "name": "meta-cognition-parallel",
+      "description": "EXPERIMENTAL: Three-layer parallel meta-cognition analysis. Triggers on: /meta-parallel, 三层分析, parallel analysis, 并行元认知",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\meta-cognition-parallel"
+    },
+    {
+      "id": "skill:moli-cdp-server",
+      "name": "moli-cdp-server",
+      "description": "Start Moli's CDP server and connect Playwright, Puppeteer, or raw CDP clients. Use to run a headless-browser CDP endpoint, replace a Chromium process, attach over CDP, enable real layout and screenshot surfaces, or diagnose CDP discovery, connection, and target startup—even when Moli is not named.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\moli-cdp-server"
+    },
+    {
+      "id": "skill:moli-webfetch",
+      "name": "moli-webfetch",
+      "description": "Fetch, inspect, crawl, and capture live, JavaScript-rendered websites with Moli. Use when Codex needs current web content, web research, fact lookup, link following, a bounded crawl, client-rendered or response-gated content, network diagnostics, or a standalone HTML, Markdown, JSON, semantic-tree, viewport or full-document screenshot, PDF, or WPT artifact—even when Moli is not named.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\moli-webfetch"
+    },
+    {
+      "id": "skill:moli-websearch",
+      "name": "moli-websearch",
+      "description": "Search the web by keyword or reverse-search images with Moli to find subjects, sources, exact matches, or similar images—even when Moli is not named. For fetching a known URL, use moli-webfetch.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\moli-websearch"
+    },
+    {
+      "id": "skill:ms-hub",
+      "name": "ms-hub",
+      "description": "ModelScope unified operations entrypoint. Covers model/dataset search, download, and upload; repository management; Studio deployment; MCP service search, deployment, and configuration; and Skills Center search, install, and publish. Use this skill whenever the user mentions ModelScope or any platform operation. Use ms-studio-deploy for complex Studio deployment workflows; see this skill's referen…",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\ms-hub"
+    },
+    {
+      "id": "skill:pdf",
+      "name": "pdf",
+      "description": "Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart, rotating pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf file or…",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\pdf-craft"
+    },
+    {
+      "id": "skill:pi-subagents/council-mode",
+      "name": "council-mode",
+      "description": "Run a bounded supervisor-mediated advisor council. Use when the user asks for council mode, asks to convene advisors, debate a decision, cross-examine recommendations, or run /council.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\pi-subagents\\skills\\council-mode"
+    },
+    {
+      "id": "skill:pi-subagents/pi-subagents",
+      "name": "pi-subagents",
+      "description": "Delegate work to Pi subagents after the operator asks for it: one child, parallel or scripted workflows, async runs, resume/steer/stop, review fanout, and multi-lane or worktree orchestration.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\npm\\node_modules\\pi-subagents\\skills\\pi-subagents"
+    },
+    {
+      "id": "skill:pideck-doctor",
+      "name": "pideck-doctor",
+      "description": "排查 PiDeck 桌面应用的问题。当用户说「PiDeck 出问题了」「帮我诊断 PiDeck」「会话起不来」「pi 连不上」「应用报错」等时使用。引导用户在「问题反馈」页生成环境诊断报告并导出，读取诊断报告定位根因，结合故障模式库给出可执行的修复步骤。报告含脱敏后的环境信息、体检项、最近报错日志，不接触任何原始配置文件内容。",
+      "enabled": false,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\pideck-doctor"
+    },
+    {
+      "id": "skill:project-orchestration",
+      "name": "project-orchestration",
+      "description": "在 ai-novel-writer / Lorekeeper 项目派发、恢复、复验和收口 Pi 子代理；用于用户要求派子代理、并行推进或收口波次。普通单文件编辑不触发。",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\project-orchestration"
+    },
+    {
+      "id": "skill:quarkclouddrive",
+      "name": "quarkclouddrive",
+      "description": "夸克网盘官方(Quark Drive)Skill，用于文件上传/下载（支持断点续传）、文件分享与转存、转存分享更新查询、网盘文件搜索、批量重命名与整批撤销、文件归类移动与撤回、相册整理、AI助手（文件总结与知识问答，支持万级文件）、获取会员开通链接。当用户要求将当前搜索结果批量重命名、一句话说明范围与命名规则后重命名、整批撤销刚才的重命名、开通或续费夸克网盘会员，或需要其他夸克网盘操作与身份验证时使用。",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\quarkclouddrive"
+    },
+    {
+      "id": "skill:resume-jd-optimizer-cn",
+      "name": "resume-jd-optimizer-cn",
+      "description": "基于目标岗位 JD、中文简历和用户确认的真实经历，完成中国大陆求职场景下的 JD 解析、证据映射、缺口诊断、素材追问、定制简历重写、ATS/HR/面试官审查及投递沟通材料生成。用于应届、社招、转行及互联网、AI、产品、运营、销售、技术、数据、设计等岗位；当用户要求针对 JD 优化中文简历、提高匹配度、生成 Boss 直聘或猎头话术、检查面试自洽性时使用。",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\resume-cn"
+    },
+    {
+      "id": "skill:reverse-engineer-anything",
+      "name": "reverse-engineer-anything",
+      "description": "Reverse engineer native, managed, Electron/JavaScript, packaged, firmware, and browser targets with REA. Use shipped-artifact or requested runtime evidence to explain features, compare versions, decompile code, or guide a reconstruction. Skip REA for ordinary source-repository architecture analysis.",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\reverse-engineer-anything"
+    },
+    {
+      "id": "skill:rust-call-graph",
+      "name": "rust-call-graph",
+      "description": "Visualize Rust function call graphs using LSP. Triggers on: /call-graph, call hierarchy, who calls, what calls, 调用图, 调用关系, 谁调用了, 调用了谁",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-call-graph"
+    },
+    {
+      "id": "skill:rust-code-navigator",
+      "name": "rust-code-navigator",
+      "description": "Navigate Rust code using LSP. Triggers on: /navigate, go to definition, find references, where is defined, 跳转定义, 查找引用, 定义在哪, 谁用了这个",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-code-navigator"
+    },
+    {
+      "id": "skill:rust-daily",
+      "name": "rust-daily",
+      "description": "CRITICAL: Use for Rust news and daily/weekly/monthly reports. Triggers on: rust news, rust daily, rust weekly, TWIR, rust blog, Rust 日报, Rust 周报, Rust 新闻, Rust 动态",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-daily"
+    },
+    {
+      "id": "skill:rust-deps-visualizer",
+      "name": "rust-deps-visualizer",
+      "description": "Visualize Rust project dependencies as ASCII art. Triggers on: /deps-viz, dependency graph, show dependencies, visualize deps, 依赖图, 依赖可视化, 显示依赖",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-deps-visualizer"
+    },
+    {
+      "id": "skill:rust-learner",
+      "name": "rust-learner",
+      "description": "Use when asking about Rust versions or crate info. Keywords: latest version, what's new, changelog, Rust 1.x, Rust release, stable, nightly, crate info, crates.io, lib.rs, docs.rs, API documentation, crate features, dependencies, which crate, what version, Rust edition, edition 2021, edition 2024, cargo add, cargo update, 最新版本, 版本号, 稳定版, 最新, 哪个版本, crate 信息, 文档, 依赖, Rust 版本, 新特性, 有什么特性",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-learner"
+    },
+    {
+      "id": "skill:rust-lib-ux",
+      "name": "rust-lib-ux",
+      "description": "微软 Rust 指南 Libraries/UX 的 14 条库 API 设计规则速查与审查清单（M-SIMPLE-ABSTRACTIONS、M-AVOID-WRAPPERS、M-DI-HIERARCHY、M-ERRORS-CANONICAL-STRUCTS、M-FROM-ERROR、M-INIT-BUILDER、M-INIT-CASCADED、M-SERVICES-CLONE、M-ESSENTIAL-FN-INHERENT、M-BALANCED-MODULES、M-NO-PRELUDE、M-PARAMETER-CONSISTENCY、M-COLLECTION-TRAITS、M-ASYNC-FN）。在编写、修改或评审 Rust 的公开 API、模块边界、错误类型、构建器、依赖注入与集合 trait 实现时使用。",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-lib-ux"
+    },
+    {
+      "id": "skill:rust-refactor-helper",
+      "name": "rust-refactor-helper",
+      "description": "Safe Rust refactoring with LSP analysis. Triggers on: /refactor, rename symbol, move function, extract, 重构, 重命名, 提取函数, 安全重构",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-refactor-helper"
+    },
+    {
+      "id": "skill:rust-router",
+      "name": "rust-router",
+      "description": "CRITICAL: Use for ALL Rust questions including errors, design, and coding. HIGHEST PRIORITY for: 比较, 对比, compare, vs, versus, 区别, difference, 最佳实践, best practice, tokio vs, async-std vs, 比较 tokio, 比较 async, Triggers on: Rust, cargo, rustc, crate, Cargo.toml, 意图分析, 问题分析, 语义分析, analyze intent, question analysis, compile error, borrow error, lifetime error, ownership error, type error, trait error, v…",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-router"
+    },
+    {
+      "id": "skill:rust-skill-creator",
+      "name": "rust-skill-creator",
+      "description": "Use when creating skills for Rust crates or std library documentation. Keywords: create rust skill, create crate skill, create std skill, 创建 rust skill, 创建 crate skill, 创建 std skill, 动态 rust skill, 动态 crate skill, skill for tokio, skill for serde, skill for axum, generate rust skill, rust 技能, crate 技能, 从文档创建skill, from docs create skill",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-skill-creator"
+    },
+    {
+      "id": "skill:rust-symbol-analyzer",
+      "name": "rust-symbol-analyzer",
+      "description": "Analyze Rust project structure using LSP symbols. Triggers on: /symbols, project structure, list structs, list traits, list functions, 符号分析, 项目结构, 列出所有, 有哪些struct",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-symbol-analyzer"
+    },
+    {
+      "id": "skill:rust-trait-explorer",
+      "name": "rust-trait-explorer",
+      "description": "Explore Rust trait implementations using LSP. Triggers on: /trait-impl, find implementations, who implements, trait 实现, 谁实现了, 实现了哪些trait",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\rust-trait-explorer"
+    },
+    {
+      "id": "skill:unsafe-checker",
+      "name": "unsafe-checker",
+      "description": "CRITICAL: Use for unsafe Rust code review and FFI. Triggers on: unsafe, raw pointer, FFI, extern, transmute, *mut, *const, union, #[repr(C)], libc, std::ffi, MaybeUninit, NonNull, SAFETY comment, soundness, undefined behavior, UB, safe wrapper, memory layout, bindgen, cbindgen, CString, CStr, 安全抽象, 裸指针, 外部函数接口, 内存布局, 不安全代码, FFI 绑定, 未定义行为",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\rust-skills\\skills\\unsafe-checker"
+    },
+    {
+      "id": "skill:usage-probe",
+      "name": "usage-probe",
+      "description": "为 PiDeck 的「用量查询」功能排查/扩展供应商支持。当用户想显示某个供应商的用量、余额或额度点数时，先判断是否已内置支持（内置无需配置）；不在内置时引导用户使用「用量查询」弹窗里的通用 / New API / Cookie / 火山方舟 AK-SK 模板；四种模板都覆盖不了的接口，帮用户写出 usage-probes.json 的旧版探针数组。",
+      "enabled": true,
+      "path": "C:\\Users\\tanca\\.pi\\agent\\skills\\usage-probe"
+    }
+  ],
+  "mcpServers": [
+    {
+      "id": "mcp:context7",
+      "name": "context7",
+      "transport": "http",
+      "description": null,
+      "status": "unknown"
+    },
+    {
+      "id": "mcp:fluxdown",
+      "name": "fluxdown",
+      "transport": "http",
+      "description": null,
+      "status": "unknown"
+    },
+    {
+      "id": "mcp:github",
+      "name": "github",
+      "transport": "http",
+      "description": null,
+      "status": "unknown"
+    },
+    {
+      "id": "mcp:pideck",
+      "name": "pideck",
+      "transport": "http",
+      "description": "Read-only access to explicitly authorized PiDeck projects and saved sessions.",
+      "status": "unknown"
+    },
+    {
+      "id": "mcp:rea",
+      "name": "rea",
+      "transport": "stdio",
+      "description": null,
+      "status": "unknown"
+    }
+  ]
+}
