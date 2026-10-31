@@ -20,6 +20,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { formatMessageTime } from "../src/components/messageTime.ts";
+import { useLocale } from "../src/locales/index.ts";
 import {
   SESSION_SETTINGS_STORAGE_KEY,
   DEFAULT_SESSION_SETTINGS,
@@ -656,15 +657,21 @@ test("会话面板：四项开关都真的改变显示行为", async () => {
   assert.ok(panel.includes(':enter-to-send="settings.enterToSend"'));
 });
 
-test("消息时间戳格式化：本地时区 HH:mm，缺失或非法返回 null", () => {
+test("消息时间戳格式化：按当前语言的 Intl 输出时分，缺失或非法返回 null", () => {
+  // Issue #144：格式由语言运行时的 formatDateTime 决定，组件不再手拼 "HH:mm"。
+  const { formatDateTime } = useLocale();
   // 用本地时间构造输入，测试不依赖运行环境的时区
   const local = new Date(2026, 0, 2, 9, 5, 0);
-  assert.equal(formatMessageTime(local.toISOString()), "09:05");
+  assert.equal(formatMessageTime(local.toISOString(), formatDateTime), "09:05");
   const afternoon = new Date(2026, 0, 2, 18, 42, 0);
-  assert.equal(formatMessageTime(afternoon.toISOString()), "18:42");
+  assert.equal(formatMessageTime(afternoon.toISOString(), formatDateTime), "18:42");
 
   for (const value of [null, undefined, "", "not-a-date", "2026-13-45"]) {
-    assert.equal(formatMessageTime(value), null, String(value) + " 不应产生时间文本");
+    assert.equal(
+      formatMessageTime(value, formatDateTime),
+      null,
+      String(value) + " 不应产生时间文本",
+    );
   }
 });
 

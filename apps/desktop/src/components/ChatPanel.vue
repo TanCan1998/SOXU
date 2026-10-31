@@ -5,6 +5,7 @@ import AppTooltip from "./AppTooltip.vue";
 import ChatComposer from "./ChatComposer.vue";
 import MessageList from "./MessageList.vue";
 import { composeStatsView } from "./sessionStats.ts";
+import { useLocale } from "../locales/index.ts";
 import type { BusySendDelivery } from "../settings/busyDelivery.ts";
 import type { SessionSettings } from "../settings/sessionSettings.ts";
 import type { SendMode, SessionTab } from "../workspace/types.ts";
@@ -42,20 +43,23 @@ const emit = defineEmits<{
  */
 const statsView = computed(() => composeStatsView(props.tab.stats.data, props.tab));
 
+/** 会话区文案走 session.json（Issue #144）：t() 读的是响应式表，切语言即重渲染。 */
+const { t } = useLocale();
+
 const statusLabel = computed(() => {
   switch (props.tab.status) {
     case "loading":
-      return "加载历史";
+      return t("session.panel.status.loading");
     case "ready":
-      return "就绪";
+      return t("session.panel.status.ready");
     case "running":
-      return "运行中";
+      return t("session.panel.status.running");
     case "cancelling":
-      return "取消中";
+      return t("session.panel.status.cancelling");
     case "error":
-      return "错误";
+      return t("session.panel.status.error");
     default:
-      return "未连接";
+      return t("session.panel.status.disconnected");
   }
 });
 
@@ -78,18 +82,24 @@ const canPromote = computed(
 /** 按钮提示：告诉用户「为什么现在不能转正」，而不是只把按钮置灰。 */
 const promoteHint = computed(() => {
   if (props.tab.runtime.runtimeId) {
-    return "先停止 Pi 运行时再转为普通会话：运行中的进程仍持有会话文件";
+    return t("session.panel.promote.hint.runtime");
   }
   if (props.tab.status === "running" || props.tab.status === "cancelling") {
-    return "当前轮次还没结束，结束后才能转正";
+    return t("session.panel.promote.hint.busy");
   }
-  return "把临时会话写入持久化历史";
+  return t("session.panel.promote.hint.ready");
 });
 const runtimeHint = computed(() => {
   if (props.tab.runtime.runtimeId) {
-    return `${props.tab.runtime.runtimeId} · generation ${props.tab.runtime.generation} · ${props.tab.runtime.state}`;
+    return t("session.panel.runtime.detail", {
+      runtimeId: props.tab.runtime.runtimeId,
+      generation: props.tab.runtime.generation,
+      state: props.tab.runtime.state,
+    });
   }
-  return props.tab.status === "idle" ? "尚未启动 Pi 运行时，发送消息时自动启动" : "无活动运行时";
+  return props.tab.status === "idle"
+    ? t("session.panel.runtime.idle")
+    : t("session.panel.runtime.none");
 });
 </script>
 
@@ -106,7 +116,9 @@ const runtimeHint = computed(() => {
         </p>
       </div>
       <div class="head-actions">
-        <span v-if="tab.mode === 'temporary'" class="badge" data-tone="accent">临时会话</span>
+        <span v-if="tab.mode === 'temporary'" class="badge" data-tone="accent">
+          {{ t("session.panel.temporary.badge") }}
+        </span>
         <AppTooltip v-if="tab.mode === 'temporary'" :text="promoteHint">
           <button
             class="promote"
@@ -115,15 +127,15 @@ const runtimeHint = computed(() => {
             @click="emit('promote')"
           >
             <Save :size="15" :stroke-width="1.85" aria-hidden="true" />
-            {{ tab.promoting ? "转存中…" : "转为普通会话" }}
+            {{ tab.promoting ? t("session.panel.promote.pending") : t("session.panel.promote.action") }}
           </button>
         </AppTooltip>
-        <AppTooltip text="停止 Pi 运行时" auto>
+        <AppTooltip :text="t('session.panel.stop')" auto>
           <button
             class="icon-button"
             type="button"
             :disabled="!tab.runtime.runtimeId"
-            aria-label="停止 Pi 运行时"
+            :aria-label="t('session.panel.stop')"
             @click="emit('stop')"
           >
             <CircleStop :size="17" :stroke-width="1.75" aria-hidden="true" />
@@ -133,25 +145,23 @@ const runtimeHint = computed(() => {
     </header>
 
     <p v-if="tab.mode === 'temporary'" class="temp-note" role="note">
-      临时会话默认不写入 SOXU 的会话历史，也不会出现在侧栏；Pi 仍按自己的规则管理会话文件。
-      只有显式点击「转为普通会话」才会登记进历史，失败时保留临时会话并显示原因。
+      {{ t("session.panel.temporary.note") }}
     </p>
 
     <div v-if="tab.error" class="error-banner" role="alert">
       <CircleAlert :size="16" :stroke-width="1.9" aria-hidden="true" />
       <span class="error-text">{{ tab.error }}</span>
       <button class="retry" type="button" @click="emit('retry')">
-        <RefreshCw :size="14" :stroke-width="1.9" aria-hidden="true" /> 重新加载
+        <RefreshCw :size="14" :stroke-width="1.9" aria-hidden="true" />
+        {{ t("session.panel.retry") }}
       </button>
     </div>
 
     <div v-if="showEmpty" class="empty-chat">
       <img class="hero-mark" src="../assets/soxu-256.png" alt="" width="44" height="44" />
-      <h2>这个会话还没有消息</h2>
-      <p v-if="bridgeAvailable">
-        发送第一条消息后，Pi 负责写入会话 JSONL，SOXU 只做只读索引与展示。
-      </p>
-      <p v-else>当前是浏览器预览，尚未连接本机运行时，无法读取或发送真实会话内容。</p>
+      <h2>{{ t("session.panel.empty.title") }}</h2>
+      <p v-if="bridgeAvailable">{{ t("session.panel.empty.hint") }}</p>
+      <p v-else>{{ t("session.panel.empty.bridge") }}</p>
     </div>
     <MessageList
       v-else

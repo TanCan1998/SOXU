@@ -13,6 +13,7 @@
  * 协议结论落地后把开关打开即可复用，不需要重写规则。
  */
 
+import { useLocale } from "../locales/index.ts";
 import type { SendMode } from "../workspace/types.ts";
 
 export interface SendModeAvailability {
@@ -46,8 +47,11 @@ export interface SendModeAvailabilityOptions {
  */
 export const SEND_MODES_READY = false;
 
-/** 未接入时统一显示的原因：只说事实，不假装能点。 */
-export const SEND_MODES_PENDING_REASON = "即将支持";
+/**
+ * 未接入时统一显示的原因 key（Issue #144）：文案在 session.json，
+ * 这里只保存 key，语言切换后同一个 key 会解析成对应语言的文案。
+ */
+export const SEND_MODES_PENDING_KEY = "session.mode.pending";
 
 export const SEND_MODE_ORDER: readonly SendMode[] = Object.freeze([
   "steer",
@@ -55,16 +59,37 @@ export const SEND_MODE_ORDER: readonly SendMode[] = Object.freeze([
   "parallel",
 ] as const);
 
-export const SEND_MODE_TEXT: Readonly<
-  Record<SendMode, { label: string; description: string }>
-> = Object.freeze({
-  steer: { label: "加入当前", description: "追加到本轮对话" },
-  followUp: { label: "排到下轮", description: "本轮结束后自动发送" },
-  parallel: { label: "并行发送", description: "独立会话后台处理，不打断当前输出" },
+/** 每种投递方式的文案 key；文案本身在 locales/<tag>/session.json。 */
+export interface SendModeTextKeys {
+  labelKey: string;
+  descriptionKey: string;
+}
+
+export const SEND_MODE_TEXT: Readonly<Record<SendMode, SendModeTextKeys>> = Object.freeze({
+  steer: { labelKey: "session.mode.steer.label", descriptionKey: "session.mode.steer.description" },
+  followUp: {
+    labelKey: "session.mode.follow.up.label",
+    descriptionKey: "session.mode.follow.up.description",
+  },
+  parallel: {
+    labelKey: "session.mode.parallel.label",
+    descriptionKey: "session.mode.parallel.description",
+  },
 });
 
+/** 取当前语言的投递方式名称；组件在模板里直接调用，语言切换后自动重渲染。 */
 export function sendModeLabel(mode: SendMode): string {
-  return SEND_MODE_TEXT[mode].label;
+  return useLocale().t(SEND_MODE_TEXT[mode].labelKey);
+}
+
+/** 取当前语言的投递方式说明。 */
+export function sendModeDescription(mode: SendMode): string {
+  return useLocale().t(SEND_MODE_TEXT[mode].descriptionKey);
+}
+
+/** 未接入时统一显示的原因：只说事实，不假装能点。 */
+export function sendModePendingReason(): string {
+  return useLocale().t(SEND_MODES_PENDING_KEY);
 }
 
 /** 判定三种投递方式此刻是否可选；顺序与 SEND_MODE_ORDER 一致。 */
@@ -72,12 +97,13 @@ export function sendModeAvailability(
   context: SendModeContext,
   options: SendModeAvailabilityOptions = {},
 ): Record<SendMode, SendModeAvailability> {
+  const { t } = useLocale();
   if (!(options.ready ?? SEND_MODES_READY)) {
     // 每一项各自一个对象：调用方可能只改其中一项，共享引用会互相污染。
     return {
-      steer: { enabled: false, reason: SEND_MODES_PENDING_REASON },
-      followUp: { enabled: false, reason: SEND_MODES_PENDING_REASON },
-      parallel: { enabled: false, reason: SEND_MODES_PENDING_REASON },
+      steer: { enabled: false, reason: sendModePendingReason() },
+      followUp: { enabled: false, reason: sendModePendingReason() },
+      parallel: { enabled: false, reason: sendModePendingReason() },
     };
   }
 
@@ -86,17 +112,17 @@ export function sendModeAvailability(
   const hasProject = context.hasProject ?? true;
 
   const parallelReason = !draft
-    ? "先输入内容再并行发送"
+    ? t("session.mode.reason.parallel.empty")
     : attachments > 0
-      ? "带附件的消息不能并行发送"
+      ? t("session.mode.reason.parallel.attachments")
       : !hasProject
-        ? "并行发送需要一个已登记的项目"
+        ? t("session.mode.reason.parallel.no.project")
         : null;
 
   return {
     steer: context.busy
       ? { enabled: true, reason: null }
-      : { enabled: false, reason: "Agent 空闲时消息直接发出，无需加入当前回合" },
+      : { enabled: false, reason: t("session.mode.reason.steer.idle") },
     followUp: { enabled: true, reason: null },
     parallel: { enabled: parallelReason === null, reason: parallelReason },
   };

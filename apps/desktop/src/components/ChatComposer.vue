@@ -22,6 +22,7 @@ import ComposerSendMenu from "./ComposerSendMenu.vue";
 import SessionStatsRing from "./SessionStatsRing.vue";
 import SessionStatsRow from "./SessionStatsRow.vue";
 import { sendModeLabel } from "./sendMode.ts";
+import { useLocale } from "../locales/index.ts";
 import type { SessionStatsView } from "./sessionStats.ts";
 import type { BusySendDelivery } from "../settings/busyDelivery.ts";
 import type { SendMode, TabStatus } from "../workspace/types.ts";
@@ -54,6 +55,9 @@ const emit = defineEmits<{
   (event: "refresh-stats"): void;
 }>();
 
+/** 输入区文案走 composer.json（Issue #144）。 */
+const { t } = useLocale();
+
 const textarea = ref<HTMLTextAreaElement | null>(null);
 const running = computed(() => props.status === "running" || props.status === "cancelling");
 const canSend = computed(
@@ -73,12 +77,20 @@ const defaultDeliveryLabel = computed(() => sendModeLabel(props.defaultDelivery)
  */
 const sendShortcut = computed(() => (props.enterToSend ? "Enter" : "Ctrl/⌘+Enter"));
 
+/** 取消按钮的可见文案与无障碍名称分开取，两者都必须跟着语言与状态走。 */
+const cancelText = computed(() =>
+  props.status === "cancelling" ? t("composer.cancel.pending") : t("composer.cancel.action"),
+);
+const cancelLabel = computed(() =>
+  props.status === "cancelling" ? t("composer.cancel.label.pending") : t("composer.cancel.label"),
+);
+
 const hint = computed(() =>
   running.value
-    ? `本轮运行中 · 忙碌时发送即将支持（当前偏好「${defaultDeliveryLabel.value}」）`
+    ? t("composer.hint.running", { delivery: defaultDeliveryLabel.value })
     : props.enterToSend
-      ? "Enter 发送 · Shift+Enter 换行 · Esc 取消当前轮次"
-      : "Ctrl/⌘+Enter 发送 · Enter 换行 · Esc 取消当前轮次",
+      ? t("composer.hint.enter")
+      : t("composer.hint.modifier"),
 );
 
 function onInput(event: Event) {
@@ -142,23 +154,28 @@ defineExpose({ focus: () => textarea.value?.focus() });
     <div v-if="pendingMode" class="send-mode-bar" data-show="true">
       <ListOrdered :size="14" :stroke-width="1.9" aria-hidden="true" />
       <span class="mode-text">
-        下一条消息将 <b>{{ sendModeLabel(pendingMode) }}</b>
+        {{ t("composer.bar.lead") }} <b>{{ sendModeLabel(pendingMode) }}</b>
       </span>
-      <AppTooltip text="取消发送方式">
-        <button class="mode-x" type="button" aria-label="取消发送方式" @click="clearMode">
+      <AppTooltip :text="t('composer.bar.cancel')">
+        <button
+          class="mode-x"
+          type="button"
+          :aria-label="t('composer.bar.cancel')"
+          @click="clearMode"
+        >
           <X :size="12" :stroke-width="2.2" aria-hidden="true" />
         </button>
       </AppTooltip>
     </div>
 
     <div class="composer" :data-running="running">
-      <label class="sr-only" for="soxu-composer">消息内容</label>
+      <label class="sr-only" for="soxu-composer">{{ t("composer.input.label") }}</label>
       <textarea
         id="soxu-composer"
         ref="textarea"
         :value="draft"
         rows="2"
-        placeholder="向 Pi Agent 发送消息…"
+        :placeholder="t('composer.input.placeholder')"
         :disabled="disabled"
         :aria-describedby="'soxu-composer-hint'"
         @input="onInput"
@@ -178,19 +195,19 @@ defineExpose({ focus: () => textarea.value?.focus() });
             class="stop-button"
             type="button"
             :disabled="status === 'cancelling'"
-            :aria-label="status === 'cancelling' ? '正在取消' : '取消当前轮次'"
+            :aria-label="cancelLabel"
             @click="emit('cancel')"
           >
             <CircleStop :size="16" :stroke-width="1.9" aria-hidden="true" />
-            {{ status === "cancelling" ? "取消中…" : "取消" }}
+            {{ cancelText }}
           </button>
           <div class="send-split">
-            <AppTooltip :text="`发送消息 (${sendShortcut})`" side="top">
+            <AppTooltip :text="t('composer.send.hint', { shortcut: sendShortcut })" side="top">
               <button
                 class="send-main"
                 type="button"
                 :disabled="!canSend"
-                aria-label="发送消息"
+                :aria-label="t('composer.send.label')"
                 @click="send"
               >
                 <Send :size="16" :stroke-width="1.9" aria-hidden="true" />

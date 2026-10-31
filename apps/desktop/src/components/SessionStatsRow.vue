@@ -10,14 +10,17 @@
 import { computed } from "vue";
 
 import { PLACEHOLDER, statsRowItems, type SessionStatsView } from "./sessionStats.ts";
+import { useLocale } from "../locales/index.ts";
 
 const props = defineProps<{ view: SessionStatsView }>();
+
+const { t } = useLocale();
 
 const items = computed(() => statsRowItems(props.view));
 </script>
 
 <template>
-  <dl class="stats-row" aria-label="本轮统计">
+  <dl class="stats-row" :aria-label="t('session.stats.row.label')">
     <div v-for="item in items" :key="item.key" class="stat">
       <dt>{{ item.label }}</dt>
       <dd :data-empty="item.value === PLACEHOLDER">{{ item.value }}</dd>

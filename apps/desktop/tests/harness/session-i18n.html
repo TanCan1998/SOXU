@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>SOXU · Issue #144 会话区与输入区 i18n 夹具</title>
+    <style>
+      html,
+      body,
+      #app {
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      仅用于本地开发服务器的 DOM 夹具（Issue #144 · TASK-034）：
+      pnpm dev 后访问 /tests/harness/session-i18n.html?locale=en-US ，
+      再用 tests/harness/shoot-issue-144-i18n.mjs 截图并断言会话区/输入区完整英文渲染。
+      不参与生产构建（vite build 只构建 index.html），也不连接 Pi：
+      Tab、消息与统计快照都是内存里的假数据，形状与真实返回一致。
+    -->
+    <div id="app"></div>
+    <script type="module" src="./session-i18n.ts"></script>
+  </body>
+</html>

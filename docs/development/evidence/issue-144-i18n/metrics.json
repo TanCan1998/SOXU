@@ -1,0 +1,288 @@
+{
+  "generatedAt": "2026-10-31T04:44:25.392Z",
+  "viewport": {
+    "width": 1180,
+    "height": 900
+  },
+  "browser": "Edg/156.0.4314.50",
+  "fixture": "/tests/harness/session-i18n.html",
+  "shots": [
+    "01-session-zh-CN.png",
+    "01-send-menu-zh-CN.png",
+    "01-stats-zh-CN.png",
+    "02-session-en-US.png",
+    "02-send-menu-en-US.png",
+    "02-stats-en-US.png"
+  ],
+  "regions": {
+    "zh-CN": {
+      "locale": "zh-CN",
+      "text": "i18n harness\n临时\ni18n harness\n\n运行中\n·\nharness_ses_i18n#1 · generation 3 · running\n\n临时会话\n转为普通会话\n\n临时会话默认不写入 SOXU 的会话历史，也不会出现在侧栏；Pi 仍按自己的规则管理会话文件。只有显式点击「转为普通会话」才会登记进历史，失败时保留临时会话并显示原因。\n\n加载更多历史（已载入 12/1203）\n\n更早的 12 条已从内存释放，Pi 的会话文件未受影响\n\n更早的 3 条实时消息已从内存窗口释放，重新加载历史可查看\n\n你\n09:05\n\nShow the failing test in the composer.\n\nAgent\n09:05\n\nThe composer hint comes from the locale pack now.\n\nts\nt('composer.hint.enter')\n\n\n\n工具输出\n09:05\n\n展开工具输出\n\nAgent\n09:05\n\nTruncated preview entry.\n\n正文超过单条上限，已截断\n\n系统\n09:05\n\nSession resumed from JSONL.\n预览，正文未载入\n消息内容\n本轮运行中 · 忙碌时发送即将支持（当前偏好「加入当前」）\n60.0%\n取消\n轮次\n3\n首 token\n420 ms\n回复耗时\n2.40 s\n流式\n12.5 tok/s\n均速\n9.5 tok/s\n缓存命中\n80.0%\n输入/输出\n9.0k / 1.2k",
+      "times": [
+        "09:05",
+        "09:05",
+        "09:05",
+        "09:05",
+        "09:05"
+      ],
+      "labels": [
+        "你 09:05",
+        "Agent 09:05",
+        "工具输出 09:05",
+        "Agent 09:05",
+        "系统 09:05"
+      ],
+      "placeholder": "向 Pi Agent 发送消息…",
+      "hint": "本轮运行中 · 忙碌时发送即将支持（当前偏好「加入当前」）",
+      "statsAria": "本轮统计",
+      "tabBadge": "临时",
+      "toolSummary": "展开工具输出",
+      "sendLabel": "发送消息",
+      "wording": [],
+      "sendMenu": {
+        "text": "加入当前\n追加到本轮对话 · 即将支持\n排到下轮\n本轮结束后自动发送 · 即将支持\n并行发送\n独立会话后台处理，不打断当前输出 · 即将支持",
+        "items": 3,
+        "disabled": 3
+      },
+      "statsPopover": {
+        "text": "上下文与统计\n进行中\n\n上下文\n\n已用\n60.0%\n120.0k / 200.0k token\n\n本轮（进行中）\n\n轮次\n3\n首 token\n420 ms\n回复耗时\n2.40 s\n流式速度\n12.5 tok/s\n均速\n9.5 tok/s\n缓存命中\n80.0%\n\n进程\n\n内存\n128.5 MB\nCPU\n—\n当前平台采样器不提供 CPU 占用\n子进程\n1\n\n会话\n\n载入 / 条目\n12 / 1,203\n输入 token\n9.0k\n输出 token\n1.2k\n重试预算\n—\n未发生重试\n\n当前平台不提供 CPU 占用\n\n工作树：F:/work/soxu"
+      }
+    },
+    "en-US": {
+      "locale": "en-US",
+      "text": "i18n harness\nTemp\ni18n harness\n\nRunning\n·\nharness_ses_i18n#1 · generation 3 · running\n\nTemporary session\nPromote to regular session\n\nTemporary sessions are not written to SOXU session history and never appear in the sidebar; Pi still manages the session file under its own rules. Only an explicit \"Promote to regular session\" registers it in history — if that fails the temporary session is kept and the reason is shown.\n\nLoad more history (12/1203 loaded)\n\nThe earliest 12 messages were released from memory; Pi's session file is untouched\n\nThe earliest 3 live messages were released from the memory window; reload history to see them again\n\nYou\n09:05 AM\n\nShow the failing test in the composer.\n\nAgent\n09:05 AM\n\nThe composer hint comes from the locale pack now.\n\nts\nt('composer.hint.enter')\n\n\n\nTool output\n09:05 AM\n\nExpand tool output\n\nAgent\n09:05 AM\n\nTruncated preview entry.\n\nThe message exceeds the per-item limit and was truncated\n\nSystem\n09:05 AM\n\nSession resumed from JSONL.\nPreview only — the full text is not loaded\nMessage content\nTurn in progress · sending while busy is coming soon (current preference \"Add to current\")\n60.0%\nCancel\nTurns\n3\nFirst token\n420 ms\nDuration\n2.40 s\nStreaming\n12.5 tok/s\nAvg speed\n9.5 tok/s\nCache hit\n80.0%\nInput/output\n9.0k / 1.2k",
+      "times": [
+        "09:05 AM",
+        "09:05 AM",
+        "09:05 AM",
+        "09:05 AM",
+        "09:05 AM"
+      ],
+      "labels": [
+        "You 09:05 AM",
+        "Agent 09:05 AM",
+        "Tool output 09:05 AM",
+        "Agent 09:05 AM",
+        "System 09:05 AM"
+      ],
+      "placeholder": "Send a message to Pi Agent…",
+      "hint": "Turn in progress · sending while busy is coming soon (current preference \"Add to current\")",
+      "statsAria": "Turn statistics",
+      "tabBadge": "Temp",
+      "toolSummary": "Expand tool output",
+      "sendLabel": "Send message",
+      "wording": [],
+      "sendMenu": {
+        "text": "Add to current\nAppend to this turn · Coming soon\nQueue for next turn\nSent automatically after this turn ends · Coming soon\nSend in parallel\nHandled in a separate background session without interrupting the current output · Coming soon",
+        "items": 3,
+        "disabled": 3
+      },
+      "statsPopover": {
+        "text": "Context and statistics\nIn progress\n\nContext\n\nUsed\n60.0%\n120.0k / 200.0k token\n\nThis turn (in progress)\n\nTurns\n3\nFirst token\n420 ms\nDuration\n2.40 s\nStreaming speed\n12.5 tok/s\nAvg speed\n9.5 tok/s\nCache hit\n80.0%\n\nProcess\n\nMemory\n128.5 MB\nCPU\n—\nThe sampler on this platform does not provide CPU usage\nChild processes\n1\n\nSession\n\nLoaded / entries\n12 / 1,203\nInput tokens\n9.0k\nOutput tokens\n1.2k\nRetry budget\n—\nNo retries\n\nCPU usage is not available on this platform\n\nWorktree: F:/work/soxu"
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "zh-CN：夹具语言与请求一致",
+      "ok": true,
+      "locale": "zh-CN"
+    },
+    {
+      "name": "zh-CN：渲染文本没有禁用词",
+      "ok": true,
+      "hits": []
+    },
+    {
+      "name": "zh-CN：渲染文本包含中文",
+      "ok": true,
+      "hasCjk": true
+    },
+    {
+      "name": "zh-CN：出现「临时会话」",
+      "ok": true,
+      "expected": "临时会话"
+    },
+    {
+      "name": "zh-CN：出现「运行中」",
+      "ok": true,
+      "expected": "运行中"
+    },
+    {
+      "name": "zh-CN：出现「加载更多历史」",
+      "ok": true,
+      "expected": "加载更多历史"
+    },
+    {
+      "name": "zh-CN：出现「忙碌时发送即将支持」",
+      "ok": true,
+      "expected": "忙碌时发送即将支持"
+    },
+    {
+      "name": "zh-CN：出现「轮次」",
+      "ok": true,
+      "expected": "轮次"
+    },
+    {
+      "name": "zh-CN：出现「你」",
+      "ok": true,
+      "expected": "你"
+    },
+    {
+      "name": "zh-CN：出现「工具输出」",
+      "ok": true,
+      "expected": "工具输出"
+    },
+    {
+      "name": "zh-CN：消息时间戳按语言格式化（09:05）",
+      "ok": true,
+      "firstTime": "09:05"
+    },
+    {
+      "name": "zh-CN：输入区提示文案已本地化",
+      "ok": true,
+      "hint": "本轮运行中 · 忙碌时发送即将支持（当前偏好「加入当前」）"
+    },
+    {
+      "name": "zh-CN：输入框 placeholder 已本地化",
+      "ok": true,
+      "placeholder": "向 Pi Agent 发送消息…"
+    },
+    {
+      "name": "zh-CN：发送按钮有本地化的无障碍名称",
+      "ok": true,
+      "sendLabel": "发送消息"
+    },
+    {
+      "name": "zh-CN：统计行有本地化的无障碍名称",
+      "ok": true,
+      "statsAria": "本轮统计"
+    },
+    {
+      "name": "zh-CN：发送菜单三项齐全",
+      "ok": true,
+      "items": 3
+    },
+    {
+      "name": "zh-CN：投递语义未接入时三项全部置灰",
+      "ok": true,
+      "disabled": 3
+    },
+    {
+      "name": "zh-CN：置灰原因写「即将支持」",
+      "ok": true,
+      "text": "加入当前\n追加到本轮对话 · 即将支持\n排到下轮\n本轮结束后自动发送 · 即将支持\n并行发送\n独立会话后台处理，不打断当前输出 · 即将支持"
+    },
+    {
+      "name": "zh-CN：浮窗标题为「上下文与统计」",
+      "ok": true,
+      "text": "上下文与统计\n进行中\n\n上下文\n\n已用\n60.0%\n120.0k / 200.0k token\n\n本轮（进行中）\n\n轮次\n3\n首 token\n420 ms\n回复耗时\n2.40 s\n流式速度\n12.5 tok/s\n均速\n9.5 tok/s\n缓存命中\n80.0%\n\n进程\n\n内存\n128.5 MB\nCPU\n—\n当前平台采样器"
+    },
+    {
+      "name": "zh-CN：浮窗有中文",
+      "ok": true,
+      "popoverCjk": true
+    },
+    {
+      "name": "en-US：夹具语言与请求一致",
+      "ok": true,
+      "locale": "en-US"
+    },
+    {
+      "name": "en-US：渲染文本没有禁用词",
+      "ok": true,
+      "hits": []
+    },
+    {
+      "name": "en-US：渲染文本没有任何中文",
+      "ok": true,
+      "hasCjk": false
+    },
+    {
+      "name": "en-US：出现「Temporary session」",
+      "ok": true,
+      "expected": "Temporary session"
+    },
+    {
+      "name": "en-US：出现「Running」",
+      "ok": true,
+      "expected": "Running"
+    },
+    {
+      "name": "en-US：出现「Load more history」",
+      "ok": true,
+      "expected": "Load more history"
+    },
+    {
+      "name": "en-US：出现「sending while busy is coming soon」",
+      "ok": true,
+      "expected": "sending while busy is coming soon"
+    },
+    {
+      "name": "en-US：出现「Turns」",
+      "ok": true,
+      "expected": "Turns"
+    },
+    {
+      "name": "en-US：出现「You」",
+      "ok": true,
+      "expected": "You"
+    },
+    {
+      "name": "en-US：出现「Tool output」",
+      "ok": true,
+      "expected": "Tool output"
+    },
+    {
+      "name": "en-US：消息时间戳按语言格式化（09:05 AM）",
+      "ok": true,
+      "firstTime": "09:05 AM"
+    },
+    {
+      "name": "en-US：输入区提示文案已本地化",
+      "ok": true,
+      "hint": "Turn in progress · sending while busy is coming soon (current preference \"Add to current\")"
+    },
+    {
+      "name": "en-US：输入框 placeholder 已本地化",
+      "ok": true,
+      "placeholder": "Send a message to Pi Agent…"
+    },
+    {
+      "name": "en-US：发送按钮有本地化的无障碍名称",
+      "ok": true,
+      "sendLabel": "Send message"
+    },
+    {
+      "name": "en-US：统计行有本地化的无障碍名称",
+      "ok": true,
+      "statsAria": "Turn statistics"
+    },
+    {
+      "name": "en-US：发送菜单三项齐全",
+      "ok": true,
+      "items": 3
+    },
+    {
+      "name": "en-US：投递语义未接入时三项全部置灰",
+      "ok": true,
+      "disabled": 3
+    },
+    {
+      "name": "en-US：置灰原因写 Coming soon",
+      "ok": true,
+      "text": "Add to current\nAppend to this turn · Coming soon\nQueue for next turn\nSent automatically after this turn ends · Coming soon\nSend in parallel\nHandled in a separat"
+    },
+    {
+      "name": "en-US：浮窗标题为 Context and statistics",
+      "ok": true,
+      "text": "Context and statistics\nIn progress\n\nContext\n\nUsed\n60.0%\n120.0k / 200.0k token\n\nThis turn (in progress)\n\nTurns\n3\nFirst token\n420 ms\nDuration\n2.40 s\nStreaming spe"
+    },
+    {
+      "name": "en-US：浮窗没有任何中文",
+      "ok": true,
+      "popoverCjk": false
+    }
+  ],
+  "pageErrors": []
+}

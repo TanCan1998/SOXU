@@ -4,6 +4,7 @@ import { useVirtualizer } from "@tanstack/vue-virtual";
 import MarkdownContent from "./MarkdownContent.vue";
 import MessageActions from "./MessageActions.vue";
 import { formatMessageTime } from "./messageTime.ts";
+import { useLocale } from "../locales/index.ts";
 import type { SessionSettings } from "../settings/sessionSettings.ts";
 import type { ChatMessage, HistoryCursor } from "../workspace/types.ts";
 import {
@@ -33,6 +34,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ (event: "load-more"): void }>();
+
+/** 会话区文案与时间格式化都来自语言运行时（Issue #144）。 */
+const { t, formatDateTime } = useLocale();
 
 const scrollRef = ref<HTMLElement | null>(null);
 const stickToBottom = ref(true);
@@ -170,10 +174,13 @@ function toolExpandedByDefault(): boolean {
   return props.settings.showToolCalls;
 }
 
-/** 消息时间戳：设置关掉或时间缺失/非法时返回 null，界面不渲染。 */
+/**
+ * 消息时间戳：设置关掉或时间缺失/非法时返回 null，界面不渲染。
+ * 格式化交给当前语言的 Intl（Issue #144），不再手拼 "HH:mm"。
+ */
 function messageTime(message: ChatMessage | undefined): string | null {
   if (!props.settings.showTimestamps) return null;
-  return formatMessageTime(message?.createdAt);
+  return formatMessageTime(message?.createdAt, formatDateTime);
 }
 
 /** 只有 agent 消息有 hover 操作（复制/重试/回退），且必须真的有正文。 */
@@ -184,15 +191,15 @@ function showsActions(message: ChatMessage | undefined): boolean {
 function labelFor(message: ChatMessage): string {
   switch (message.role) {
     case "user":
-      return "你";
+      return t("session.list.role.user");
     case "assistant":
-      return "Agent";
+      return t("session.list.role.assistant");
     case "tool":
-      return "工具输出";
+      return t("session.list.role.tool");
     case "system":
-      return "系统";
+      return t("session.list.role.system");
     default:
-      return "事件";
+      return t("session.list.role.event");
   }
 }
 </script>
@@ -210,13 +217,17 @@ function labelFor(message: ChatMessage): string {
         :disabled="loading"
         @click="emit('load-more')"
       >
-        {{ loading ? "正在加载后续历史…" : `加载更多历史（已载入 ${history.loaded}/${history.total}）` }}
+        {{
+          loading
+            ? t("session.list.history.loading")
+            : t("session.list.history.more", { loaded: history.loaded, total: history.total })
+        }}
       </button>
       <p v-if="history.evicted > 0" class="evicted-note" role="note">
-        更早的 {{ history.evicted }} 条已从内存释放，Pi 的会话文件未受影响
+        {{ t("session.list.evicted.memory", { count: history.evicted }) }}
       </p>
       <p v-if="history.evictedLive > 0" class="evicted-note" role="note">
-        更早的 {{ history.evictedLive }} 条实时消息已从内存窗口释放，重新加载历史可查看
+        {{ t("session.list.evicted.live", { count: history.evictedLive }) }}
       </p>
     </div>
     <div
@@ -225,7 +236,7 @@ function labelFor(message: ChatMessage): string {
       role="log"
       aria-live="polite"
       aria-relevant="additions text"
-      aria-label="会话消息"
+      :aria-label="t('session.list.log.label')"
       @scroll="onScroll"
     >
       <div class="virtual-canvas" :style="{ height: `${totalSize}px` }">
@@ -258,7 +269,7 @@ function labelFor(message: ChatMessage): string {
               class="tool-block"
               :open="toolExpandedByDefault()"
             >
-              <summary>展开工具输出</summary>
+              <summary>{{ t("session.list.tool.expand") }}</summary>
               <pre>{{ messages[item.index]?.text }}</pre>
             </details>
             <template v-else>
@@ -268,10 +279,14 @@ function labelFor(message: ChatMessage): string {
                   :text="messages[item.index]?.text ?? ''"
                   :streaming="messages[item.index]?.streaming ?? false"
                 />
-                <span v-else class="text">{{ messages[item.index]?.text || "（空内容）" }}</span>
-                <span v-if="messages[item.index]?.partial" class="partial">预览，正文未载入</span>
+                <span v-else class="text">
+                  {{ messages[item.index]?.text || t("session.list.empty") }}
+                </span>
+                <span v-if="messages[item.index]?.partial" class="partial">
+                  {{ t("session.list.partial") }}
+                </span>
                 <span v-if="messages[item.index]?.truncated" class="partial">
-                  正文超过单条上限，已截断
+                  {{ t("session.list.truncated") }}
                 </span>
                 <span
                   v-if="messages[item.index]?.streaming"
