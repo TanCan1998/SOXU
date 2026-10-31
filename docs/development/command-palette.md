@@ -6,9 +6,10 @@
 | 文件 | 职责 |
 | --- | --- |
 | `apps/desktop/src/commands/match.ts` | 拼音索引、模糊匹配、打分与高亮区间（纯逻辑，无 DOM） |
-| `apps/desktop/src/commands/registry.ts` | 命令清单、可用性判断、键盘语义（纯逻辑，无 DOM） |
+| `apps/desktop/src/commands/registry.ts` | 命令清单、可用性判断、键盘语义（纯逻辑，无 DOM；只存语言包 key） |
 | `apps/desktop/src/components/CommandPalette.vue` | 渲染结果与高亮、把按键翻译成动作 |
-| `apps/desktop/src/settings/catalog.ts` | 设置页与设置类命令共用的元数据（唯一来源） |
+| `apps/desktop/src/settings/catalog.ts` | 设置页与设置类命令共用的元数据（唯一来源，只存语言包 key） |
+| `apps/desktop/src/locales/*/commands.json` | 命令标题 / 说明 / 搜索别名 / 面板自身文案（Issue #145） |
 | `apps/desktop/src/App.vue` | 打开/关闭面板、把命令动作接到真实副作用 |
 
 ## 1. 交互
@@ -70,13 +71,17 @@ DOM 遍历与 `focus()` 留在 `CommandPalette.vue`。打开前的 `document.act
 | `SettingsRow.vue` | 按 `setting="appearance.theme"` 取行标题与默认说明 |
 | `commands/registry.ts` | 为每个标签页与每个设置项各生成一条命令 |
 
-因此设置面板模板里**没有中文标题字面量**，新增一项设置只需要改 `catalog.ts` 一次，
-命令面板自动多一条可搜索项。这条性质由测试守着：
+因此设置面板模板里**没有标题字面量**，新增一项设置只需要改 `catalog.ts` 一次，
+命令面板自动多一条可搜索项。文案本身在 `locales/<tag>/settings.json` 与 `commands.json` 里
+（Issue #145）：目录只存 key，界面按当前语言解析，切语言后设置页与命令面板同时变成对应语言。
+这两条性质由测试守着：
 
 - `tests/commandPalette.test.ts` 扫描三个面板的 `setting="…"`，逐个用
   `settingsEntry()` 解析（拼错的 id 会当场失败），并断言面板里不再出现
   `<SettingsRow label="…">`；
-- `tests/settingsDialog.test.ts` 断言四页与各项的文案来自 `catalog.ts`。
+- `tests/settingsDialog.test.ts` 断言四页与各项的文案来自 `catalog.ts`；
+- `tests/productI18n.test.ts` 断言 `catalog.ts` 与 `registry.ts` 里没有硬编码界面文案，
+  且切到 en-US 后全部标题 / 说明 / 别名 / 不可用原因都不含中日韩字符。
 
 设置类的命令执行的是「打开设置并落到对应页」，**不会**替你改任何开关：
 命令面板只负责导航，改值仍然在设置页里做（避免一个快捷键静默改掉用户偏好）。
@@ -89,7 +94,8 @@ DOM 遍历与 `focus()` 留在 `CommandPalette.vue`。打开前的 `document.act
 
 ## 4. 注册表只登记真实存在的动作
 
-当前 36 条命令：面板开关（7）、会话动作（4）、设置（4 页 + 20 项）、系统（1）。
+当前 34 条命令：面板开关（7）、会话动作（4）、设置（4 页 + 18 项）、系统（1）。
+（Issue #145 移除了「自动更新」「检查更新」两项设置，因此设置项从 20 项降为 18 项。）
 
 **未覆盖**：终端面板与文件打开在本切片都还没有实现，因此注册表里**没有**
 「打开终端」「打开文件」——宁可少一条，也不放一条点了没反应的命令。
@@ -102,7 +108,7 @@ Issue 正文里 `dk` 的示例包含这两个动作，它们要等对应切片�
 ## 5. 资源与性能
 
 - 组件不持有任何资源：没有定时器、没有 `window` 级监听，关闭即卸载。
-- 结果条数上界 `MAX_RESULTS = 50`（当前命令总量 36，实际不会截断），DOM 节点数有界。
+- 结果条数上界 `MAX_RESULTS = 50`（当前命令总量 34，实际不会截断），DOM 节点数有界。
 - 拼音索引按标题缓存（上限 256 条，超出清空），同一标题只算一次。
 - 实测「输入 → 结果渲染」端到端耗时**只写在证据目录 `metrics.json` 的 `dkLatencyMs` 里**
   （含一次 CDP 往返；预算 250 ms，历次采集在 17–23 ms 之间波动）。本文件不复述具体数值：

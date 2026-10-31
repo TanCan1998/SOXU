@@ -1,19 +1,24 @@
 <script setup lang="ts">
 /**
- * 设置 → 系统（Issue #116）：7 项。
+ * 设置 → 系统（Issue #116；Issue #145 起真接线）。
  *
- * 三个开关只做「界面 + 持久化」：自动更新、完成通知与托盘行为都还没有对应的后端能力，
- * 所以每一项的说明都写清楚此刻的真实状态，不让用户以为开关已经生效。
- * 开关本身会落盘（下次打开保持），这一点在说明里也写明，不夸大也不含糊。
+ * 五项：
+ * - 任务完成通知：并入通知系统的事件开关链（notifications/settings.ts 的模型），
+ *   关闭后完成/出错不再提醒，等待输入仍然提醒；
+ * - 关闭时最小化到托盘：偏好经 Tauri 命令传给 Rust（tray::ClosePreference），
+ *   关闭为 false 时点 × 直接退出进程；
+ * - 恢复默认布局、数据目录（复制路径 + 用系统文件管理器打开）、关于。
  *
- * 行标题与说明不写在这里（Issue #123）：SettingsRow 按 setting id 从
- * settings/catalog.ts 取，命令面板读的是同一份元数据。
+ * 更新通道落地前**不出现**「自动更新」「检查更新」入口（Issue #145）：
+ * 一个点了没反应的开关只会误导用户，所以整行移除而不是禁用。
  *
- * 两个动作按钮同样如实：
- * - 检查更新：只显示当前版本，更新通道未接入（需要后端命令）；
- * - 数据目录：复制真实路径（%APPDATA%\<应用标识符>），打开文件夹需要后端命令。
+ * 行标题与说明来自 settings/catalog.ts（Issue #123），文案在语言包里（Issue #145）；
+ * 本组件只写 key 与真实状态，不编造未接入的能力。
  */
 
+import { computed } from "vue";
+
+import { useLocale } from "../../locales/index.ts";
 import type { RuntimeInfo } from "../../services/native.ts";
 import type { SystemSettings } from "../../settings/systemSettings.ts";
 import SettingsButton from "./SettingsButton.vue";
@@ -30,36 +35,66 @@ const props = defineProps<{
   dataDirectory: string;
   /** 复制路径的结果，用于按钮文案回显。 */
   copyState: "idle" | "copied" | "failed";
+  /** 「打开数据目录」的结果；failed 时按钮文案如实说明失败。 */
+  openState: "idle" | "opened" | "failed";
 }>();
 
 const emit = defineEmits<{
   (event: "update:settings", value: Partial<SystemSettings>): void;
   (event: "reset-layout"): void;
   (event: "copy-data-dir"): void;
+  (event: "open-data-dir"): void;
 }>();
+
+const { t } = useLocale();
 
 function setFlag(key: keyof SystemSettings, value: boolean): void {
   emit("update:settings", { [key]: value });
 }
 
-const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制失败" } as const;
+const copyLabel = computed(() =>
+  props.copyState === "copied"
+    ? t("settings.system.action.copied")
+    : props.copyState === "failed"
+      ? t("settings.system.action.copy.failed")
+      : t("settings.system.action.copy"),
+);
+
+const openLabel = computed(() =>
+  props.openState === "opened"
+    ? t("settings.system.action.opened")
+    : props.openState === "failed"
+      ? t("settings.system.action.open.failed")
+      : t("settings.system.action.open.data.dir"),
+);
+
+/** 关于行的描述：版本 + Tauri 版本 + 协议，缺一项就如实写未知。 */
+const aboutDescription = computed(() => {
+  const info = props.info;
+  if (!info) return t("settings.system.description.about.unknown");
+  return t("settings.system.description.about", {
+    app: info.appName,
+    version: info.appVersion,
+    tauri: props.tauriVersion ?? t("settings.system.value.unknown"),
+  });
+});
+
+const connectionLabel = computed(() =>
+  props.bridgeAvailable ? t("common.status.connected") : t("common.status.disconnected"),
+);
+
+const aboutNote = computed(() =>
+  t("settings.system.note.about", {
+    status: props.bridgeAvailable
+      ? t("common.status.connected.hint")
+      : t("common.status.disconnected.hint"),
+    platform: props.info?.platform ?? t("settings.system.value.unknown"),
+  }),
+);
 </script>
 
 <template>
   <div class="panel">
-    <SettingsRow setting="system.autoUpdate">
-      <template #default="{ labelId }">
-        <SettingsSwitch
-          :model-value="settings.autoUpdate"
-          :labelledby="labelId"
-          @update:model-value="setFlag('autoUpdate', $event)"
-        />
-      </template>
-      <template #note>
-        本项只保存偏好：当前版本不会自动下载更新。
-      </template>
-    </SettingsRow>
-
     <SettingsRow setting="system.notifyOnComplete">
       <template #default="{ labelId }">
         <SettingsSwitch
@@ -69,7 +104,7 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
         />
       </template>
       <template #note>
-        本项只保存开关状态；提醒的呈现方式（浮层 / 系统通知 / 声音）还没有单独的设置项。
+        {{ t("settings.system.note.notify.on.complete") }}
       </template>
     </SettingsRow>
 
@@ -82,56 +117,33 @@ const copyLabel = { idle: "复制路径", copied: "已复制", failed: "复制�
         />
       </template>
       <template #note>
-        当前版本关闭窗口总是最小化到托盘；本开关只保存偏好，暂不改变该行为。
-      </template>
-    </SettingsRow>
-
-    <SettingsRow
-      setting="system.updateCheck"
-      :description="`当前 ${info?.appVersion ?? '未获取'}`"
-    >
-      <SettingsButton label="检查更新" disabled />
-      <template #note>
-        当前版本只显示已安装的版本号，还不能在线检查更新。
+        {{ t("settings.system.note.minimize.to.tray") }}
       </template>
     </SettingsRow>
 
     <SettingsRow setting="system.resetLayout">
-      <SettingsButton label="重置" @click="emit('reset-layout')" />
+      <SettingsButton :label="t('settings.system.action.reset')" @click="emit('reset-layout')" />
       <template #note>
-        两个面板的宽度目前是固定 token（无法拖拽改宽）：重置会把面板恢复为展开，
-        并让会话正文回到「固定 768」。
+        {{ t("settings.system.note.reset.layout") }}
       </template>
     </SettingsRow>
 
     <SettingsRow setting="system.dataDirectory" :description="dataDirectory">
-      <SettingsButton
-        :label="copyLabel[copyState]"
-        @click="emit('copy-data-dir')"
-      />
+      <SettingsButton :label="copyLabel" @click="emit('copy-data-dir')" />
+      <SettingsButton :label="openLabel" @click="emit('open-data-dir')" />
       <template #note>
-        可以复制路径后在文件管理器中打开。该目录由应用自行维护，删除会连同已导入的社区语言包
-        一起丢失。
+        {{ t("settings.system.note.data.directory") }}
       </template>
     </SettingsRow>
 
-    <SettingsRow
-      setting="system.about"
-      :description="
-        info
-          ? `${info.appName} ${info.appVersion} · Tauri ${tauriVersion ?? '未知'} · Pi RPC`
-          : '版本信息未获取'
-      "
-    >
+    <SettingsRow setting="system.about" :description="aboutDescription">
       <template #default>
         <span class="badge" :data-tone="bridgeAvailable ? undefined : 'danger'">
-          {{ bridgeAvailable ? "已连接" : "未连接" }}
+          {{ connectionLabel }}
         </span>
       </template>
       <template #note>
-        连接状态：{{ bridgeAvailable ? "已连接本机运行时" : "未连接（浏览器预览）" }} ·
-        平台：{{ info?.platform ?? "未知" }} ·
-        会话文件由 Pi 管理，SOXU 只读索引。
+        {{ aboutNote }}
       </template>
     </SettingsRow>
   </div>

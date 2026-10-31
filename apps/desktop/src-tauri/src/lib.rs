@@ -44,6 +44,9 @@ pub fn run() {
             let state = AppState::new(state_dir)
                 .map_err(|error| format!("初始化工作区状态失败：{error}"))?;
             app.manage(state);
+            // 「关闭时最小化到托盘」偏好（Issue #145）：默认值与前端一致（true），
+            // 前端挂载后立刻用 set_close_behavior 推一次真实偏好。
+            app.manage(tray::ClosePreference::default());
             // 终端的 PTY 服务：输出经 sink 变成 `soxu://pty-output` 事件（16ms 合并一次）。
             // 它是独立资源（不挂在 AppState 上）：终端与 Pi 运行时的生命周期互不相干。
             app.manage(soxu_pty_service::PtyService::new(pty::event_sink(
@@ -73,9 +76,11 @@ pub fn run() {
             commands::stop_session,
             // ── workspace ──
             commands::list_projects,
+            commands::open_data_directory,
             commands::refresh_project,
             commands::register_project,
             commands::runtime_info,
+            commands::set_close_behavior,
             // ── worktree ──
             commands::create_worktree,
             commands::list_worktrees,

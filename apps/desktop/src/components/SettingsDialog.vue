@@ -12,12 +12,13 @@
  * 只有当前标签在 Tab 序列里（roving focus）；Tab 键从标签栏进入面板内容。
  */
 
-import { nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { X } from "@lucide/vue";
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from "reka-ui";
 
 import AppTooltip from "./AppTooltip.vue";
-import { SETTINGS_TABS, type SettingsTabId } from "../settings/catalog.ts";
+import { useLocale } from "../locales/index.ts";
+import { settingsTabs, type SettingsTabId } from "../settings/catalog.ts";
 import { settingsOpenTransition } from "../settings/openRequest.ts";
 import SettingsAppearance from "./settings/SettingsAppearance.vue";
 import SettingsExtensions from "./settings/SettingsExtensions.vue";
@@ -43,6 +44,8 @@ const props = defineProps<{
   tauriVersion: string | null;
   dataDirectory: string;
   copyState: "idle" | "copied" | "failed";
+  /** 「打开数据目录」的结果回显（Issue #145）。 */
+  openState: "idle" | "opened" | "failed";
   /** 会话页「清空当前会话」的禁用原因；null 表示可以点。 */
   clearBlockedReason: string | null;
   /**
@@ -67,6 +70,7 @@ const emit = defineEmits<{
   (event: "clear-session"): void;
   (event: "reset-layout"): void;
   (event: "copy-data-dir"): void;
+  (event: "open-data-dir"): void;
 }>();
 
 /**
@@ -74,8 +78,10 @@ const emit = defineEmits<{
  * 命令面板带目标页打开时（initialTab 非 null）直接落到那一页。
  *
  * 四个页面的 id 与文案来自 settings/catalog.ts，与命令面板的设置类命令同源，
- * 因此这里不再有第二份 TABS 数组。
+ * 因此这里不再有第二份 TABS 数组；文案由 t() 按当前语言解析（Issue #145）。
  */
+const { t } = useLocale();
+const tabs = computed(() => settingsTabs(t));
 const tab = ref<string>("appearance");
 const dialog = ref<HTMLElement | null>(null);
 
@@ -121,18 +127,23 @@ function onKeydown(event: KeyboardEvent) {
       @keydown="onKeydown"
     >
       <header class="dialog-head">
-        <h2 id="soxu-settings-title">设置</h2>
-        <AppTooltip text="关闭设置">
-          <button class="icon-button" type="button" aria-label="关闭设置" @click="emit('close')">
+        <h2 id="soxu-settings-title">{{ t("settings.dialog.title") }}</h2>
+        <AppTooltip :text="t('settings.dialog.close')">
+          <button
+            class="icon-button"
+            type="button"
+            :aria-label="t('settings.dialog.close')"
+            @click="emit('close')"
+          >
             <X :size="18" :stroke-width="1.75" aria-hidden="true" />
           </button>
         </AppTooltip>
       </header>
 
       <TabsRoot v-model="tab" class="tabs">
-        <TabsList class="tab-list" aria-label="设置分类">
+        <TabsList class="tab-list" :aria-label="t('settings.dialog.tabs')">
           <TabsTrigger
-            v-for="item in SETTINGS_TABS"
+            v-for="item in tabs"
             :key="item.id"
             :value="item.id"
             class="tab"
@@ -173,15 +184,17 @@ function onKeydown(event: KeyboardEvent) {
             :tauri-version="tauriVersion"
             :data-directory="dataDirectory"
             :copy-state="copyState"
+            :open-state="openState"
             @update:settings="(value: Partial<SystemSettings>) => emit('update:system', value)"
             @reset-layout="emit('reset-layout')"
             @copy-data-dir="emit('copy-data-dir')"
+            @open-data-dir="emit('open-data-dir')"
           />
         </TabsContent>
       </TabsRoot>
 
       <p class="footnote">
-        会话文件由 Pi 管理，SOXU 只读索引；本对话框不收集任何凭据。
+        {{ t("settings.dialog.footnote") }}
       </p>
     </div>
   </div>

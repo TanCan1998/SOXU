@@ -10,6 +10,10 @@
  * settings/catalog.ts 取，命令面板读的是同一份元数据。
  */
 
+import { computed } from "vue";
+
+import { useLocale } from "../../locales/index.ts";
+import { localizedOptions } from "../../settings/optionLabels.ts";
 import {
   ACCENT_OPTIONS,
   CODE_FONT_OPTIONS,
@@ -38,11 +42,32 @@ const emit = defineEmits<{
   (event: "update:appearance", value: Appearance): void;
 }>();
 
+const { t } = useLocale();
+
 /** 主题只有两档，顺序照原型（深色在前），默认跟随系统偏好由 App.vue 决定。 */
 const THEME_OPTIONS = [
   { value: "dark", label: "深色" },
   { value: "light", label: "浅色" },
 ] as const;
+
+/**
+ * 选项文案按当前语言解析（Issue #145）：数据表仍是唯一档位来源，
+ * 这里只把 label 换成语言包里的说法；缺 key 时回退表里的字面量。
+ */
+const themeOptions = computed(() => localizedOptions(THEME_OPTIONS, t, "settings.option.theme"));
+const accentOptions = computed(() => localizedOptions(ACCENT_OPTIONS, t, "settings.option.accent"));
+const fontSizeOptions = computed(() =>
+  localizedOptions(FONT_SIZE_OPTIONS, t, "settings.option.font.size"),
+);
+const fontFamilyOptions = computed(() =>
+  localizedOptions(FONT_FAMILY_OPTIONS, t, "settings.option.font.family"),
+);
+const codeFontOptions = computed(() =>
+  localizedOptions(CODE_FONT_OPTIONS, t, "settings.option.code.font"),
+);
+const contentWidthOptions = computed(() =>
+  localizedOptions(CONTENT_WIDTH_OPTIONS, t, "settings.option.content.width"),
+);
 
 function patch(next: Partial<Appearance>): void {
   emit("update:appearance", { ...props.appearance, ...next });
@@ -79,7 +104,7 @@ function onAccent(value: string): void {
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="theme"
-          :options="THEME_OPTIONS"
+          :options="themeOptions"
           :labelledby="labelId"
           @update:model-value="onTheme"
         />
@@ -90,7 +115,7 @@ function onAccent(value: string): void {
       <template #default="{ labelId }">
         <SettingsSwatches
           :model-value="appearance.accent"
-          :options="ACCENT_OPTIONS"
+          :options="accentOptions"
           :labelledby="labelId"
           @update:model-value="onAccent"
         />
@@ -101,7 +126,7 @@ function onAccent(value: string): void {
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="appearance.fontSize"
-          :options="FONT_SIZE_OPTIONS"
+          :options="fontSizeOptions"
           :labelledby="labelId"
           @update:model-value="onFontSize"
         />
@@ -112,13 +137,13 @@ function onAccent(value: string): void {
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="appearance.fontFamily"
-          :options="FONT_FAMILY_OPTIONS"
+          :options="fontFamilyOptions"
           :labelledby="labelId"
           @update:model-value="onFontFamily"
         />
       </template>
       <template #note>
-        「等宽」切换的是界面字体（侧栏、按钮、设置等）；代码块与工具输出始终等宽，会话正文不随这一项变化。
+        {{ t("settings.note.appearance.font.family") }}
       </template>
     </SettingsRow>
 
@@ -126,13 +151,13 @@ function onAccent(value: string): void {
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="appearance.codeFont"
-          :options="CODE_FONT_OPTIONS"
+          :options="codeFontOptions"
           :labelledby="labelId"
           @update:model-value="onCodeFont"
         />
       </template>
       <template #note>
-        后两档需要本机已安装对应字体；未安装时自动回退到系统等宽栈，不会出现空白字形。
+        {{ t("settings.note.appearance.code.font") }}
       </template>
     </SettingsRow>
 
@@ -140,13 +165,13 @@ function onAccent(value: string): void {
       <template #default="{ labelId }">
         <SettingsChoice
           :model-value="appearance.contentWidth"
-          :options="CONTENT_WIDTH_OPTIONS"
+          :options="contentWidthOptions"
           :labelledby="labelId"
           @update:model-value="onContentWidth"
         />
       </template>
       <template #note>
-        「固定 768」保持一行约 40–60 个汉字的阅读宽度；「自适应」随窗口与面板宽度铺开。
+        {{ t("settings.note.appearance.content.width") }}
       </template>
     </SettingsRow>
   </div>

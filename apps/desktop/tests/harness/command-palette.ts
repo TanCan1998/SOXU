@@ -3,12 +3,12 @@
  * 用来验证「输入 dk → ↑↓ 选择 → ↵ 执行」这条纯键盘路径在真实 DOM 里成立。
  *
  * 只在 pnpm dev 的本地开发服务器里使用，不参与生产构建，也不连接 Pi：
- * - 命令清单就是生产代码里的 COMMANDS（含由 settings/catalog.ts 生成的设置类命令）；
+ * - 命令清单就是生产代码里的 buildCommands(t)（含由 settings/catalog.ts 生成的设置类命令）；
  * - 动作实现只往 actionLog 里记一行，不打开真实面板、不写存储；
  * - 面板的开关、执行后关闭都与 App.vue 的 runCommand 同语义。
  */
 
-import { createApp, h, nextTick, ref } from "vue";
+import { computed, createApp, h, nextTick, ref } from "vue";
 import { TooltipProvider } from "reka-ui";
 
 import "../../src/styles/tokens.css";
@@ -16,7 +16,13 @@ import "../../src/styles/base.css";
 import CommandPalette from "../../src/components/CommandPalette.vue";
 import SettingsDialog from "../../src/components/SettingsDialog.vue";
 import { TOOLTIP_DELAY_MS, TOOLTIP_SKIP_DELAY_MS } from "../../src/components/tooltipConfig.ts";
-import { COMMANDS, commandContext, type CommandActions, type CommandEntry } from "../../src/commands/registry.ts";
+import {
+  buildCommands,
+  commandContext,
+  type CommandActions,
+  type CommandEntry,
+} from "../../src/commands/registry.ts";
+import { useLocale } from "../../src/locales/index.ts";
 import { DEFAULT_BUSY_DELIVERY } from "../../src/settings/busyDelivery.ts";
 import type { SettingsTabId } from "../../src/settings/catalog.ts";
 import { DEFAULT_SESSION_SETTINGS } from "../../src/settings/sessionSettings.ts";
@@ -26,6 +32,17 @@ import { DEFAULT_APPEARANCE } from "../../src/theme/appearance.ts";
 const paletteOpen = ref(true);
 const executed: string[] = [];
 const actionLog: string[] = [];
+
+/**
+ * 语言固定成简体中文（Issue #145）：命令标题来自语言包，默认语言取决于 navigator，
+ * 不钉住的话同一份脚本在中文机器与英文 CI 上会量到不同标题。
+ *
+ * 用 computed 而不是常量：setLocale 是异步的（社区包要走磁盘），
+ * 常量会在语言真正生效前就把标题定死；computed 让根组件在表变化后重渲染一次。
+ */
+const { t, setLocale } = useLocale();
+void setLocale("zh-CN", { persist: false });
+const commands = computed(() => buildCommands(t));
 
 /**
  * 设置弹窗的真实挂载状态（Issue #123 复审阻塞点 A 的证据来源）。
@@ -94,7 +111,7 @@ const Harness = {
             h("button", { id: "harness-trigger", type: "button" }, "打开命令面板"),
             paletteOpen.value
               ? h(CommandPalette, {
-                  commands: COMMANDS,
+                  commands: commands.value,
                   context,
                   onClose: () => {
                     paletteOpen.value = false;
@@ -115,6 +132,7 @@ const Harness = {
               tauriVersion: null,
               dataDirectory: "C:\\Users\\fixture\\AppData\\Roaming\\soxu.desktop",
               copyState: "idle",
+              openState: "idle",
               clearBlockedReason: null,
               initialTab: settingsTab.value,
               request: settingsRequest.value,
@@ -188,7 +206,7 @@ declare global {
 
 window.__soxuPalette = {
   state: readState,
-  commands: () => COMMANDS.map((command) => command.title),
+  commands: () => commands.value.map((command) => command.title),
   executed: () => ({ ids: [...executed], actions: [...actionLog] }),
   /**
    * 关掉再挂一次：面板是 v-if 挂上去的，query 存在组件内部，

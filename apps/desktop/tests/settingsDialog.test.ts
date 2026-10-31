@@ -42,7 +42,13 @@ import {
   MCP_SERVICE_ENTRIES,
   SKILL_ENTRIES,
 } from "../src/settings/extensions.ts";
-import { SETTINGS_TABS, settingsEntriesFor } from "../src/settings/catalog.ts";
+import {
+  SETTINGS_TABS,
+  settingsEntriesFor,
+  settingsEntry,
+  settingsEntryView,
+  settingsTabView,
+} from "../src/settings/catalog.ts";
 import { settingsOpenTransition } from "../src/settings/openRequest.ts";
 import { APP_IDENTIFIER, dataDirectoryHint } from "../src/settings/dataDirectory.ts";
 import { ACCENT_OPTIONS } from "../src/theme/appearance.ts";
@@ -50,6 +56,18 @@ import type { KeyValueStorage } from "../src/settings/storage.ts";
 
 const SRC_ROOT = fileURLToPath(new URL("../src", import.meta.url));
 const TAURI_ROOT = fileURLToPath(new URL("../src-tauri", import.meta.url));
+
+/**
+ * 设置页文案自 Issue #145 起在语言包里：断言「设置页显示什么」必须先钉住语言。
+ * 默认语言来自系统（CI 是 en-US、开发机多为 zh-CN），不钉住会让断言随机器漂移。
+ */
+const { t, setLocale } = useLocale();
+await setLocale("zh-CN", { persist: false });
+
+/** 某一页当前语言下的行标题，顺序即界面顺序。 */
+function entryLabels(tab: "appearance" | "session" | "system"): string[] {
+  return settingsEntriesFor(tab).map((entry) => settingsEntryView(entry, t).label);
+}
 
 class FakeStorage implements KeyValueStorage {
   readonly entries = new Map<string, string>();
@@ -218,14 +236,20 @@ test("扩展列表：12 个扩展、名字唯一、每条只有名字与用途",
     assert.ok(entry.name.length > 0);
     assert.ok(entry.description.length > 0, entry.name + " 需要一句用途说明");
     // 没有 enabled：真实开关状态还读不到，凭常量编一个就是假开关。
-    assert.deepEqual(Object.keys(entry).sort(), ["description", "name"]);
+    // id 是 Issue #145 加的：语言包 key 的片段，不是界面状态。
+    assert.deepEqual(Object.keys(entry).sort(), ["description", "id", "name"]);
   }
   assert.ok(SKILL_ENTRIES.length >= 3, "技能列表至少要有几项");
   assert.ok(MCP_SERVICE_ENTRIES.length >= 2, "MCP 服务列表至少要有几项");
   for (const entry of [...SKILL_ENTRIES, ...MCP_SERVICE_ENTRIES]) {
     // 文件数、工具数、连接状态都是本机实况，没有数据来源就不许渲染。
-    assert.deepEqual(Object.keys(entry).sort(), ["description", "name"]);
+    assert.deepEqual(Object.keys(entry).sort(), ["description", "id", "name"]);
   }
+  // id 必须唯一且能直接拼成语言包 key（小写点分段）。
+  const ids = [...EXTENSION_ENTRIES, ...SKILL_ENTRIES, ...MCP_SERVICE_ENTRIES].map(
+    (entry) => entry.id,
+  );
+  for (const id of ids) assert.match(id, /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)*$/u, id);
 });
 
 test("扩展页没有任何可点击的开关，也不写存储", async () => {
@@ -246,8 +270,16 @@ test("扩展页没有任何可点击的开关，也不写存储", async () => {
     "只读页不许写存储：否则会留下一个「看起来已保存」的假开关",
   );
   assert.ok(panel.includes("SettingsLocale"), "语言包区保留：它真的读写磁盘");
-  // 页面上如实说明这是查阅用清单，用户不会以为改了真实配置
-  assert.match(panel, /仅供查阅/);
+  // 页面上如实说明这是查阅用清单，用户不会以为改了真实配置。
+  // Issue #145 起这句话在语言包里，源码里只剩 key。
+  assert.ok(
+    panel.includes('t("settings.extensions.intro")'),
+    "扩展页的说明走语言包",
+  );
+  const zhSettings = JSON.parse(
+    await readFile(join(SRC_ROOT, "locales", "zh-CN", "settings.json"), "utf8"),
+  ) as Record<string, string>;
+  assert.match(zhSettings["extensions.intro"] ?? "", /仅供查阅/u, "基准包必须说明这是查阅用清单");
 });
 
 // ──────────────────────────────────────────────────────────────
@@ -380,14 +412,14 @@ test("设置弹窗：四个 tab，顺序与文案照原型，内容各自独立�
   // 四页的 id 与文案来自 settings/catalog.ts（Issue #123）：命令面板的设置类命令
   // 读的是同一份数据，因此这里先断言目录，再断言外壳确实用了它、没有第二份数组。
   assert.deepEqual(
-    SETTINGS_TABS.map((tab) => tab.label),
+    SETTINGS_TABS.map((tab) => settingsTabView(tab, t).label),
     ["外观", "会话", "扩展", "系统"],
     "四页顺序与原型一致",
   );
-  assert.ok(dialog.includes("SETTINGS_TABS"), "标签页数组来自 settings/catalog.ts");
+  assert.ok(dialog.includes("settingsTabs"), "标签页数组来自 settings/catalog.ts");
   assert.ok(
-    dialog.includes('v-for="item in SETTINGS_TABS"'),
-    "外壳 v-for 渲染目录，不再自己维护 TABS",
+    dialog.includes('v-for="item in tabs"'),
+    "外壳 v-for 渲染目录（settingsTabs(t)），不再自己维护 TABS",
   );
   assert.doesNotMatch(
     dialog,
@@ -463,7 +495,7 @@ test("外观页：主题/强调色/字号/字体/代码字体/宽度六项齐全
   const panel = await readSource("components/settings/SettingsAppearance.vue");
   const entries = settingsEntriesFor("appearance");
   assert.deepEqual(
-    entries.map((entry) => entry.label),
+    entryLabels("appearance"),
     ["主题", "强调色", "界面字号", "界面字体", "代码字体", "正文宽度"],
     "外观页六项的顺序与文案由 catalog.ts 决定",
   );
@@ -481,6 +513,8 @@ test("外观页：主题/强调色/字号/字体/代码字体/宽度六项齐全
   ]) {
     assert.ok(panel.includes(table), "选项表来自 theme/appearance.ts：" + table);
   }
+  // Issue #145：选项文案按当前语言解析，数据表仍是唯一档位来源。
+  assert.ok(panel.includes("localizedOptions"), "选项文案走语言包解析");
   // 每个事件都先用守卫收窄再冒泡：界面选不到 CSS 里不存在的档位
   for (const guard of [
     "isThemeName",
@@ -500,7 +534,7 @@ test("会话页：四个开关 + 思考强度 Select + 忙碌时发送 + 清空�
   const panel = await readSource("components/settings/SettingsSession.vue");
   const entries = settingsEntriesFor("session");
   assert.deepEqual(
-    entries.map((entry) => entry.label),
+    entryLabels("session"),
     [
       "发送后滚动",
       "Enter 发送",
@@ -520,6 +554,7 @@ test("会话页：四个开关 + 思考强度 Select + 忙碌时发送 + 清空�
   assert.ok(panel.includes("SelectRoot"), "默认思考强度用 reka Select");
   assert.ok(panel.includes("SelectPortal"), "下拉内容走 portal，不被弹窗裁切");
   assert.ok(panel.includes("THINKING_LEVEL_OPTIONS"), "三档来自 sessionSettings.ts");
+  assert.ok(panel.includes("localizedDescribedOptions"), "档位文案走语言包解析");
   assert.ok(panel.includes("isThinkingLevel"), "值先收窄再冒泡");
   // 清空会话：禁用原因由外层给，组件不自己猜
   assert.ok(panel.includes("clearBlockedReason"));
@@ -528,34 +563,37 @@ test("会话页：四个开关 + 思考强度 Select + 忙碌时发送 + 清空�
   assert.doesNotMatch(panel, /localStorage|persist[A-Z]/);
 });
 
-test("系统页：7 项齐全，未接入的能力如实说明而不是假装生效", async () => {
+test("系统页：5 项，两个开关真接线，更新入口整行移除", async () => {
   const panel = await readSource("components/settings/SettingsSystem.vue");
   const entries = settingsEntriesFor("system");
   assert.deepEqual(
-    entries.map((entry) => entry.label),
-    [
-      "自动更新",
-      "任务完成通知",
-      "关闭时最小化到托盘",
-      "检查更新",
-      "恢复默认布局",
-      "数据目录",
-      "关于",
-    ],
-    "系统页七项的顺序与文案由 catalog.ts 决定",
+    entryLabels("system"),
+    ["任务完成通知", "关闭时最小化到托盘", "恢复默认布局", "数据目录", "关于"],
+    "系统页五项的顺序与文案由 catalog.ts 决定",
   );
   for (const entry of entries) {
     assert.ok(panel.includes('setting="' + entry.id + '"'), "系统页缺少设置项：" + entry.id);
   }
   assert.doesNotMatch(panel, /<SettingsRow[^>]*\slabel=/, "SettingsRow 不接受 label 字面量");
-  // 三个开关都绑定到 setFlag，不是摆设
-  for (const key of ["autoUpdate", "notifyOnComplete", "minimizeToTray"]) {
+
+  // 两个开关都绑定到 setFlag，不是摆设
+  for (const key of ["notifyOnComplete", "minimizeToTray"]) {
     assert.ok(panel.includes("'" + key + "'"), "开关要真的写回：" + key);
   }
   assert.ok(panel.includes("emit('reset-layout')"), "重置按钮要向上冒泡");
   assert.ok(panel.includes("emit('copy-data-dir')"), "复制按钮要向上冒泡");
-  // 「检查更新」在后端能力缺失时必须是禁用状态，不能点了没反应
-  assert.match(panel, /<SettingsButton label="检查更新" disabled \/>/);
+  assert.ok(panel.includes("emit('open-data-dir')"), "打开数据目录按钮要向上冒泡");
+
+  // Issue #145：发布通道落地前，「自动更新」「检查更新」不出现（移除而不是禁用）。
+  // 只扫模板：注释里说明「为什么移除」是正常可追溯性，不是用户可见文案。
+  const template = panel.slice(panel.indexOf("<template>"));
+  assert.doesNotMatch(panel, /autoUpdate/, "自动更新开关在更新通道落地前不出现");
+  assert.doesNotMatch(template, /system\.updateCheck|updateCheck/u, "「检查更新」整行移除");
+  assert.doesNotMatch(template, /检查更新|自动更新/u, "模板里不得残留更新入口");
+  for (const id of ["system.autoUpdate", "system.updateCheck"]) {
+    assert.throws(() => settingsEntry(id), "catalog 里也不该再有这一项：" + id);
+  }
+
   // 关于：版本 + Tauri 版本 + 平台
   assert.ok(panel.includes("tauriVersion"));
   assert.ok(panel.includes("appVersion"));

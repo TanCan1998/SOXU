@@ -8,41 +8,55 @@
  * 页尾的「语言包」不同：它真的读写应用数据目录，所以单独一块。
  */
 
+import { useLocale } from "../../locales/index.ts";
 import {
   EXTENSION_ENTRIES,
   MCP_SERVICE_ENTRIES,
   SKILL_ENTRIES,
 } from "../../settings/extensions.ts";
+import { optionText } from "../../settings/optionLabels.ts";
 import SettingsLocale from "./SettingsLocale.vue";
+
+const { t } = useLocale();
+
+/**
+ * 条目用途说明按当前语言解析（Issue #145）：语言包优先，缺 key 回退数据表里的中文。
+ * 名字保持产品标识（Pi 扩展名 / MCP 服务名），不翻译。
+ */
+function describe(prefix: string, entry: { id: string; description: string }): string {
+  return optionText(t, prefix + entry.id + ".description", entry.description);
+}
 </script>
 
 <template>
   <div class="panel">
     <p class="intro" role="note">
-      以下为 SOXU 内置的扩展、技能与 MCP 服务说明，仅供查阅；实际加载哪些由 Pi 的配置决定。
+      {{ t("settings.extensions.intro") }}
     </p>
 
-    <p class="section-title">扩展 · {{ EXTENSION_ENTRIES.length }} 个</p>
-    <div v-for="entry in EXTENSION_ENTRIES" :key="entry.name" class="item">
+    <p class="section-title">
+      {{ t("settings.extensions.section.extensions", { count: EXTENSION_ENTRIES.length }) }}
+    </p>
+    <div v-for="entry in EXTENSION_ENTRIES" :key="entry.id" class="item">
       <div class="item-main">
         <p class="item-title">{{ entry.name }}</p>
-        <p class="item-desc">{{ entry.description }}</p>
+        <p class="item-desc">{{ describe("settings.extensions.extension.", entry) }}</p>
       </div>
     </div>
 
-    <p class="section-title">技能 · 按需加载</p>
-    <div v-for="entry in SKILL_ENTRIES" :key="entry.name" class="item">
+    <p class="section-title">{{ t("settings.extensions.section.skills") }}</p>
+    <div v-for="entry in SKILL_ENTRIES" :key="entry.id" class="item">
       <div class="item-main">
         <p class="item-title">{{ entry.name }}</p>
-        <p class="item-desc">{{ entry.description }}</p>
+        <p class="item-desc">{{ describe("settings.extensions.skill.", entry) }}</p>
       </div>
     </div>
 
-    <p class="section-title">MCP 服务</p>
-    <div v-for="entry in MCP_SERVICE_ENTRIES" :key="entry.name" class="item">
+    <p class="section-title">{{ t("settings.extensions.section.mcp") }}</p>
+    <div v-for="entry in MCP_SERVICE_ENTRIES" :key="entry.id" class="item">
       <div class="item-main">
         <p class="item-title">{{ entry.name }}</p>
-        <p class="item-desc">{{ entry.description }}</p>
+        <p class="item-desc">{{ describe("settings.extensions.mcp.", entry) }}</p>
       </div>
     </div>
 

@@ -78,10 +78,45 @@ fn hover_events_never_move_the_window() {
 }
 
 #[test]
-fn close_hides_only_when_the_tray_exists() {
-    assert_eq!(tray::close_action(true), CloseAction::HideToTray);
+fn close_hides_only_when_the_tray_exists_and_the_user_asked_for_it() {
+    assert_eq!(tray::close_action(true, true), CloseAction::HideToTray);
     // 托盘创建失败时隐藏会让窗口无法恢复，必须回落到默认关闭。
-    assert_eq!(tray::close_action(false), CloseAction::Default);
+    assert_eq!(tray::close_action(false, true), CloseAction::Default);
+    // Issue #145：「关闭时最小化到托盘」关掉后，点 × 就是要退出进程。
+    assert_eq!(tray::close_action(true, false), CloseAction::Default);
+    assert_eq!(tray::close_action(false, false), CloseAction::Default);
+}
+
+/// Issue #145：偏好是受管状态，默认值与前端 `DEFAULT_SYSTEM_SETTINGS` 一致。
+#[test]
+fn close_preference_defaults_to_minimizing_and_can_be_flipped() {
+    let preference = tray::ClosePreference::default();
+    assert!(
+        preference.minimize_to_tray(),
+        "默认必须与前端默认值一致：否则启动瞬间点 × 的行为与设置页显示的不符"
+    );
+    preference.set_minimize_to_tray(false);
+    assert!(!preference.minimize_to_tray());
+    preference.set_minimize_to_tray(true);
+    assert!(preference.minimize_to_tray());
+}
+
+/// 窗口事件必须真的读偏好，而不是永远隐藏。
+///
+/// 这条路径需要真实窗口宿主，无法在无显示器环境里跑；退一步做接线检查：
+/// 关闭分支要从受管状态取偏好，并把它交给 close_action 判定。
+#[test]
+fn window_event_reads_the_managed_preference() {
+    let source = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/src/tray.rs"))
+        .expect("读取 src/tray.rs");
+    assert!(
+        source.contains("try_state::<ClosePreference>()"),
+        "窗口事件必须从受管状态读偏好"
+    );
+    assert!(
+        source.contains("close_action(tray_present, minimize_to_tray)"),
+        "判定必须同时考虑托盘是否存在与用户偏好"
+    );
 }
 
 #[test]
@@ -134,7 +169,7 @@ fn hide_and_restore_paths_actually_switch_the_tooltip() {
         .find("window.hide()")
         .expect("隐藏分支必须调用 window.hide()");
     let hide_tooltip_at = source
-        .find("sync_tooltip(window.app_handle(), true)")
+        .find("sync_tooltip(app, true)")
         .expect("隐藏成功后必须把 tooltip 切到「已最小化到托盘」");
     assert!(
         hide_tooltip_at > hide_at,

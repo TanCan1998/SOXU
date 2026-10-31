@@ -20,6 +20,7 @@ import { useAppearance } from "../../src/composables/useAppearance.ts";
 import { useBusyDelivery } from "../../src/composables/useBusyDelivery.ts";
 import { useSessionSettings } from "../../src/composables/useSessionSettings.ts";
 import { useSystemSettings } from "../../src/composables/useSystemSettings.ts";
+import { useLocale } from "../../src/locales/index.ts";
 import { copyText } from "../../src/services/clipboard.ts";
 import { dataDirectoryHint } from "../../src/settings/dataDirectory.ts";
 import { applyDocumentTheme, persistTheme, type ThemeName } from "../../src/theme/theme.ts";
@@ -28,6 +29,11 @@ import { runThemeTransition } from "../../src/theme/themeTransition.ts";
 const { appearance, patchAppearance } = useAppearance();
 const { session, patchSession } = useSessionSettings();
 const { system, patchSystem } = useSystemSettings();
+/**
+ * 语言切换口（Issue #145）：设置页文案来自语言包，脚本据此验证「切 en-US 后全英文」。
+ * persist=false：夹具不应该把语言偏好写进 localStorage，否则「重启后保持」会串味。
+ */
+const locale = useLocale();
 const { busyDelivery, setBusyDelivery } = useBusyDelivery();
 
 /**
@@ -38,6 +44,14 @@ const { busyDelivery, setBusyDelivery } = useBusyDelivery();
 const theme = ref<ThemeName>(window.localStorage.getItem("soxu.theme") === "dark" ? "dark" : "light");
 const open = ref(false);
 const copyState = ref<"idle" | "copied" | "failed">("idle");
+/**
+ * 「打开数据目录」的结果回显（Issue #145）。
+ *
+ * 夹具里不真的调后端命令：脚本要验的是「按钮接到了真实动作、文案跟着结果变」，
+ * 真的打开资源管理器属于桌面端实机验收（见 docs/development/evidence/issue-145-product-i18n）。
+ */
+const openState = ref<"idle" | "opened" | "failed">("idle");
+const openDataDirCount = ref(0);
 const clearCount = ref(0);
 const resetCount = ref(0);
 const dataDirectory = dataDirectoryHint("windows");
@@ -105,6 +119,7 @@ const Harness = {
               tauriVersion: "2.12.5",
               dataDirectory,
               copyState: copyState.value,
+              openState: openState.value,
               clearBlockedReason: null,
               onClose: () => {
                 open.value = false;
@@ -123,6 +138,10 @@ const Harness = {
                 patchAppearance({ ...appearance.value, contentWidth: "fixed" });
               },
               onCopyDataDir: () => void copyDataDirectory(),
+              onOpenDataDir: () => {
+                openDataDirCount.value += 1;
+                openState.value = "opened";
+              },
             }),
           ]),
       },
@@ -141,6 +160,7 @@ declare global {
   interface Window {
     __soxu116?: {
       open: () => void;
+      setLocale: (tag: string) => void;
       read: () => unknown;
       clearCount: () => number;
       resetCount: () => number;
@@ -152,6 +172,9 @@ window.__soxu116 = {
   open: () => {
     open.value = true;
   },
+  setLocale: (tag: string) => {
+    void locale.setLocale(tag, { persist: false });
+  },
   clearCount: () => clearCount.value,
   resetCount: () => resetCount.value,
   read: () => ({
@@ -162,6 +185,8 @@ window.__soxu116 = {
     system: { ...system.value },
     busyDelivery: busyDelivery.value,
     copyState: copyState.value,
+    openState: openState.value,
+    openDataDirCount: openDataDirCount.value,
     dataset: { ...document.documentElement.dataset },
     accent: getComputedStyle(document.documentElement).getPropertyValue("--soxu-accent").trim(),
     /*
